@@ -1,4 +1,4 @@
-core/build/
+core/build/*
 .cache/
 .vscode/tasks.json
 odin/
