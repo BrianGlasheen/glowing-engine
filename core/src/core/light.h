@@ -37,18 +37,15 @@ public:
             generate_fbo(w, h);
     }
 
-    static Light create_directional(glm::vec3 dir, glm::vec3 col, float intens,
-        unsigned int w = 1024, unsigned int h = 1024) {
+    static Light create_directional(glm::vec3 dir, glm::vec3 col, float intens, unsigned int w = 1024, unsigned int h = 1024) {
         return Light(DIRECTIONAL, glm::vec3(0.0f), dir, col, intens, w, h);
     }
 
-    static Light create_point(glm::vec3 pos, glm::vec3 col, float intens,
-        unsigned int w = 1024, unsigned int h = 1024) {
+    static Light create_point(glm::vec3 pos, glm::vec3 col, float intens, unsigned int w = 1024, unsigned int h = 1024) {
         return Light(POINT, pos, glm::vec3(0.0f, -1.0f, 0.0f), col, intens, w, h);
     }
 
-    static Light create_spot(glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens,
-        float fov_in, float fov_out, unsigned int w = 1024, unsigned int h = 1024) {
+    static Light create_spot(glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens, float fov_in, float fov_out, unsigned int w = 1024, unsigned int h = 1024) {
         return Light(SPOT, pos, dir, col, intens, w, h, fov_in, fov_out);
     }
 
