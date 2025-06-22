@@ -40,7 +40,7 @@ int main() {
 
     Crosshair crosshair(1.0f, 6.0f, 10.0f, 10.0f, 1.0f, glm::vec3(1.0f, 0.5f, 1.0f));
     
-    Scene scene("star"); 
+    Scene scene("sky"); 
 
     //for (int i = -5; i < 5; i++) {
         //for (int j = 0; j < 10; j++) {
@@ -63,6 +63,10 @@ int main() {
 
     //Model_ass sphere2("../resources/models/sponza/scene.gltf");
     //Model_ass sphere2("../resources/models/link/scene.gltf");
+
+
+    //Entity sadasd23232323232332323("bistro", glm::vec3(0.0f), false, glm::vec3(0.025f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+    //scene.include(sadasd23232323232332323);
     
     model_handle plane = Model_manager::load_model("plane.obj", 0);
     glm::vec3 pos   = glm::vec3(0.0f, 0.0f, 0.0f); 
@@ -79,8 +83,8 @@ int main() {
     Entity e2323322("f22", glm::vec3(5.0f, 30.0f, 10.0f), true, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     scene.include(e2323322);
 
-    Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    scene.include(gsdgfsd);
+    //Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+    //scene.include(gsdgfsd);
 
     //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     //scene.include(fdfsdfsdfsdfsdf);
@@ -178,9 +182,20 @@ int main() {
         ImGui::SliderFloat("itensity", &renderer.spotlight.intensity, 0.0f, 10000.0f); // 1.0f;  
         ImGui::SliderFloat("FOV outer", &renderer.spotlight.outer_fov, 0.0f, 180.0f); // 1.0f;     
         ImGui::SliderFloat("FOV inner", &renderer.spotlight.inner_fov, 0.0f, 180.0f); // 1.0f;        
+        ImGui::Dummy(ImVec2(0.0f, 20.0f));
         ImGui::SliderFloat3("directional_light_direction", &renderer.directional_light.direction.x, -1.0f, 1.0f);
         ImGui::SliderFloat3("directional_light_color", &renderer.directional_light.color.x, -1.0f, 1.0f);
         ImGui::SliderFloat("directional_light_intensity", &renderer.directional_light.intensity, 0.0f, 2.0f);
+        ImGui::Dummy(ImVec2(0.0f, 20.0f));
+        ImGui::SliderFloat3("point_light_pos", &renderer.point_light.position.x, -15.0f, 15.0f);
+        ImGui::SliderFloat3("point_light_color", &renderer.point_light.color.x, 0.0f, 1.0f);
+        ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 1000.0f);
+        ImGui::SliderFloat("point light farplane", &renderer.penis, 0.0f, 50.0f);
+        ImGui::Dummy(ImVec2(0.0f, 20.0f));
+        ImGui::SliderFloat("amb light", &renderer.ambient_light, 0.0f, 1.0f);
+        ImGui::Dummy(ImVec2(0.0f, 20.0f));
+        ImGui::Checkbox("use alpha", &renderer.use_alpha_clipping);
+        ImGui::SliderFloat("alpha cutoff", &renderer.alpha_cutoff, 0.0, 1.0f);
         ImGui::End();
 
         //player.debug_hud();

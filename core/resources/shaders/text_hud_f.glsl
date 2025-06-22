@@ -13,9 +13,8 @@ void main() {
     vec3 msd = texture(msdfTexture, TexCoords).rgb;
     float sd = median(msd.r, msd.g, msd.b);
 
-    // Derivative-based smoothing
     float screenPxDistance = (sd - 0.5) / fwidth(sd);
     float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
-
+    
     color = vec4(opacity * textColor, opacity);
 }

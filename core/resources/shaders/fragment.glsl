@@ -9,9 +9,15 @@ in vec2 TexCoord;
 in vec3 Tangentout;
 in vec3 Bitangentout;
 
+uniform bool use_alpha_clipping; 
+uniform float alpha_cutoff;
+
+uniform float ambient_light;
+
 uniform vec3 point_light_position;
 uniform vec3 point_light_color;
 uniform float point_light_intensity;
+uniform float point_light_far_plane;
 
 uniform vec3 directional_light_direction;
 uniform vec3 directional_light_color;
@@ -34,6 +40,7 @@ uniform sampler2D normal;
 uniform sampler2D metallic_roughness;
 uniform sampler2D shadow_map; // spotlight
 uniform sampler2D directional_shadow_map;
+uniform samplerCube point_shadow_map;
 
 const float PI = 3.14159265359;
 
@@ -77,6 +84,49 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 }
 
 // todo point light shadow calc
+float PointShadowCalculationPCF(vec3 fragPos, vec3 lightPos, float farPlane) {
+    vec3 fragToLight = fragPos - lightPos;
+
+    fragToLight.x *= -1;
+    //fragToLight.y *= -1;
+    fragToLight.z *= -1;
+    
+    float currentDepth = length(fragToLight);
+    
+    float bias = 0.05;
+    float shadow = 0.0;
+    float samples = 4.0;
+    float offset = 0.01;
+    
+    for(float x = -offset; x < offset; x += offset / (samples * 0.5)) {
+        for(float y = -offset; y < offset; y += offset / (samples * 0.5)) {
+            for(float z = -offset; z < offset; z += offset / (samples * 0.5)) {
+                float closestDepth = texture(point_shadow_map, fragToLight + vec3(x, y, z)).r;
+                if(currentDepth - bias > closestDepth)
+                    shadow += 1.0;
+            }
+        }
+    }
+    shadow /= (samples * samples * samples);
+    
+    return shadow;
+}
+
+float PointShadowCalculation(vec3 fragPos, vec3 lightPos, float farPlane) {
+    vec3 fragToLight = fragPos - lightPos;
+    
+    fragToLight.x *= -1;
+    //fragToLight.y *= -1;
+    fragToLight.z *= -1;
+    
+    float currentDepth = length(fragToLight);
+    float closestDepth = texture(point_shadow_map, normalize(fragToLight)).r;
+    
+    float bias = 0.1;
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    
+    return shadow;
+}
 
 float SpotShadowCalculation(vec4 fragPosLightSpace) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -85,11 +135,19 @@ float SpotShadowCalculation(vec4 fragPosLightSpace) {
     if(projCoords.z > 1.0)
         return 0.0;
     
-    float closestDepth = texture(shadow_map, projCoords.xy).r;
     float currentDepth = projCoords.z;
-    
     float bias = 0.005;
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    
+    // PCF
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadow_map, 0);
+    for(int x = -1; x <= 1; ++x) {
+        for(int y = -1; y <= 1; ++y) {
+            float pcfDepth = texture(shadow_map, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
     
     return shadow;
 }
@@ -101,11 +159,19 @@ float DirectionalShadowCalculation(vec4 fragPosLightSpace) {
     if(projCoords.z > 1.0)
         return 0.0;
     
-    float closestDepth = texture(directional_shadow_map, projCoords.xy).r;
     float currentDepth = projCoords.z;
-    
     float bias = 0.005;
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    
+    // PCF
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(directional_shadow_map, 0);
+    for(int x = -1; x <= 1; ++x) {
+        for(int y = -1; y <= 1; ++y) {
+            float pcfDepth = texture(directional_shadow_map, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
     
     return shadow;
 }
@@ -136,9 +202,13 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
     float attenuation = point_light_intensity / (distance * distance);
     vec3 radiance = point_light_color * attenuation;
     
-    return CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
+    vec3 lighting = CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
+    
+    //float shadow = PointShadowCalculationPCF(FragPos, point_light_position, point_light_far_plane);
+    float shadow = PointShadowCalculation(FragPos, point_light_position, point_light_far_plane);
+    
+    return lighting * (1.0 - shadow);
 }
-
 vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness) {
     vec3 L = normalize(-directional_light_direction); // Light direction points towards the light
     vec3 radiance = directional_light_color * directional_light_intensity;
@@ -173,6 +243,15 @@ void main() {
 //    FragColor = vec4(texture(diffuse, TexCoord).rgb, 1.0);
 //    return ;
 
+    vec4 diffuseSample = texture(diffuse, TexCoord);
+    vec3 albedo = diffuseSample.rgb;
+    float alpha = diffuseSample.a;
+    
+    if (use_alpha_clipping && alpha < alpha_cutoff) {
+        discard;
+    }
+
+
     vec3 N = normalize(Normal);
     if (has_normal) {
         vec3 normalMap = texture(normal, TexCoord).rgb;
@@ -185,7 +264,6 @@ void main() {
         N = normalize(TBN * normalMap);
     }
     
-    vec3 albedo = texture(diffuse, TexCoord).rgb;
     float metallic = 0.0;
     float roughness = 0.5;
     
@@ -204,13 +282,11 @@ void main() {
     
     vec3 Lo = vec3(0.0);
     
-    // Add point light contribution
-    //Lo += CalculatePointLight(N, V, F0, albedo, metallic, roughness);
+    Lo += CalculatePointLight(N, V, F0, albedo, metallic, roughness);
     Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness);
     Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness);
-    
-    vec3 ambient = vec3(0.0001) * albedo;
-    
+
+    vec3 ambient = vec3(ambient_light) * albedo;
     vec3 color = ambient + Lo;
     
     // HDR tonemapping and gamma correction
