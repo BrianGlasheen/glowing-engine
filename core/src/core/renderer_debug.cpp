@@ -216,6 +216,52 @@ void Renderer_debug::add_obb(const Util::OBB obb, const glm::vec3& color) {
     add_line(obb.corners[3], obb.corners[7], color); // +x+y to max
 }
 
+void Renderer_debug::draw_frustum(const glm::vec3 cameraPos, const glm::vec3 cameraDir, const glm::vec3 cameraUp, float fov, float aspect, float near, float far) {
+    glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
+    glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
+
+    // Calculate plane dimensions
+    float nearHeight = 2.0f * tan(fov / 2.0f) * near;
+    float nearWidth = nearHeight * aspect;
+    float farHeight = 2.0f * tan(fov / 2.0f) * far;
+    float farWidth = farHeight * aspect;
+
+    glm::vec3 nearCenter = cameraPos + cameraDir * near;
+    glm::vec3 farCenter = cameraPos + cameraDir * far;
+
+    glm::vec3 corners[8];
+
+    // near
+    corners[0] = nearCenter - right * (nearWidth * 0.5f) - up * (nearHeight * 0.5f); // bottom-left
+    corners[1] = nearCenter + right * (nearWidth * 0.5f) - up * (nearHeight * 0.5f); // bottom-right
+    corners[2] = nearCenter + right * (nearWidth * 0.5f) + up * (nearHeight * 0.5f); // top-right
+    corners[3] = nearCenter - right * (nearWidth * 0.5f) + up * (nearHeight * 0.5f); // top-left
+
+    // far
+    corners[4] = farCenter - right * (farWidth * 0.5f) - up * (farHeight * 0.5f); // bottom-left
+    corners[5] = farCenter + right * (farWidth * 0.5f) - up * (farHeight * 0.5f); // bottom-right
+    corners[6] = farCenter + right * (farWidth * 0.5f) + up * (farHeight * 0.5f); // top-right
+    corners[7] = farCenter - right * (farWidth * 0.5f) + up * (farHeight * 0.5f); // top-left
+
+    // near plane
+    add_line(corners[0], corners[1], glm::vec3(1.0f, 0.0f, 0.0f)); // bottom
+    add_line(corners[1], corners[2], glm::vec3(1.0f, 0.0f, 0.0f)); // right
+    add_line(corners[2], corners[3], glm::vec3(1.0f, 0.0f, 0.0f)); // top
+    add_line(corners[3], corners[0], glm::vec3(1.0f, 0.0f, 0.0f)); // left
+
+    // far plane
+    add_line(corners[4], corners[5], glm::vec3(1.0f, 0.0f, 0.0f)); // bottom
+    add_line(corners[5], corners[6], glm::vec3(1.0f, 0.0f, 0.0f)); // right
+    add_line(corners[6], corners[7], glm::vec3(1.0f, 0.0f, 0.0f)); // top
+    add_line(corners[7], corners[4], glm::vec3(1.0f, 0.0f, 0.0f)); // left
+
+    // connecting lines
+    add_line(corners[0], corners[4], glm::vec3(1.0f, 0.0f, 0.0f)); // bottom-left
+    add_line(corners[1], corners[5], glm::vec3(1.0f, 0.0f, 0.0f)); // bottom-right
+    add_line(corners[2], corners[6], glm::vec3(1.0f, 0.0f, 0.0f)); // top-right
+    add_line(corners[3], corners[7], glm::vec3(1.0f, 0.0f, 0.0f)); // top-left
+}
+
 void Renderer_debug::render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view) {
     if (!lines.empty()) {
         // Build a CPU buffer of vertices: for each line, we have two points, each with (pos + color)

@@ -22,6 +22,6 @@ namespace Model_manager {
 
     size_t get_model_count();
     std::string get_name(const model_handle& model_id);
-    Util::aabb get_aabb(const model_handle& model_id);
+    Util::AABB get_aabb(const model_handle& model_id);
 }
 #endif

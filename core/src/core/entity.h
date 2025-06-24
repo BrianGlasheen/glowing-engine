@@ -62,7 +62,7 @@ public:
     void draw(const Shader* shader, bool shadow_pass = false);
     bool collides(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
     glm::vec3 get_physics_position();
-    Util::aabb get_aabb();
+    Util::AABB get_aabb();
 
 // private:
     Model_ass* model;
@@ -75,7 +75,7 @@ public:
     float max_ttl;
     glm::quat rotation;
 
-    Util::aabb aabb;
+    Util::AABB aabb;
     JPH::BodyID physics_id;
 
 };

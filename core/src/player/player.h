@@ -21,6 +21,8 @@ public:
     float PLAYER_HEIGHT = 1.8f;
 
     Camera camera;
+    Camera debug_camera;
+    bool out_of_body = false;
 
     std::unordered_map<ControllerType, std::unique_ptr<Controller>> controllers;
     Controller* controller;
@@ -45,7 +47,7 @@ public:
 
     // Model_ass wep;
 
-    Player() : camera(glm::vec3(0.0f, PLAYER_HEIGHT, 0.0f)), controller() {
+    Player() : camera(glm::vec3(0.0f, PLAYER_HEIGHT, 0.0f)), debug_camera(glm::vec3(0.0f, PLAYER_HEIGHT, 0.0f)), controller() {
         controllers[ControllerType::FPS] = std::make_unique<Controller_fps>();
         controllers[ControllerType::THIRDPERSON] = std::make_unique<Controller_thirdperson>();
         //controllers[ControllerType::PLANE] = std::make_unique<Controller_plane>();
@@ -59,8 +61,13 @@ public:
 
     void controller_step(GLFWwindow* window, float deltaTime, Scene& scene) {
         poll_player(window, scene);
-        controller->process_input(window, deltaTime, scene, camera, model_yaw);
-        controller->update_camera(camera, crouched, PLAYER_HEIGHT);
+        if (out_of_body) {
+            controller->process_input(window, deltaTime, scene, debug_camera, model_yaw);
+            //controller->update_camera(camera, crouched, PLAYER_HEIGHT);
+        }
+        else {
+            controller->process_input(window, deltaTime, scene, camera, model_yaw);
+        }
 
         // yanked from process input function of player controller, todo refactor ?
         Weapon* current_weapon = active_weapon;
@@ -132,8 +139,11 @@ public:
 
 
     void mouse_callback(GLFWwindow* window, double xpos, double ypos) { // need these guys to pass camera
-        if (!key_toggles[(unsigned)'q'])
+        //if (!key_toggles[(unsigned)'q'])
+        if (!out_of_body && !key_toggles[(unsigned)'q'])
             controller->mouse_callback(window, camera, xpos, ypos, model_yaw);
+        else // out of body
+            controller->mouse_callback(window, debug_camera, xpos, ypos, model_yaw);
     }
     
     void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
@@ -144,6 +154,30 @@ public:
         key_toggles[key] = !key_toggles[key]; // set this key in our player key toggles
         process_player_toggles(window); // run through local stuff based on these keytoggles
         controller->char_callback(window, key); // set controller key toggles
+
+        if (key == 'b')
+            out_of_body = !out_of_body;
+    }
+
+    float get_camera_zoom() {
+        if (out_of_body)
+            return debug_camera.zoom;
+        else
+            return camera.zoom;
+    }
+
+    glm::mat4 get_view_matrix() {
+        if (out_of_body)
+            return debug_camera.get_view_matrix();
+        else
+            return camera.get_view_matrix();
+    }
+
+    glm::vec3 get_view_position() {
+        if (out_of_body)
+            return camera.position;
+        else
+            return debug_camera.position;
     }
 
 private:

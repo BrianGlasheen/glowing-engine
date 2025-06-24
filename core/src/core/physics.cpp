@@ -356,26 +356,21 @@ namespace Physics {
     }
 
 
-    Util::aabb getShapeBounds(JPH::BodyID id) { // todo maybe noit right
+    Util::AABB getWorldAABB(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
 
-        // Get the shape from the body
         RefConst<Shape> shape = body_interface.GetShape(id);
+        RVec3 position = body_interface.GetPosition(id);
+        Quat rotation = body_interface.GetRotation(id);
 
-        // Get the local bounding box of the shape
-        AABox local_bounds = shape->GetLocalBounds();
+        AABox world_bounds = shape->GetWorldSpaceBounds(Mat44::sRotationTranslation(rotation, position), Vec3::sReplicate(1.0f));
 
-        // Convert to glm vectors
-        glm::vec3 min_bounds(local_bounds.mMin.GetX(), local_bounds.mMin.GetY(), local_bounds.mMin.GetZ());
-        glm::vec3 max_bounds(local_bounds.mMax.GetX(), local_bounds.mMax.GetY(), local_bounds.mMax.GetZ());
+        glm::vec3 min_bounds(world_bounds.mMin.GetX(), world_bounds.mMin.GetY(), world_bounds.mMin.GetZ());
+        glm::vec3 max_bounds(world_bounds.mMax.GetX(), world_bounds.mMax.GetY(), world_bounds.mMax.GetZ());
 
-        return Util::aabb{ min_bounds, max_bounds };
+        return Util::AABB{ min_bounds, max_bounds };
     }
 
-    //void setBodyVelocity(JPH::BodyID id, const glm::vec3& vel) {
-    //    BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
-    //    body_interface.SetLinearVelocity(id, Vec3(vel.x, vel.y, vel.z));
-    //}
     Util::OBB getShapeOBB(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
 

@@ -99,11 +99,11 @@ int main() {
     //scale = glm::vec3(0.1f);
     //Entity e5555(gdfhgsd, pos, false, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     //scene.include(e5555);
-    model_handle car232323 = Model_manager::load_model("911-2");
+   /* model_handle car232323 = Model_manager::load_model("911-2");
     pos = glm::vec3(-3.0f, 0.0f, -3.0f);
     scale = glm::vec3(1.0f);
     Entity e5(car232323, pos, true, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    scene.include(e5);
+    scene.include(e5);*/
 
 
     // Setup Dear ImGui context

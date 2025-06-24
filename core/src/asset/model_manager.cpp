@@ -97,8 +97,8 @@ namespace Model_manager {
         return names[model_id];
     }
 
-    Util::aabb get_aabb(const model_handle& model_id) {
-        Util::aabb aabb{ models[model_id].aabb_min, models[model_id].aabb_max };
+    Util::AABB get_aabb(const model_handle& model_id) {
+        Util::AABB aabb{ models[model_id].aabb_min, models[model_id].aabb_max };
         return aabb;
     }
 }

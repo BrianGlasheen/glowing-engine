@@ -1,180 +1,72 @@
-// #include <glm/glm.hpp>
-// #include <array>
+#pragma once
 
-// // #include "physics.h"
+#include <cmath>
 
-// enum FrustumPlane {
-//     LEFT = 0,
-//     RIGHT,
-//     BOTTOM,
-//     TOP,
-//     NEAR,
-//     FAR,
-//     COUNT
-// };
+#include <glm/glm.hpp>
 
-// // Frustum class for culling
-// class Frustum {
-// public:
-//     struct Plane {
-//         glm::vec3 normal;
-//         float distance;
+namespace Util {
 
-//         Plane() : normal(0.0f), distance(0.0f) {}
+    struct Plane {
+        glm::vec3 normal;
+        float distance;
 
-//         void set(const glm::vec3& n, const glm::vec3& point) {
-//             normal = glm::normalize(n);
-//             distance = -glm::dot(normal, point);
-//         }
+        Plane() = default;
+        Plane(const glm::vec3& n, float d) : normal(n), distance(d) {}
 
-//         void set(const glm::vec3& n, float d) {
-//             normal = glm::normalize(n);
-//             distance = d;
-//         }
+        // Calculate signed distance from point to plane
+        float distanceToPoint(const glm::vec3& point) const {
+            return glm::dot(normal, point) + distance;
+        }
+    };
 
-//         float getSignedDistance(const glm::vec3& point) const {
-//             return glm::dot(normal, point) + distance;
-//         }
-//     };
+    struct Frustum {
+        Plane planes[6]; // left, right, bottom, top, near, far
 
-//     std::array<Plane, FrustumPlane::COUNT> planes;
+        Frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir,
+            const glm::vec3& cameraUp, float fov, float aspect, float near, float far) {
 
-//     Frustum() = default;
+            glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
+            glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
 
-//     // Extract frustum planes from combined view-projection matrix
-//     void update(const glm::mat4& viewProjection) {
-//         // Left plane
-//         planes[LEFT].normal.x = viewProjection[0][3] + viewProjection[0][0];
-//         planes[LEFT].normal.y = viewProjection[1][3] + viewProjection[1][0];
-//         planes[LEFT].normal.z = viewProjection[2][3] + viewProjection[2][0];
-//         planes[LEFT].distance = viewProjection[3][3] + viewProjection[3][0];
-        
-//         // Right plane
-//         planes[RIGHT].normal.x = viewProjection[0][3] - viewProjection[0][0];
-//         planes[RIGHT].normal.y = viewProjection[1][3] - viewProjection[1][0];
-//         planes[RIGHT].normal.z = viewProjection[2][3] - viewProjection[2][0];
-//         planes[RIGHT].distance = viewProjection[3][3] - viewProjection[3][0];
-        
-//         // Bottom plane
-//         planes[BOTTOM].normal.x = viewProjection[0][3] + viewProjection[0][1];
-//         planes[BOTTOM].normal.y = viewProjection[1][3] + viewProjection[1][1];
-//         planes[BOTTOM].normal.z = viewProjection[2][3] + viewProjection[2][1];
-//         planes[BOTTOM].distance = viewProjection[3][3] + viewProjection[3][1];
-        
-//         // Top plane
-//         planes[TOP].normal.x = viewProjection[0][3] - viewProjection[0][1];
-//         planes[TOP].normal.y = viewProjection[1][3] - viewProjection[1][1];
-//         planes[TOP].normal.z = viewProjection[2][3] - viewProjection[2][1];
-//         planes[TOP].distance = viewProjection[3][3] - viewProjection[3][1];
-        
-//         // Near plane
-//         planes[NEAR].normal.x = viewProjection[0][3] + viewProjection[0][2];
-//         planes[NEAR].normal.y = viewProjection[1][3] + viewProjection[1][2];
-//         planes[NEAR].normal.z = viewProjection[2][3] + viewProjection[2][2];
-//         planes[NEAR].distance = viewProjection[3][3] + viewProjection[3][2];
-        
-//         // Far plane
-//         planes[FAR].normal.x = viewProjection[0][3] - viewProjection[0][2];
-//         planes[FAR].normal.y = viewProjection[1][3] - viewProjection[1][2];
-//         planes[FAR].normal.z = viewProjection[2][3] - viewProjection[2][2];
-//         planes[FAR].distance = viewProjection[3][3] - viewProjection[3][2];
+            float halfVSide = far * tanf(fov * 0.5f);
+            float halfHSide = halfVSide * aspect;
+            glm::vec3 frontMultFar = far * cameraDir;
 
-//         // Normalize all planes
-//         for (auto& plane : planes) {
-//             float invLength = 1.0f / glm::length(plane.normal);
-//             plane.normal *= invLength;
-//             plane.distance *= invLength;
-//         }
-//     }
+            // Near and far planes
+            planes[4] = Plane(cameraDir, -glm::dot(cameraDir, cameraPos + near * cameraDir)); // near
+            planes[5] = Plane(-cameraDir, glm::dot(cameraDir, cameraPos + frontMultFar)); // far
 
-//     // Manually build frustum from camera parameters
-//     void buildFrustum(const glm::vec3& position, const glm::vec3& front, 
-//                      const glm::vec3& up, const glm::vec3& right,
-//                      float nearDist, float farDist, float fovY, float aspectRatio) {
-//         // Calculate frustum corners
-//         float tanHalfFovY = tanf(glm::radians(fovY) * 0.5f);
-//         float tanHalfFovX = tanHalfFovY * aspectRatio;
-        
-//         // Get frustum points
-//         glm::vec3 nearCenter = position + front * nearDist;
-//         glm::vec3 farCenter = position + front * farDist;
-        
-//         float nearHeight = 2.0f * tanHalfFovY * nearDist;
-//         float nearWidth = nearHeight * aspectRatio;
-//         float farHeight = 2.0f * tanHalfFovY * farDist;
-//         float farWidth = farHeight * aspectRatio;
-        
-//         glm::vec3 nearTopLeft = nearCenter + up * (nearHeight * 0.5f) - right * (nearWidth * 0.5f);
-//         glm::vec3 nearTopRight = nearCenter + up * (nearHeight * 0.5f) + right * (nearWidth * 0.5f);
-//         glm::vec3 nearBottomLeft = nearCenter - up * (nearHeight * 0.5f) - right * (nearWidth * 0.5f);
-//         glm::vec3 nearBottomRight = nearCenter - up * (nearHeight * 0.5f) + right * (nearWidth * 0.5f);
-        
-//         glm::vec3 farTopLeft = farCenter + up * (farHeight * 0.5f) - right * (farWidth * 0.5f);
-//         glm::vec3 farTopRight = farCenter + up * (farHeight * 0.5f) + right * (farWidth * 0.5f);
-//         glm::vec3 farBottomLeft = farCenter - up * (farHeight * 0.5f) - right * (farWidth * 0.5f);
-//         glm::vec3 farBottomRight = farCenter - up * (farHeight * 0.5f) + right * (farWidth * 0.5f);
-        
-//         // Set frustum planes
-//         planes[NEAR].set(-front, nearCenter);
-//         planes[FAR].set(front, farCenter);
-        
-//         planes[LEFT].set(glm::cross(farBottomLeft - nearBottomLeft, farTopLeft - nearBottomLeft), nearBottomLeft);
-//         planes[RIGHT].set(glm::cross(farTopRight - nearTopRight, farBottomRight - nearTopRight), nearTopRight);
-//         planes[TOP].set(glm::cross(farTopLeft - nearTopLeft, farTopRight - nearTopLeft), nearTopLeft);
-//         planes[BOTTOM].set(glm::cross(farBottomRight - nearBottomRight, farBottomLeft - nearBottomRight), nearBottomRight);
-//     }
+            // Left plane
+            glm::vec3 leftNormal = glm::normalize(glm::cross(frontMultFar - right * halfHSide, up));
+            planes[0] = Plane(leftNormal, -glm::dot(leftNormal, cameraPos));
 
-//     // Check if a point is inside the frustum
-//     bool isPointInside(const glm::vec3& point) const {
-//         for (const auto& plane : planes) {
-//             if (plane.getSignedDistance(point) < 0.0f) {
-//                 return false;
-//             }
-//         }
-//         return true;
-//     }
+            // Right plane
+            glm::vec3 rightNormal = glm::normalize(glm::cross(up, frontMultFar + right * halfHSide));
+            planes[1] = Plane(rightNormal, -glm::dot(rightNormal, cameraPos));
 
-//     // bool isSphereInside(const Bounding_sphere& sphere) const {
-//     //     for (const auto& plane : planes) {
-//     //         float distance = plane.getSignedDistance(sphere.center);
-//     //         if (distance < -sphere.radius) {
-//     //             return false; // Completely outside
-//     //         }
-//     //     }
-//     //     return true; // Inside or intersecting
-//     // }
+            // Bottom plane
+            glm::vec3 bottomNormal = glm::normalize(glm::cross(right, frontMultFar - up * halfVSide));
+            planes[2] = Plane(bottomNormal, -glm::dot(bottomNormal, cameraPos));
 
-//     // Check if an AABB is inside or intersects the frustum
-//     // bool isAABBInside(const AABB& aabb) const {
-//     //     for (const auto& plane : planes) {
-//     //         // Find the positive vertex (furthest in direction of normal)
-//     //         glm::vec3 positiveVertex = aabb.min;
-//     //         if (plane.normal.x >= 0.0f) positiveVertex.x = aabb.max.x;
-//     //         if (plane.normal.y >= 0.0f) positiveVertex.y = aabb.max.y;
-//     //         if (plane.normal.z >= 0.0f) positiveVertex.z = aabb.max.z;
-            
-//     //         // If positive vertex is outside, whole AABB is outside
-//     //         if (plane.getSignedDistance(positiveVertex) < 0.0f) {
-//     //             return false;
-//     //         }
-//     //     }
-//     //     return true;
-//     // }
+            // Top plane
+            glm::vec3 topNormal = glm::normalize(glm::cross(frontMultFar + up * halfVSide, right));
+            planes[3] = Plane(topNormal, -glm::dot(topNormal, cameraPos));
+        }
 
-//     // Check if AABB is completely inside frustum
-//     bool isAABBFullyInside(const AABB& aabb) const {
-//         for (const auto& plane : planes) {
-//             // Find the negative vertex (furthest in opposite direction of normal)
-//             glm::vec3 negativeVertex = aabb.max;
-//             if (plane.normal.x >= 0.0f) negativeVertex.x = aabb.min.x;
-//             if (plane.normal.y >= 0.0f) negativeVertex.y = aabb.min.y;
-//             if (plane.normal.z >= 0.0f) negativeVertex.z = aabb.min.z;
-            
-//             // If negative vertex is outside, AABB is not fully inside
-//             if (plane.getSignedDistance(negativeVertex) < 0.0f) {
-//                 return false;
-//             }
-//         }
-//         return true;
-//     }
-// };
+        bool intersectsAABB(const glm::vec3& min, const glm::vec3& max) const {
+            for (int i = 0; i < 6; i++) {
+                // Get the positive vertex (farthest in plane normal direction)
+                glm::vec3 positiveVertex;
+                positiveVertex.x = (planes[i].normal.x >= 0) ? max.x : min.x;
+                positiveVertex.y = (planes[i].normal.y >= 0) ? max.y : min.y;
+                positiveVertex.z = (planes[i].normal.z >= 0) ? max.z : min.z;
+
+                // If positive vertex is outside this plane, AABB is completely outside frustum
+                if (planes[i].distanceToPoint(positiveVertex) < 0) {
+                    return false;
+                }
+            }
+            return true; // AABB intersects or is inside frustum
+        }
+    };
+}

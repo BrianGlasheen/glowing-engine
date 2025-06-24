@@ -128,6 +128,6 @@ glm::vec3 Entity::get_physics_position() {
     return Physics::getBodyPosition(physics_id);
 }
 
-Util::aabb Entity::get_aabb() {
-    return Physics::getShapeBounds(physics_id);
-}
+//Util::aabb Entity::get_aabb() {
+//    return Physics::getShapeBounds(physics_id);
+//}

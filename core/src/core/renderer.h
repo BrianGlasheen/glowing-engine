@@ -22,6 +22,7 @@
 #include "asset/text.h"
 #include "player/player.h"
 #include "util/decompose.h"
+#include "util/frustum.h"
 
 const float FAR_PLANE = 500.0f;
 
@@ -579,33 +580,67 @@ public:
         shader->setFloat("ambient_light", ambient_light);
         /////
 
-        // Setup camera matrices
-        glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+
+        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
         shader->setMat4("projection", projection);
         
-        glm::mat4 view = player.camera.get_view_matrix();
+        glm::mat4 view = player.get_view_matrix();
         shader->setMat4("view", view);
-        shader->setVec3("view_position", player.camera.position);
-        
+        shader->setVec3("view_position", player.get_view_position());
+
+        if (player.out_of_body) {
+            debug_renderer.add_sphere(player.camera.position, 1.0f, glm::vec3(1.0f));
+            debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+        }
+
+        Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+        int count = 0;
         for (Entity& entity : scene.entities) {
-            // Calculate and set transformation matrices
-            glm::mat4 model = entity.get_model_matrix();
-            shader->setMat4("model", model);
+            Util::AABB box;
+            if (entity.physics_enabled) {
+                box = Physics::getWorldAABB(entity.physics_id);
+                if (frustum.intersectsAABB(box.min, box.max)) {
+                    count++;
+                    // Calculate and set transformation matrices
+                    glm::mat4 model = entity.get_model_matrix();
+                    shader->setMat4("model", model);
+
+                    // Calculate normal matrix (inverse transpose of the model matrix)
+                    glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                    shader->setMat3("normal_matrix", normal_matrix);
+
+                    // Draw the entity
+                    entity.draw(shader);
+                }
+            }
+            else {
+                count++;
+                // Calculate and set transformation matrices
+                glm::mat4 model = entity.get_model_matrix();
+                shader->setMat4("model", model);
+
+                // Calculate normal matrix (inverse transpose of the model matrix)
+                glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
+                shader->setMat3("normal_matrix", normal_matrix);
+
+                // Draw the entity
+                entity.draw(shader);
+            }
             
-            // Calculate normal matrix (inverse transpose of the model matrix)
-            glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-            shader->setMat3("normal_matrix", normal_matrix);
-            
-            // Draw the entity
-            entity.draw(shader);
             
             /////////////////////////////////////////////////////////////////////////////////////////////////
             //debug_renderer.add_axes(entity.get_physics_position(), entity.rotation);
             if (entity.physics_enabled) {
-                Util::OBB collision_box = Physics::getShapeOBB(entity.physics_id);
-                debug_renderer.add_obb(collision_box, glm::vec3(0.0f, 1.0f, 0.0f)); // Green for physics collision box
+                if (player.out_of_body) {
+                    debug_renderer.add_bbox(box.min, box.max, glm::vec3(0.0f, 0.0f, 1.0f));
+                }
+                else {
+                    Util::OBB collision_box = Physics::getShapeOBB(entity.physics_id);
+                    debug_renderer.add_obb(collision_box, glm::vec3(0.0f, 1.0f, 0.0f)); // Green for physics collision box
+                }
             }
         }
+        printf("drawing %d entities\n", count);
         
         render_skybox(scene.skybox, view, projection);
 
@@ -744,9 +779,9 @@ public:
     
     void render_debug(Player& player) {
         Shader* shader = Shader_manager::get_shader(debug_shader);
-        glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
         shader->setMat4("projection", projection);
-        glm::mat4 view = player.camera.get_view_matrix();
+        glm::mat4 view = player.get_view_matrix();
         shader->setMat4("view", view);
 
         if (editor_mode) {
