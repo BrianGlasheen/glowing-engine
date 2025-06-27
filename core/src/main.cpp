@@ -15,25 +15,20 @@
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
 
-// settings
-const unsigned int SCR_WIDTH = 1800;
-const unsigned int SCR_HEIGHT = 900;
-
 float delta_time = 0.0f;
-float lastFrame = 0.0f;
+float last_frame = 0.0f;
 
-int main() {
-
+int main() 
+{
     Renderer renderer;
-    if (!renderer.init(SCR_WIDTH, SCR_HEIGHT, "GLOW", false)) {
+    if (!renderer.init(1600, 900, "GLOW", false))
         return -1;
-    };
     
     Audio::init();
     Physics::init();
 
-    //Texture_manager::init();
-    Model_manager::init("../resources/models/");
+    //Texture_Manager::init();
+    Model_Manager::init("../resources/models/");
 
     Player player;
     renderer.sync_callbacks(player);
@@ -42,69 +37,44 @@ int main() {
     
     Scene scene("sky"); 
 
-    //for (int i = -5; i < 5; i++) {
-        //for (int j = 0; j < 10; j++) {
-    ////         // int k = 1;
-    ////         int j = 1;
-    ////         for (int k = 0; k < 10; k++) {
-                //glm::vec3 pos   = glm::vec3(6.0f * i, j * 6.0f + 1, -6.0f * j); 
-                //glm::vec3 scale = glm::vec3(1.0f);
-                //glm::vec3 color = glm::vec3(0.1f * i, 0.1f * j, 0.1f * j);
-    //            if ((i + j) % 2) {
-    //                Entity e(&sphere, pos, true, scale, color);
-    //                scene.include(e);
-    //            } else {
-                    //Entity e(&sphere2, pos, true, scale, color, 1.0f, glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-                    //scene.include(e);
-    //            }
-            //}
-        //}
-     //}
-
-    //Model_ass sphere2("../resources/models/sponza/scene.gltf");
-    //Model_ass sphere2("../resources/models/link/scene.gltf");
-
-
-    //Entity sadasd23232323232332323("bistro", glm::vec3(0.0f), false, glm::vec3(0.025f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    //scene.include(sadasd23232323232332323);
-    
-    model_handle plane = Model_manager::load_model("plane.obj", 0);
-    glm::vec3 pos   = glm::vec3(0.0f, 0.0f, 0.0f); 
+    model_handle plane = Model_Manager::load_model("plane.obj", 0);
+    glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::vec3 scale = glm::vec3(50.0f, 1.0f, 50.0f);
-    Entity e(plane, pos, false, scale);
+    Entity e(pos, rot, scale, plane, false);
     scene.include(e);
 
-    //model_handle cube = Model_manager::load_model("cube.obj", 0);
-    //pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    //scale = glm::vec3(1.0f);
-    //Entity e233333(cube, pos, true, scale);
-    //scene.include(e233333);
+    //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
+    //scene.include(e233232332);
 
-    Entity e2323322("f22", glm::vec3(5.0f, 30.0f, 10.0f), true, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+    Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
     scene.include(e2323322);
 
-    //Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    //scene.include(gsdgfsd);
-
-    //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    //scene.include(fdfsdfsdfsdfsdf);
-
-    for (int i = 0; i < 10; i++) {
-        Entity dsadasdasdasda("die", glm::vec3(0.0f, 1.05f + i, -5.0f), true, glm::vec3(0.003f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+    for (int j = 0; j < 10; j++) {
+        Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
         scene.include(dsadasdasdasda);
     }
 
-    //model_handle gdfhgsd = Model_manager::load_model("sponza");
-    //pos = glm::vec3(0.0f);
-    //scale = glm::vec3(0.1f);
-    //Entity e5555(gdfhgsd, pos, false, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    //scene.include(e5555);
-   /* model_handle car232323 = Model_manager::load_model("911-2");
-    pos = glm::vec3(-3.0f, 0.0f, -3.0f);
-    scale = glm::vec3(1.0f);
-    Entity e5(car232323, pos, true, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    scene.include(e5);*/
+    {
+        //model_handle gdfhgsd = Model_Manager::load_model("sponza");
+        //pos = glm::vec3(0.0f);
+        //scale = glm::vec3(0.1f);
+        //Entity e5555(gdfhgsd, pos, false, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        //scene.include(e5555);
+       /* model_handle car232323 = Model_Manager::load_model("911-2");
+        pos = glm::vec3(-3.0f, 0.0f, -3.0f);
+        scale = glm::vec3(1.0f);
+        Entity e5(car232323, pos, true, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        scene.include(e5);*/
+        //Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        //scene.include(gsdgfsd);
 
+        //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        //scene.include(fdfsdfsdfsdfsdf);
+
+          //Entity sadasd23232323232332323("bistro", glm::vec3(0.0f), false, glm::vec3(0.025f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+         //scene.include(sadasd23232323232332323);
+    }
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -116,32 +86,32 @@ int main() {
     Font font("tx02");
     Text fpscounter(font, "999", 0, 1, 50.0f, glm::vec3(0.5f, 0.2f, 0.7f));
     Font daysl8r("28DaysLater");
-    Text weapon_ammo_text(daysl8r, "200", SCR_WIDTH - 175, 50, 50.0f, glm::vec3(1.0f, 1.0f, 0.7f));
-    Text reserve_ammo_text(daysl8r, "9999", SCR_WIDTH - 100, 50, 50.0f, glm::vec3(0.5f, 0.5f, 0.35f));
+    Text weapon_ammo_text(daysl8r, "200", 1600 - 175, 50, 50.0f, glm::vec3(1.0f, 1.0f, 0.7f));
+    Text reserve_ammo_text(daysl8r, "9999", 1600 - 100, 50, 50.0f, glm::vec3(0.5f, 0.5f, 0.35f));
 
     float debug_size = 20.0f;
     //Text player_position(font, "position: (1.00, 1.00, 1.00)", 1, SCR_HEIGHT - debug_size, debug_size, glm::vec3(1.0f));
     //Text player_facing(font, "facing: (1.00, 1.00, 1.00)", 1, SCR_HEIGHT - (debug_size * 2), debug_size, glm::vec3(1.0f));
-    Text player_holding(font, "holding: weaponweapon", 1, SCR_HEIGHT - (debug_size * 3), debug_size, glm::vec3(1.0f));
+    Text player_holding(font, "holding: weaponweapon", 1, 900 - (debug_size * 3), debug_size, glm::vec3(1.0f));
     //Text screen_text2(font2, "LET ME OUTTTTT", 0, 700, 200.0f, glm::vec3(1.0f, 0.1f, 0.1f));
     /*Font font3("jianjianti");
     Text screen_text3(font3, u8"我爱你", 600, 200, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));
     Text screen_text4(font3, "hello world!?", 800, 300, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));*/
 
     // ground 
-    JPH::BodyID ground = Physics::addBox(glm::vec3(0.0f, -0.5f, 0.0f), glm::vec3(100.0f, 1.0f, 100.0f), true);
+    JPH::BodyID ground = Physics::add_box(glm::vec3(0.0f, -0.5f, 0.0f), glm::vec3(100.0f, 1.0f, 100.0f), true);
     Physics::optimize_broad_phase();
 
     // render loop
-    unsigned int step = 0;
+    uint32_t frame = 0;
     printf("RENDERING\n");
     while (renderer.open()) {
         float currentFrame = renderer.get_time();
 
-        delta_time = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        delta_time = currentFrame - last_frame;
+        last_frame = currentFrame;
 
-        if (!(step++ % 30)) {
+        if (!(frame++ % 10)) {
             fpscounter.updateText(std::to_string((int)(1.0f / delta_time)));
             weapon_ammo_text.updateText(std::to_string(player.active_weapon->current_ammo));
             reserve_ammo_text.updateText(std::to_string(player.active_weapon->reserve_ammo));
@@ -222,8 +192,8 @@ int main() {
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    //Model_manager::cleanup();
-    Texture_manager::cleanup();
+    //Model_Manager::cleanup();
+    Texture_Manager::cleanup();
     Physics::shutdown();
     renderer.shutdown();
     return 0;

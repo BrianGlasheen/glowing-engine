@@ -16,7 +16,7 @@
 #include "scene.h"
 #include "light.h"
 #include "asset/shader.h"
-#include "asset/model_ass.h"
+#include "asset/model.h"
 #include "asset/crosshair.h"
 #include "asset/shader_manager.h"
 #include "asset/text.h"
@@ -44,8 +44,8 @@ camera_dir camera_directions[] = {
 // point light shadow mapping
 
 
-enum ortho_view {
-    TOP_DOWN,
+enum class ortho_view {
+    TOP_DOWN = 0,
     FRONT,
     SIDE,
     SCENE
@@ -104,7 +104,7 @@ struct ortho_view_data {
         , is_panning(false)
         , last_mouse_pos(0.0f, 0.0f)
         , is_zooming(false)
-        , gizmo_mode(NONE)
+        , gizmo_mode(gizmo_modes::NONE)
         , show_grid(true)
         , grid_size(1.0f)
         , grid_color(0.3f, 0.3f, 0.3f)
@@ -248,8 +248,8 @@ public:
         scr_height = height;
 
         glfwInit();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         window = glfwCreateWindow(width, height, title, NULL, NULL);
@@ -258,7 +258,7 @@ public:
             glfwTerminate();
             return false;
         } else {
-            std::cout << "GLFW window created successfully" << std::endl;
+            std::cout << "~~~ cool quote here ~~~" << std::endl;
         }
 
         glfwMakeContextCurrent(window); // idk
@@ -273,7 +273,7 @@ public:
             return false;
         }
 
-        Texture_manager::init();
+        Texture_Manager::init();
 
         // TODO MOVE TO TO WINDOW CLASS MAYBE EDITOR WINDOW TOO
         // make viewports
@@ -293,14 +293,15 @@ public:
         point_light = Light::create_point(glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
 
         // SHADERS
-        Shader_manager::init("../resources/shaders/");
+        Shader_Manager::init("../resources/shaders/");
 
-        pbr_shader = Shader_manager::load_from_paths("pbr", "vertex.glsl", "fragment.glsl");
-        skybox_shader = Shader_manager::load_from_name("skybox");
-        debug_shader = Shader_manager::load_from_name("debug");
-        editor_shader = Shader_manager::load_from_name("editor");
-        shadow_map_shader = Shader_manager::load_from_name("shadow_map");
-        point_shadow_map_shader = Shader_manager::load_from_name("shadow_map_point");
+        pbr_shader = Shader_Manager::load_from_paths("pbr", "vertex.glsl", "fragment.glsl");
+        skybox_shader = Shader_Manager::load_from_name("skybox");
+        debug_shader = Shader_Manager::load_from_name("debug");
+        editor_shader = Shader_Manager::load_from_name("editor");
+        shadow_map_shader = Shader_Manager::load_from_name("shadow_map");
+        point_shadow_map_shader = Shader_Manager::load_from_name("shadow_map_point");
+        hud_text_shader = Shader_Manager::load_from_name("text_hud");
         //debug_shader.init("../resources/shaders/debug_v.glsl", "../resources/shaders/debug_f.glsl");
         
         //setup_buffers(); // defferd g buffer setup
@@ -308,9 +309,8 @@ public:
         //deferred_lighting_shader.init("../resources/shaders/deferred_light_v.glsl", "../resources/shaders/deferred_light_f.glsl");
         //debug_gbuffer_shader.init("../resources/shaders/deferred_light_v.glsl", "../resources/shaders/deferred_lighting_debug_f.glsl");
 
-        crosshair_shader = Shader_manager::load_from_name("crosshair");
+        crosshair_shader = Shader_Manager::load_from_name("crosshair");
 
-        hud_text_shader.init("../resources/shaders/text_hud_v.glsl", "../resources/shaders/text_hud_f.glsl");
         //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
 
         debug_renderer.init();
@@ -319,7 +319,7 @@ public:
     }
 
     void sync_callbacks(Player& player) {
-        current_player = &player; // Store pointer to the active Player instance
+        current_player = &player;
 
         //glfwSetWindowUserPointer(window, &player);
         glfwSetCursorPosCallback(window, Renderer::static_mouse_callback);
@@ -359,11 +359,11 @@ public:
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, g_albedo_specular, 0);
         
         // Tell OpenGL which color attachments we'll use for rendering
-        unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+        GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
         glDrawBuffers(3, attachments);
         
         // Create and attach depth buffer
-        unsigned int rboDepth;
+        GLuint rboDepth;
         glGenRenderbuffers(1, &rboDepth);
         glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, scr_width, scr_height);
@@ -378,8 +378,7 @@ public:
         // Unbind framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-        unsigned int quadVBO;
+        GLuint quadVBO;
         glGenVertexArrays(1, &quadVAO);
         glGenBuffers(1, &quadVBO);
         
@@ -406,50 +405,59 @@ public:
         return true;
     }
 
-    //void draw_player_model(Player& player, Model_ass& player_model) {
-    //    Shader* shader = Shader_manager::get_shader(pbr_shader);
+    //void draw_player_model(Player& player, Model& player_model) {
+    //    Shader* shader = Shader_Manager::get_shader(pbr_shader);
     //    shader->use();
 
-    //    shader->setVec3("lightPos", glm::vec3(2.0f, 2.0f, 2.0f));
-    //    shader->setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+    //    shader->set_vec3("lightPos", glm::vec3(2.0f, 2.0f, 2.0f));
+    //    shader->set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
 
-    //    shader->setVec3("viewPos", player.camera.position);
+    //    shader->set_vec3("viewPos", player.camera.position);
 
     //    glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-    //    shader->setMat4("projection", projection);
+    //    shader->set_mat4("projection", projection);
     //    glm::mat4 view = player.camera.get_view_matrix();
-    //    shader->setMat4("view", view);
+    //    shader->set_mat4("view", view);
 
     //    glm::mat4 model = player.get_model_matrix();
-    //    shader->setMat4("model", model);
+    //    shader->set_mat4("model", model);
     //
-    //    shader->setVec3("objectColor", glm::vec3(0.0f, 0.5f, 0.0f));
+    //    shader->set_vec3("objectColor", glm::vec3(0.0f, 0.5f, 0.0f));
     //
     //    player_model.draw(shader);
     //}
 
-    void shadow_pass(Scene& scene) {
+    void shadow_pass(Scene& scene, const Player& player) {
         spotlight.bind_fbo_write();
         glEnable(GL_DEPTH_TEST);
         glClear(GL_DEPTH_BUFFER_BIT);
 
         // use shadow shader
-        Shader* shader = Shader_manager::get_shader(shadow_map_shader);
+        Shader* shader = Shader_Manager::get_shader(shadow_map_shader);
         shader->use();
         glm::mat4 projection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
-        shader->setMat4("projection", projection);
+        if (player.key_toggles['l'])
+            debug_renderer.draw_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
+
+        shader->set_mat4("projection", projection);
         glm::mat4 view = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-        shader->setMat4("view", view);
-        
+        shader->set_mat4("view", view);
+
+        Util::Frustum frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
         // frusutm cull objects + check move?
         for (Entity& entity : scene.entities) {
-            glm::mat4 model = entity.get_model_matrix();
-            shader->setMat4("model", model);
+            if (entity.physics_enabled) {
+                Util::AABB box = Physics::get_world_AABB(entity.physics_id);
+                if (frustum.intersectsAABB(box.min, box.max)) {
+                    glm::mat4 model = entity.get_model_matrix();
+                    shader->set_mat4("model", model);
 
-            bool shadow_pass = true;
-            entity.draw(shader, shadow_pass);
+                    bool shadow_pass = true;
+                    entity.draw(shader, shadow_pass);
+
+                }
+            }
         }
-
         // dir light, maybe scene BB
         directional_light.bind_fbo_write();
         glEnable(GL_DEPTH_TEST);
@@ -460,14 +468,14 @@ public:
         glm::vec3 scene_center = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 light_pos = scene_center - directional_light.direction * light_distance;
         glm::mat4 dir_projection = glm::ortho(-scene_size, scene_size, -scene_size, scene_size, 0.1f, 150.0f);
-        shader->setMat4("projection", dir_projection);
+        shader->set_mat4("projection", dir_projection);
         glm::mat4 dir_view = glm::lookAt(light_pos, light_pos + directional_light.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-        shader->setMat4("view", dir_view);
+        shader->set_mat4("view", dir_view);
 
         // frusutm cull objects + check move?
         for (Entity& entity : scene.entities) {
             glm::mat4 model = entity.get_model_matrix();
-            shader->setMat4("model", model);
+            shader->set_mat4("model", model);
 
             bool shadow_pass = true;
             entity.draw(shader, shadow_pass);
@@ -476,34 +484,46 @@ public:
         // point light shadow mapping
         // frustum culling stuff
 
-        shader = Shader_manager::get_shader(point_shadow_map_shader);
+        shader = Shader_Manager::get_shader(point_shadow_map_shader);
         shader->use();
 
         glEnable(GL_DEPTH_TEST);
         glClearColor(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
 
         projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, penis);
-        shader->setMat4("projection", projection);
+        shader->set_mat4("projection", projection);
 
-        shader->setVec3("point_light_position", point_light.position);
-        //shader->setFloat("point_light_far_plane", 25.0f);
+        shader->set_vec3("point_light_position", point_light.position);
+        //shader->set_float("point_light_far_plane", 25.0f);
 
-        for (unsigned int i = 0; i < 6; i++) {
+        for (size_t i = 0; i < 6; i++) {
             point_light.bind_cubemap_face_write(camera_directions[i].face);
             glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
             glm::vec3 target = point_light.position + camera_directions[i].direction;
             view = glm::lookAt(point_light.position, target, camera_directions[i].up);
-            shader->setMat4("view", view);
+            shader->set_mat4("view", view);
 
+            if (player.key_toggles['l'])
+                debug_renderer.draw_frustum(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, 0.01f, penis);
+
+            Util::Frustum frustum2(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, 0.01f, penis);
+            
             for (Entity& entity : scene.entities) {
-                glm::mat4 model = entity.get_model_matrix();
-                shader->setMat4("model", model);
+                if (entity.physics_enabled) {
+                    Util::AABB box = Physics::get_world_AABB(entity.physics_id);
+                    if (frustum2.intersectsAABB(box.min, box.max)) {
 
-                bool shadow_pass = true;
-                entity.draw(shader, shadow_pass);
+                        glm::mat4 model = entity.get_model_matrix();
+                        shader->set_mat4("model", model);
+
+                        bool shadow_pass = true;
+                        entity.draw(shader, shadow_pass);
+                    }
+                }
             }
         }
+
     }
 
     void render(Player& player, Scene& scene, float delta_time) {
@@ -512,7 +532,7 @@ public:
             render_scene_editor(player, scene, delta_time);
         }
         else {
-            shadow_pass(scene);
+            shadow_pass(scene, player);
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, scr_width, scr_height);
@@ -526,67 +546,67 @@ public:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //Shader used_shader = toon;
-        Shader* shader = Shader_manager::get_shader(pbr_shader);
+        Shader* shader = Shader_Manager::get_shader(pbr_shader);
         shader->use();
 
-        shader->setBool("use_alpha_clipping", use_alpha_clipping);
-        shader->setFloat("alpha_cutoff", alpha_cutoff);
+        shader->set_bool("use_alpha_clipping", use_alpha_clipping);
+        shader->set_float("alpha_cutoff", alpha_cutoff);
 
         // spotlight
         spotlight.bind_fbo_read(3);
-        shader->setInt("shadow_map", 3);
+        shader->set_int("shadow_map", 3);
         glm::mat4 lprojection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
-        shader->setMat4("light_projection", lprojection);
+        shader->set_mat4("light_projection", lprojection);
         glm::mat4 lview = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-        shader->setMat4("light_view", lview);
+        shader->set_mat4("light_view", lview);
 
-        shader->setVec3("spot_light_position", spotlight.position);
-        shader->setVec3("spot_light_direction", spotlight.direction);
-        shader->setVec3("spot_light_color", spotlight.color);
-        shader->setFloat("spot_light_intensity", spotlight.intensity);
-        shader->setFloat("spot_light_inner_cone", glm::cos(glm::radians(spotlight.inner_fov)));
-        shader->setFloat("spot_light_outer_cone", glm::cos(glm::radians(spotlight.outer_fov)));
+        shader->set_vec3("spot_light_position", spotlight.position);
+        shader->set_vec3("spot_light_direction", spotlight.direction);
+        shader->set_vec3("spot_light_color", spotlight.color);
+        shader->set_float("spot_light_intensity", spotlight.intensity);
+        shader->set_float("spot_light_inner_cone", glm::cos(glm::radians(spotlight.inner_fov)));
+        shader->set_float("spot_light_outer_cone", glm::cos(glm::radians(spotlight.outer_fov)));
         debug_renderer.add_sphere(spotlight.position, 0.1f, spotlight.color);
         debug_renderer.add_line(spotlight.position, spotlight.position + spotlight.direction, spotlight.color);
 
         // dir light
         directional_light.bind_fbo_read(4);
-        shader->setInt("directional_shadow_map", 4);
+        shader->set_int("directional_shadow_map", 4);
         float scene_size = 50.0f;
         float light_distance = 50.0f;
         glm::vec3 scene_center = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 light_pos = scene_center - directional_light.direction * light_distance;
         glm::mat4 dir_projection = glm::ortho(-scene_size, scene_size, -scene_size, scene_size, 0.1f, 150.0f);
-        shader->setMat4("dir_light_projection", dir_projection);
+        shader->set_mat4("dir_light_projection", dir_projection);
         glm::mat4 dir_view = glm::lookAt(light_pos, light_pos + directional_light.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-        shader->setMat4("dir_light_view", dir_view);
+        shader->set_mat4("dir_light_view", dir_view);
 
-        shader->setVec3("directional_light_direction", directional_light.direction);
-        shader->setVec3("directional_light_color", directional_light.color);
-        shader->setFloat("directional_light_intensity", directional_light.intensity);
+        shader->set_vec3("directional_light_direction", directional_light.direction);
+        shader->set_vec3("directional_light_color", directional_light.color);
+        shader->set_float("directional_light_intensity", directional_light.intensity);
         debug_renderer.add_line(glm::vec3(0.0f, 10.f, 0.0f), glm::vec3(0.0f, 10.f, 0.0f) + directional_light.direction, spotlight.color);
         ///////////
 
-        shader->setVec3("point_light_position", point_light.position);
-        shader->setVec3("point_light_color", point_light.color);
-        shader->setFloat("point_light_intensity", point_light.intensity);
-        shader->setFloat("point_light_far_plane", 50.0f);
+        shader->set_vec3("point_light_position", point_light.position);
+        shader->set_vec3("point_light_color", point_light.color);
+        shader->set_float("point_light_intensity", point_light.intensity);
+        shader->set_float("point_light_far_plane", 50.0f);
         debug_renderer.add_sphere(point_light.position, 0.1f, glm::vec3(1.0f));
 
         point_light.bind_fbo_read(5);
-        shader->setInt("point_shadow_map", 5);
+        shader->set_int("point_shadow_map", 5);
 
 
-        shader->setFloat("ambient_light", ambient_light);
+        shader->set_float("ambient_light", ambient_light);
         /////
 
 
         glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
-        shader->setMat4("projection", projection);
+        shader->set_mat4("projection", projection);
         
         glm::mat4 view = player.get_view_matrix();
-        shader->setMat4("view", view);
-        shader->setVec3("view_position", player.get_view_position());
+        shader->set_mat4("view", view);
+        shader->set_vec3("view_position", player.get_view_position());
 
         if (player.out_of_body) {
             debug_renderer.add_sphere(player.camera.position, 1.0f, glm::vec3(1.0f));
@@ -598,32 +618,28 @@ public:
         for (Entity& entity : scene.entities) {
             Util::AABB box;
             if (entity.physics_enabled) {
-                box = Physics::getWorldAABB(entity.physics_id);
+                box = Physics::get_world_AABB(entity.physics_id);
                 if (frustum.intersectsAABB(box.min, box.max)) {
                     count++;
-                    // Calculate and set transformation matrices
+
                     glm::mat4 model = entity.get_model_matrix();
-                    shader->setMat4("model", model);
+                    shader->set_mat4("model", model);
 
-                    // Calculate normal matrix (inverse transpose of the model matrix)
                     glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-                    shader->setMat3("normal_matrix", normal_matrix);
+                    shader->set_mat3("normal_matrix", normal_matrix);
 
-                    // Draw the entity
                     entity.draw(shader);
                 }
             }
             else {
                 count++;
-                // Calculate and set transformation matrices
+
                 glm::mat4 model = entity.get_model_matrix();
-                shader->setMat4("model", model);
+                shader->set_mat4("model", model);
 
-                // Calculate normal matrix (inverse transpose of the model matrix)
                 glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-                shader->setMat3("normal_matrix", normal_matrix);
+                shader->set_mat3("normal_matrix", normal_matrix);
 
-                // Draw the entity
                 entity.draw(shader);
             }
             
@@ -635,12 +651,12 @@ public:
                     debug_renderer.add_bbox(box.min, box.max, glm::vec3(0.0f, 0.0f, 1.0f));
                 }
                 else {
-                    Util::OBB collision_box = Physics::getShapeOBB(entity.physics_id);
+                    Util::OBB collision_box = Physics::get_world_OBB(entity.physics_id);
                     debug_renderer.add_obb(collision_box, glm::vec3(0.0f, 1.0f, 0.0f)); // Green for physics collision box
                 }
             }
         }
-        printf("drawing %d entities\n", count);
+        //printf("drawing %d entities\n", count);
         
         render_skybox(scene.skybox, view, projection);
 
@@ -648,7 +664,7 @@ public:
     }
 
     void render_scene_ortho(Player& player, Scene& scene, float deltaTime, const ortho_view_data& view_data) {
-        Shader* shader = Shader_manager::get_shader(editor_shader);
+        Shader* shader = Shader_Manager::get_shader(editor_shader);
         shader->use();
 
         int half_width = scr_width / 2;
@@ -663,7 +679,7 @@ public:
             0.1f, FAR_PLANE                                         // near, far
         );
 
-        shader->setMat4("projection", projection);
+        shader->set_mat4("projection", projection);
 
         glm::vec3 target_pos = view_data.get_target_position();
         glm::vec3 view_camera_pos = target_pos + view_data.get_camera_position();
@@ -671,20 +687,20 @@ public:
 
         glm::mat4 view = glm::lookAt(view_camera_pos, target_pos, up_vector);
 
-        shader->setMat4("view", view);
-        //used_shader.setVec3("view_position", view_camera_pos);
+        shader->set_mat4("view", view);
+        //used_shader.set_vec3("view_position", view_camera_pos);
         
         for (Entity& entity : scene.entities) {
             glm::mat4 model = entity.get_model_matrix();
-            shader->setMat4("model", model);
+            shader->set_mat4("model", model);
 
             glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-            shader->setMat3("normal_matrix", normal_matrix);
+            shader->set_mat3("normal_matrix", normal_matrix);
 
             entity.draw(shader);
 
  /*           if (entity.physics_enabled) {
-                Util::OBB collision_box = Physics::getShapeOBB(entity.physics_id);
+                Util::OBB collision_box = Physics::get_world_OBB(entity.physics_id);
                 debug_renderer.add_obb(collision_box, glm::vec3(0.0f, 1.0f, 0.0f));
             }*/
         }
@@ -770,19 +786,19 @@ public:
                 glm::vec3 position, scale, rotation;
                 Util::decompose(model, position, scale, rotation);
 
-                Physics::setBodyPosition(scene.entities[target_entity].physics_id, position);
-                Physics::setBodyRotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
+                Physics::set_body_position(scene.entities[target_entity].physics_id, position);
+                Physics::set_body_rotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
             }
             ImGui::End();
         }
     }
     
     void render_debug(Player& player) {
-        Shader* shader = Shader_manager::get_shader(debug_shader);
+        Shader* shader = Shader_Manager::get_shader(debug_shader);
         glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-        shader->setMat4("projection", projection);
+        shader->set_mat4("projection", projection);
         glm::mat4 view = player.get_view_matrix();
-        shader->setMat4("view", view);
+        shader->set_mat4("view", view);
 
         if (editor_mode) {
             int half_width = scr_width / 2;
@@ -808,17 +824,17 @@ public:
 
     //    // Use deferred geometry shader for G-buffer pass
     //    deferred_shader.use();
-    //    deferred_shader.setMat4("projection", projection);
-    //    deferred_shader.setMat4("view", view);
+    //    deferred_shader.set_mat4("projection", projection);
+    //    deferred_shader.set_mat4("view", view);
 
     //    // Render scene entities to G-buffer
     //    for (Entity& entity : scene.entities) {
     //        glm::mat4 model = entity.get_model_matrix();
-    //        deferred_shader.setMat4("model", model);
+    //        deferred_shader.set_mat4("model", model);
     //        
     //        // Calculate normal matrix (inverse transpose of the model matrix)
     //        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-    //        deferred_shader.setMat3("normal_matrix", normal_matrix);
+    //        deferred_shader.set_mat3("normal_matrix", normal_matrix);
     //        
     //        entity.draw(deferred_shader);
     //    }
@@ -840,14 +856,14 @@ public:
     //    glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
 
     //    // Set lighting uniforms
-    //    deferred_lighting_shader.setVec3("viewPos", player.camera.position);
+    //    deferred_lighting_shader.set_vec3("viewPos", player.camera.position);
     //    
     //    // Set light parameters
-    //    deferred_lighting_shader.setVec3("light.Position", light.position);
-    //    deferred_lighting_shader.setVec3("light.Color", light.color);
-    //    deferred_lighting_shader.setFloat("light.Linear", 0.09f);
-    //    deferred_lighting_shader.setFloat("light.Quadratic", 0.032f);
-    //    deferred_lighting_shader.setFloat("light.Intensity", light.intensity);
+    //    deferred_lighting_shader.set_vec3("light.Position", light.position);
+    //    deferred_lighting_shader.set_vec3("light.Color", light.color);
+    //    deferred_lighting_shader.set_float("light.Linear", 0.09f);
+    //    deferred_lighting_shader.set_float("light.Quadratic", 0.032f);
+    //    deferred_lighting_shader.set_float("light.Intensity", light.intensity);
 
     //    // glUniform1i(glGetUniformLocation(deferred_lighting_shader.ID, "debug_mode"), 999);
 
@@ -888,7 +904,7 @@ public:
     //    static int current_mode = 0;
     //
     //    for (int i = 0; i < 4; ++i) {
-    //        debug_gbuffer_shader.setInt("debug_mode", i);
+    //        debug_gbuffer_shader.set_int("debug_mode", i);
     //
     //        int x = (i % 2) * (scr_width / 2);
     //        int y = (i / 2) * (scr_height / 2);
@@ -909,11 +925,11 @@ public:
     //    weapon_shader2.use();
     //    
     //    glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-    //    weapon_shader2.setMat4("projection", projection);
+    //    weapon_shader2.set_mat4("projection", projection);
     //    
     //    glm::mat4 fullView = player.camera.get_view_matrix();
     //    glm::mat4 rotationOnlyView = glm::mat4(glm::mat3(fullView));
-    //    weapon_shader2.setMat4("view", rotationOnlyView);
+    //    weapon_shader2.set_mat4("view", rotationOnlyView);
     //    
 
     //    // REPLACE FROM HERE -------------------------------------------------------------
@@ -924,8 +940,8 @@ public:
     //    model = glm::rotate(model, glm::radians(player.camera.pitch), glm::vec3(1.0f, 0.0f, 0.0f));
     //    
     //    model = glm::translate(model, player.controller->get_weapon_position());
-    //    weapon_shader2.setMat4("model", model);
-    //    weapon_shader2.setVec3("viewPos", player.camera.position);
+    //    weapon_shader2.set_mat4("model", model);
+    //    weapon_shader2.set_vec3("viewPos", player.camera.position);
 
     //    // HERE ------------------------------------
     //    // USE WEAPON + HANDS + QUATS + ANIMATION + OH GOD 
@@ -934,25 +950,25 @@ public:
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection) {
         glDepthFunc(GL_LEQUAL);
-        Shader* shader = Shader_manager::get_shader(skybox_shader);
+        Shader* shader = Shader_Manager::get_shader(skybox_shader);
         shader->use();
 
         glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
 
-        shader->setMat4("view", viewNoTranslation);
-        shader->setMat4("projection", projection);
+        shader->set_mat4("view", viewNoTranslation);
+        shader->set_mat4("projection", projection);
 
         skybox.draw();
 
         glDepthFunc(GL_LESS);
     }
 
-    void draw_model_at(Model_ass& model, glm::vec3 pos) {
+    void draw_model_at(Model& model, glm::vec3 pos) {
 
     }
 
     void render_crosshair(const Crosshair& crosshair) {
-        Shader* s = Shader_manager::get_shader(crosshair_shader);
+        Shader* s = Shader_Manager::get_shader(crosshair_shader);
         s->use();
         crosshair.draw(s, scr_width, scr_height);
     }
@@ -964,7 +980,8 @@ public:
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
-        text.draw(hud_text_shader, projection);
+        Shader* shader = Shader_Manager::get_shader(hud_text_shader);
+        text.draw(shader, projection);
      
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
@@ -1133,7 +1150,7 @@ public:
         }
     }
 
-    static void static_char_callback(GLFWwindow* window, unsigned int key) {
+    static void static_char_callback(GLFWwindow* window, uint32_t key) {
         Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
 
         if (key == 'm') {
@@ -1145,7 +1162,7 @@ public:
         }
 
         if (key == '\'')
-            Shader_manager::hot_reload_all();
+            Shader_Manager::hot_reload_all();
 
         if (renderer) {
             if (renderer->editor_mode) {
@@ -1177,7 +1194,7 @@ public:
 
     GLFWwindow* window;
     int scr_width, scr_height;
-    Renderer_debug debug_renderer;
+    Renderer_Debug debug_renderer;
 
     Light spotlight, directional_light, point_light;
 
@@ -1185,11 +1202,10 @@ public:
     shader_handle skybox_shader;
     shader_handle debug_shader;
     shader_handle shadow_map_shader, point_shadow_map_shader;
+    shader_handle hud_text_shader;
     //Shader weapon_shader, disney_shader;
-
     shader_handle crosshair_shader;
 
-    Shader hud_text_shader;
     Shader toon;
 
     editor_viewports_struct editor_viewports;
@@ -1206,7 +1222,7 @@ public:
 
     // deferred pipeline
     Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
-    unsigned int g_buffer, g_position, g_normal, g_albedo_specular;
-    unsigned int quadVAO;
+    GLuint g_buffer, g_position, g_normal, g_albedo_specular;
+    GLuint quadVAO;
 };
 #endif

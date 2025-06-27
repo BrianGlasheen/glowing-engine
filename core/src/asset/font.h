@@ -1,5 +1,4 @@
-#ifndef FONT_H
-#define FONT_H
+#pragma once
 
 #include <string>
 #include <unordered_map>
@@ -25,19 +24,12 @@ public:
     Font() = default;
 
     Font(const std::string& font_name) {
-        atlas_texture_id = Texture_manager::load_from_path("../resources/fonts/" + font_name + "/" + font_name + ".png");
+        atlas_texture_id = Texture_Manager::load_msdf("../resources/fonts/" + font_name + "/" + font_name + ".png");
 
         // load glyphs into datastructure
         std::ifstream json_file("../resources/fonts/" + font_name +"/" + font_name + ".json");
         nlohmann::json json_data;
-        //try {
-            json_file >> json_data;
-        /*}
-        catch (nlohmann::json::parse_error& e) {
-            std::cerr << "Parse error: " << e.what() << "\n";
-            std::cerr << "Exception id: " << e.id << "\n";
-            std::cerr << "Byte position: " << e.byte << "\n";
-        }*/
+        json_file >> json_data;
 
         for (const auto& glyph : json_data["glyphs"]) {
             int unicode = glyph["unicode"];
@@ -74,7 +66,6 @@ public:
         }
     }
 
-    unsigned int atlas_texture_id;
+    texture_handle atlas_texture_id;
     std::unordered_map<char, Glyph> characters;
 };
-#endif

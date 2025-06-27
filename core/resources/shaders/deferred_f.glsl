@@ -1,4 +1,4 @@
-#version 330 core
+#version 460
 layout (location = 0) out vec3 g_position;
 layout (location = 1) out vec3 g_normal;
 layout (location = 2) out vec4 g_albedo_specular;

@@ -6,15 +6,16 @@
 #include <stb_image.h>
 
 #include "model_manager.h"
-#include "model_ass.h"
+#include "model.h"
 
-namespace Model_manager {
+namespace Model_Manager {
 
-    static std::vector<Model_ass> models;
+    static std::vector<Model> models;
     static std::vector<std::string> names;
     static std::string base_path;
 
-    static bool loaded_already(const std::string& new_model_name, size_t& existing_idx) {
+    static bool loaded_already(const std::string& new_model_name, size_t& existing_idx) 
+    {
         for (size_t i = 0; i < names.size(); i++) {
             if (new_model_name == names[i]) {
                 existing_idx = i;
@@ -24,18 +25,21 @@ namespace Model_manager {
         return false;
     }
 
-    void init(std::string path) {
+    void init(std::string path) 
+    {
         base_path = path;
-        model_handle mh = load_model("cube.obj", 0);
+        model_handle mh = load_model("teapot.obj", 0);
     }
 
-    void cleanup() {
-        // need to free resources that model_ass owns, prob implement in destructor
+    void cleanup() 
+    {
+        // need to free resources that model owns, prob implement in destructor
         //models.clear();
         //names.clear();
     }
 
-    model_handle load_model(const std::string& model_name, int gltf) {
+    model_handle load_model(const std::string& model_name, int gltf) 
+    {
         size_t existing_idx;
         if (loaded_already(model_name, existing_idx)) {
             printf("[MODEL] Already loaded: %s\n", model_name.c_str());
@@ -50,7 +54,7 @@ namespace Model_manager {
         
         printf("[MODEL] Loading: %s\n", full_path.c_str());
 
-        Model_ass model;
+        Model model;
         int fail = model.load_model(full_path);
         if (fail)
             return 0; // default model
@@ -62,7 +66,8 @@ namespace Model_manager {
         return new_idx;
     }
 
-    Model_ass& get_model_by_name(const std::string& model_name) {
+    Model& get_model_by_name(const std::string& model_name) 
+    {
         for (size_t i = 0; i < names.size(); i++) {
             if (model_name == names[i]) {
                 return models[i];
@@ -72,16 +77,18 @@ namespace Model_manager {
         assert(false);
     }
 
-    Model_ass& get_model(const model_handle model_id) {
+    Model& get_model(const model_handle model_id) 
+    {
         return models[model_id];
     }
 
-    void draw(const Shader* shader, const model_handle model_id, bool shadow_pass) {
+    void draw(const Shader* shader, const model_handle model_id, bool shadow_pass) 
+    {
         models[model_id].draw(shader, shadow_pass);
     }
 
 
-    //Model_ass& get_model_by_name_load(const std::string& model_name) {
+    //Model& get_model_by_name_load(const std::string& model_name) {
     //    size_t index;
     //    if (!loaded_already(model_name, index)) {
     //        index = load_model(model_name);
@@ -89,16 +96,18 @@ namespace Model_manager {
     //    return models[index];
     //}
 
-    size_t get_model_count() {
+    size_t get_model_count() 
+    {
         return models.size();
     }
 
-    std::string get_name(const model_handle& model_id) {
+    std::string get_name(const model_handle& model_id) 
+    {
         return names[model_id];
     }
 
-    Util::AABB get_aabb(const model_handle& model_id) {
-        Util::AABB aabb{ models[model_id].aabb_min, models[model_id].aabb_max };
-        return aabb;
+    Util::AABB get_aabb(const model_handle& model_id) 
+    {
+        return models[model_id].get_aabb();
     }
 }

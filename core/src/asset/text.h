@@ -1,5 +1,4 @@
-#ifndef TEXT_H
-#define TEXT_H
+#pragma once
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -22,8 +21,8 @@ public:
 
     GLuint VAO, VBO, EBO;
     std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-    unsigned int atlas_texture_id;
+    std::vector<uint32_t> indices;
+    texture_handle atlas_texture_id;
     glm::vec3 color;
     size_t indexCount;
 
@@ -40,7 +39,7 @@ public:
 
         float currentX = x;
         float currentY = y;
-        unsigned int vertexOffset = 0;
+        uint32_t vertexOffset = 0;
 
         for (char c : text) {
 
@@ -88,7 +87,7 @@ public:
         glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(Vertex), vertices.data());
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices.size() * sizeof(unsigned int), indices.data());
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indices.size() * sizeof(uint32_t), indices.data());
     }
 
     void upload_buffers() {
@@ -104,7 +103,7 @@ public:
 
         // index data
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
         // position attribute
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
@@ -119,7 +118,16 @@ public:
 
     Text() = default;
 
-    Text(Font& font, const std::string& text, float x, float y, float scale, const glm::vec3& textColor) : color(textColor), atlas_texture_id(font.atlas_texture_id), used_font(&font), x(x), y(y), scale(scale) {
+    Text(Font& font,
+         const std::string& text,
+         float x, float y,
+         float scale,
+         const glm::vec3& textColor)
+    : color(textColor),
+      atlas_texture_id(font.atlas_texture_id),
+      used_font(&font),
+      x(x), y(y), scale(scale)
+    {
         compute_buffers(text);
         upload_buffers();
     }
@@ -136,32 +144,25 @@ public:
         upload_buffers();
     }
 
-    ~Text() {
+    ~Text() 
+    {
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
     }
 
-    void draw(Shader& shader, const glm::mat4& projection) const {
-        shader.use();
-        shader.setMat4("projection", projection);
-        shader.setVec3("textColor", color);
+    void draw(Shader* shader, const glm::mat4& projection) const 
+    {
+        shader->use();
+        shader->set_mat4("projection", projection);
+        shader->set_vec3("textColor", color);
 
-        //// Bind MSDF texture
-        //glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, atlas_texture_id);
-        Texture_manager::bind(atlas_texture_id);
-        shader.setInt("msdfTexture", 0);
+        Texture_Manager::bind(atlas_texture_id);
+        shader->set_int("msdfTexture", 0);
 
-        // Draw the text in one call
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
 
-    void setColor(const glm::vec3& newColor) {
-        color = newColor;
-    }
 };
-
-#endif

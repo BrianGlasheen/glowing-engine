@@ -1,3 +1,4 @@
+// todo nuke
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
@@ -18,7 +19,7 @@ public:
 
     virtual void mouse_callback(GLFWwindow* window, Camera& camera, double xpos, double ypos, float& model_yaw) = 0;
     virtual void scroll_callback(GLFWwindow* window, Camera& camera, double xoffset, double yoffset) = 0;
-    virtual void char_callback(GLFWwindow* window, unsigned int key) = 0;
+    virtual void char_callback(GLFWwindow* window, uint32_t key) = 0;
 
     virtual void process_input(GLFWwindow* window, float deltaTime, Scene& scene, Camera& camera, float& model_yaw) = 0;
     virtual void update_camera(Camera& camera, bool crouched, float player_height) = 0;

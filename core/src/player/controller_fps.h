@@ -38,7 +38,7 @@ public:
         camera.process_mouse_scroll(static_cast<float>(yoffset));
     }
 
-    virtual void char_callback(GLFWwindow* window, unsigned int key) override{
+    virtual void char_callback(GLFWwindow* window, uint32_t key) override{
         key_toggles[key] = !key_toggles[key];
     }
 

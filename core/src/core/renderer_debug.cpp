@@ -4,12 +4,12 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-void Renderer_debug::init() {
+void Renderer_Debug::init() {
     // line VAO/VBO 
-    glGenVertexArrays(1, &lineVAO);
-    glGenBuffers(1, &lineVBO);
-    glBindVertexArray(lineVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+    glGenVertexArrays(1, &line_vao);
+    glGenBuffers(1, &line_vbo);
+    glBindVertexArray(line_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
     // We won't set any data here yet. We'll do it in `render()`.
     // Just allocate some space or use a 0-size buffer with dynamic usage.
     // thanks chat gpt
@@ -28,7 +28,7 @@ void Renderer_debug::init() {
     build_sphere_geometry();
 }
 
-void Renderer_debug::build_sphere_geometry() {
+void Renderer_Debug::build_sphere_geometry() {
     // A quick way to generate a sphere is to do a “UV sphere” or “icosphere.” 
     // For simplicity, let’s do a small UV sphere. 
     // You can generate as many segments as you want. Here is just a minimal example.
@@ -39,7 +39,7 @@ void Renderer_debug::build_sphere_geometry() {
 
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
-    std::vector<unsigned int> indices;
+    std::vector<uint32_t> indices;
 
     // Generate vertices
     for (int y = 0; y <= latSegments; y++) {
@@ -82,7 +82,7 @@ void Renderer_debug::build_sphere_geometry() {
             indices.push_back(i3);
         }
     }
-    sphereIndexCount = (int)indices.size();
+    sphere_index_count = (int)indices.size();
 
     // positions and normals are both vectors<glm::vec3>
     // assume you've already populated these with the sphere geometry data
@@ -101,26 +101,23 @@ void Renderer_debug::build_sphere_geometry() {
     }
 
     // Create VBO/VAO/EBO for the sphere
-    glGenVertexArrays(1, &sphereVAO);
-    glGenBuffers(1, &sphereVBO);
-    glGenBuffers(1, &sphereEBO);
+    glGenVertexArrays(1, &sphere_vao);
+    glGenBuffers(1, &sphere_vbo);
+    glGenBuffers(1, &sphere_ebo);
 
     // 1. Bind VAO
-    glBindVertexArray(sphereVAO);
+    glBindVertexArray(sphere_vao);
 
     // 2. VBO: upload vertex data (positions + normals)
-    glBindBuffer(GL_ARRAY_BUFFER, sphereVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
     glBufferData(GL_ARRAY_BUFFER,
                 vertexData.size() * sizeof(float),
                 vertexData.data(),
                 GL_STATIC_DRAW);
 
     // 3. EBO: upload index data
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphereEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                indices.size() * sizeof(unsigned int),
-                indices.data(),
-                GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphere_ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
     // 4. Set up vertex attributes
     //    Stride = 6 floats (3 for pos, 3 for normal) => 6 * sizeof(float)
@@ -139,15 +136,15 @@ void Renderer_debug::build_sphere_geometry() {
     glBindVertexArray(0);
 }
 
-void Renderer_debug::add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color) {
-    Debug_line l;
+void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color) {
+    Debug_Line l;
     l.start = start;
     l.end   = end;
     l.color = color;
     lines.push_back(l);
 }
 
-void Renderer_debug::add_sphere(const glm::vec3& center, float radius, const glm::vec3& color) {
+void Renderer_Debug::add_sphere(const glm::vec3& center, float radius, const glm::vec3& color) {
     Debug_sphere s;
     s.center = center;
     s.radius = radius;
@@ -155,7 +152,7 @@ void Renderer_debug::add_sphere(const glm::vec3& center, float radius, const glm
     spheres.push_back(s);
 }
 
-void Renderer_debug::add_axes(const glm::vec3& position, const glm::quat& orientation, float length) {
+void Renderer_Debug::add_axes(const glm::vec3& position, const glm::quat& orientation, float length) {
     glm::vec3 xEnd = position + (orientation * glm::vec3(length, 0.0f, 0.0f)); // x
     add_line(position, xEnd, glm::vec3(1.0f, 0.0f, 0.0f));
 
@@ -166,7 +163,7 @@ void Renderer_debug::add_axes(const glm::vec3& position, const glm::quat& orient
     add_line(position, zEnd, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
-void Renderer_debug::add_bbox(const glm::vec3& min, const glm::vec3& max, const glm::vec3& color) {
+void Renderer_Debug::add_bbox(const glm::vec3& min, const glm::vec3& max, const glm::vec3& color) {
     glm::vec3 corners[8] = {
         glm::vec3(min.x, min.y, min.z),
         glm::vec3(max.x, min.y, min.z),
@@ -197,7 +194,7 @@ void Renderer_debug::add_bbox(const glm::vec3& min, const glm::vec3& max, const 
     add_line(corners[3], corners[7], color);
 }
 
-void Renderer_debug::add_obb(const Util::OBB obb, const glm::vec3& color) {
+void Renderer_Debug::add_obb(const Util::OBB obb, const glm::vec3& color) {
     add_line(obb.corners[0], obb.corners[1], color); // min to +x
     add_line(obb.corners[1], obb.corners[3], color); // +x to +x+y
     add_line(obb.corners[3], obb.corners[2], color); // +x+y to +y
@@ -216,7 +213,7 @@ void Renderer_debug::add_obb(const Util::OBB obb, const glm::vec3& color) {
     add_line(obb.corners[3], obb.corners[7], color); // +x+y to max
 }
 
-void Renderer_debug::draw_frustum(const glm::vec3 cameraPos, const glm::vec3 cameraDir, const glm::vec3 cameraUp, float fov, float aspect, float near, float far) {
+void Renderer_Debug::draw_frustum(const glm::vec3 cameraPos, const glm::vec3 cameraDir, const glm::vec3 cameraUp, float fov, float aspect, float near, float far) {
     glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
     glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
 
@@ -262,7 +259,7 @@ void Renderer_debug::draw_frustum(const glm::vec3 cameraPos, const glm::vec3 cam
     add_line(corners[3], corners[7], glm::vec3(1.0f, 0.0f, 0.0f)); // top-left
 }
 
-void Renderer_debug::render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view) {
+void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view) {
     if (!lines.empty()) {
         // Build a CPU buffer of vertices: for each line, we have two points, each with (pos + color)
         // that's 6 floats (pos) + 6 floats (color) for the entire line? Actually it's 6 floats total: 
@@ -291,8 +288,8 @@ void Renderer_debug::render(Shader* debug_shader, const glm::mat4& projection, c
         }
 
         // Upload to GPU
-        glBindVertexArray(lineVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+        glBindVertexArray(line_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 
         glBufferData(GL_ARRAY_BUFFER, 
                      lineVertices.size() * sizeof(float), 
@@ -300,10 +297,10 @@ void Renderer_debug::render(Shader* debug_shader, const glm::mat4& projection, c
                      GL_DYNAMIC_DRAW);
 
         debug_shader->use();
-        debug_shader->setMat4("projection", projection);
-        debug_shader->setMat4("view", view);
-        debug_shader->setMat4("model", glm::mat4(1.0f));
-        debug_shader->setVec3("debugColor", glm::vec3(0.0f));
+        debug_shader->set_mat4("projection", projection);
+        debug_shader->set_mat4("view", view);
+        debug_shader->set_mat4("model", glm::mat4(1.0f));
+        debug_shader->set_vec3("debugColor", glm::vec3(0.0f));
 
         //glDisable(GL_DEPTH_TEST);
 
@@ -315,21 +312,21 @@ void Renderer_debug::render(Shader* debug_shader, const glm::mat4& projection, c
 
     // spheres
     if (!spheres.empty()) {
-        glBindVertexArray(sphereVAO);
+        glBindVertexArray(sphere_vao);
         debug_shader->use();
-        debug_shader->setMat4("projection", projection);
-        debug_shader->setMat4("view", view);
+        debug_shader->set_mat4("projection", projection);
+        debug_shader->set_mat4("view", view);
 
         for (auto& s : spheres) {
             // Build model matrix for each sphere
             glm::mat4 model(1.0f);
             model = glm::translate(model, s.center);
             model = glm::scale(model, glm::vec3(s.radius)); 
-            debug_shader->setMat4("model", model);
-            debug_shader->setVec3("debugColor", s.color);
+            debug_shader->set_mat4("model", model);
+            debug_shader->set_vec3("debugColor", s.color);
 
             // glDisable(GL_DEPTH_TEST); // if needed
-            glDrawElements(GL_TRIANGLES, sphereIndexCount, GL_UNSIGNED_INT, 0);
+            glDrawElements(GL_TRIANGLES, sphere_index_count, GL_UNSIGNED_INT, 0);
             // glEnable(GL_DEPTH_TEST);
         }
 

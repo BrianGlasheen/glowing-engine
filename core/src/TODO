@@ -10,6 +10,21 @@ make ssimp good (bones)
 weapon / holdable class
     animate weapons (same system, blending, IK)
 
+break up renderer
+window class
+framebuffer class
+
+ssbo class for 
+shadow atlas
+
+clustered forward rendering / deferred
+
+multidraw + single mesh buffer
+
+post processing
+
+GI!!!!!
+
 controllers
     physics (jolt?)
     cars
@@ -18,4 +33,4 @@ controllers
     interaction
     player (use)
 
-clustered forward rendering / deferred
+

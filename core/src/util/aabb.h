@@ -8,4 +8,3 @@ namespace Util {
 		glm::vec3 max;
 	};
 }
-

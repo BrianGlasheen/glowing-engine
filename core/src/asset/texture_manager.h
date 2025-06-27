@@ -5,11 +5,14 @@
 
 typedef size_t texture_handle;
 
-namespace Texture_manager {
+namespace Texture_Manager {
     void init();
     void cleanup();
+
     texture_handle load_from_path(const std::string& file_path);
-    void bind(texture_handle texture_id, unsigned int texture_unit = 0);
+    texture_handle load_msdf(const std::string& file_path);
+
+    void bind(texture_handle texture_id, uint32_t texture_unit = 0);
     size_t get_texture_count();
     std::string get_name(texture_handle texture_id);
 }

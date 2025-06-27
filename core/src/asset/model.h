@@ -1,5 +1,4 @@
-#ifndef MODEL_ASS_H
-#define MODEL_ASS_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -11,30 +10,22 @@
 
 #include "mesh.h"
 #include "shader.h"
+#include "util/aabb.h"
 
-class Model_ass {
+class Model {
     public:
-        Model_ass() = default;
-
-        Model_ass(const std::string &meshName, float scale = 1.0f) {
-            load_model(meshName, scale);
-        }
+        Model() = default;
+        Model(const std::string& meshName);
         
-        int load_model(const std::string &meshName, float scale = 1.0f);
+        int load_model(const std::string &meshName);
         void draw(const Shader* shader, bool shadow_pass);	
-
-        glm::vec3 aabb_min;
-        glm::vec3 aabb_max;
+        Util::AABB get_aabb();
 
     private:
-        // model data
         std::vector<Mesh> meshes;
-        std::string directory;
-
-        // bool gammaCorrection;
+        Util::AABB aabb;
 
         void process_node(aiNode *node, const aiScene *scene, const std::string& path);
         Mesh process_mesh(aiMesh *mesh, const aiScene *scene, const std::string& path);
-        void normalize_model(float scale);
+        void calculate_aabb();
 };
-#endif

@@ -2,17 +2,19 @@
 #include <iostream>
 #include <cassert>
 
-namespace Shader_manager {
+namespace Shader_Manager {
 
-    static std::vector<ShaderData> shaders;
+    static std::vector<Shader_Data> shaders;
     static std::string base_path;
 
-    void init(const std::string path) {
+    void init(const std::string path) 
+    {
         std::cout << "[SHADER] Shader manager initialized" << std::endl;
         base_path = path;
     }
 
-    void cleanup() {
+    void cleanup() 
+    {
         std::cout << "[SHADER] Cleaning up " << shaders.size() << " shaders" << std::endl;
         for (auto& shader_data : shaders) {
             if (shader_data.shader.ID != 0) {
@@ -22,14 +24,15 @@ namespace Shader_manager {
         shaders.clear();
     }
 
-    shader_handle load_from_paths(const std::string& name, const std::string& vertex_name, const std::string& fragment_name) {
+    shader_handle load_from_paths(const std::string& name, const std::string& vertex_name, const std::string& fragment_name) 
+    {
         shader_handle existing_handle;
         if (loaded_already(vertex_name, fragment_name, existing_handle)) {
             std::cout << "[SHADER] Already loaded: " << vertex_name << " + " << fragment_name << std::endl;
             return existing_handle;
         }
 
-        ShaderData shader_data;
+        Shader_Data shader_data;
         shader_data.name = name;
         shader_data.vertex_name = vertex_name;
         shader_data.fragment_name = fragment_name;
@@ -53,21 +56,24 @@ namespace Shader_manager {
         }
     }
 
-    shader_handle load_from_name(const std::string& shader_name) {
+    shader_handle load_from_name(const std::string& shader_name) 
+    {
         //"deferred_v.glsl"
         std::string vert = shader_name + "_v.glsl";
         std::string frag = shader_name + "_f.glsl";
         return load_from_paths(shader_name, vert, frag);
     }
 
-    Shader* get_shader(shader_handle handle) {
+    Shader* get_shader(shader_handle handle) 
+    {
         if (handle < shaders.size()) {
             return &shaders[handle].shader;
         }
         assert(false);
     }
 
-    Shader* get_shader_by_name(const std::string& name) {
+    Shader* get_shader_by_name(const std::string& name) 
+    {
         for (size_t i = 0; i < shaders.size(); i++) {
             if (shaders[i].name == name)
                 return &shaders[i].shader;
@@ -75,9 +81,10 @@ namespace Shader_manager {
         assert(false);
     }
 
-    bool reload(shader_handle handle) {
+    bool reload(shader_handle handle) 
+    {
         //if (handle >= shaders.size()) return false;
-        ShaderData& shader_data = shaders[handle];
+        Shader_Data& shader_data = shaders[handle];
 
 
 
@@ -116,7 +123,8 @@ namespace Shader_manager {
         return false;
     }
 
-    void hot_reload_all() {
+    void hot_reload_all() 
+    {
         std::cout << "[SHADER] Checking all shaders for changes..." << std::endl;
         bool any_reloaded = false;
 
@@ -131,11 +139,13 @@ namespace Shader_manager {
         }
     }
 
-    size_t get_shader_count() {
+    size_t get_shader_count() 
+    {
         return shaders.size();
     }
 
-    bool loaded_already(const std::string& vertex_name, const std::string& fragment_name, shader_handle& existing_handle) {
+    bool loaded_already(const std::string& vertex_name, const std::string& fragment_name, shader_handle& existing_handle) 
+    {
         for (size_t i = 0; i < shaders.size(); i++) {
             if (vertex_name == shaders[i].vertex_name && fragment_name == shaders[i].fragment_name) {
                 existing_handle = i;
@@ -145,7 +155,8 @@ namespace Shader_manager {
         return false;
     }
 
-    fs::file_time_type get_file_time(const std::string& name) {
+    fs::file_time_type get_file_time(const std::string& name) 
+    {
         try {
             return fs::last_write_time(base_path + name);
         }

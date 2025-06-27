@@ -1,9 +1,8 @@
-#ifndef COLORS_H
-#define COLORS_H
+#pragma once
 
 #include <glm/glm.hpp>
 
-namespace color {
+namespace Util {
     constexpr glm::vec3 red = glm::vec3(1.0f, 0.0f, 0.0f);
     constexpr glm::vec3 green = glm::vec3(0.0f, 1.0f, 0.0f);
     constexpr glm::vec3 blue = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -17,4 +16,3 @@ namespace color {
     constexpr glm::vec3 grey = glm::vec3(0.5f, 0.5f, 0.5f);
     constexpr glm::vec3 gray = glm::vec3(0.5f, 0.5f, 0.5f); // xD
 }
-#endif

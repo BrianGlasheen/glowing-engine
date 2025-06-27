@@ -11,8 +11,16 @@ class Shader;
 
 class Material {
 public:
-    Material(
-        unsigned int albedo_map = 0, unsigned int normal_map = 0, unsigned int metallic_roughness_map = 0, unsigned int occlusion_map = 0, unsigned int emissive_map = 0) : albedo_map(albedo_map), normal_map(normal_map), metallic_roughness_map(metallic_roughness_map), occlusion_map(occlusion_map), emissive_map(emissive_map)
+    Material(texture_handle albedo_map = 0, 
+             texture_handle normal_map = 0, 
+             texture_handle metallic_roughness_map = 0, 
+             texture_handle occlusion_map = 0, 
+             texture_handle emissive_map = 0) 
+        : albedo_map(albedo_map), 
+          normal_map(normal_map), 
+          metallic_roughness_map(metallic_roughness_map),
+          occlusion_map(occlusion_map),
+          emissive_map(emissive_map)
     {
         has_albedo = albedo_map != 0;
         has_normal = normal_map != 0;
@@ -29,6 +37,7 @@ public:
 
     //glm::vec3 base_color;
     
+    // todo pack?
     bool has_albedo;
     bool has_normal;
     bool has_metallic_roughness;

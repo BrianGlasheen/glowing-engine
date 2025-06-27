@@ -1,8 +1,11 @@
 #pragma once
+
+#include <glow.h>
+
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 
-enum light_type {
+enum Light_Type {
     DIRECTIONAL = 0,
     SPOT,
     POINT
@@ -10,7 +13,7 @@ enum light_type {
 
 class Light {
 public:
-    light_type type;
+    Light_Type type;
     glm::vec3 position;
     glm::vec3 direction;
     glm::vec3 color;
@@ -18,19 +21,29 @@ public:
     float inner_fov;
     float outer_fov;
 
-    unsigned int width, height;
-    unsigned int fbo, shadow_map;
-    unsigned int cube_depth;
+    uint32_t width, height;
+    GLuint fbo, shadow_map;
+    GLuint cube_depth;
 
     Light(){};
 
- /*   Light(glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens, unsigned int w, unsigned int h)
-        : position(pos), direction(dir), color(col), intensity(intens), width(w), height(h)
-    {
-        generate_fbo(w, h);
-    }    
-    */
-    Light(light_type lt, glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens, unsigned int w, unsigned int h, float fov_in = 25.0f, float fov_out = 45.0f) : type(lt), position(pos), direction(dir), color(col), intensity(intens), inner_fov(fov_in), outer_fov(fov_out), width(w), height(h)
+    Light(Light_Type lt, 
+          glm::vec3 pos, 
+          glm::vec3 dir, 
+          glm::vec3 col, 
+          float intens, 
+          uint32_t w, 
+          uint32_t h, 
+          float fov_in = 25.0f, 
+          float fov_out = 45.0f) 
+    : type(lt), 
+      position(pos), 
+      direction(dir), 
+      color(col), 
+      intensity(intens), 
+      inner_fov(fov_in), 
+      outer_fov(fov_out), 
+      width(w), height(h)
     {
         if (lt == POINT)
             generate_cubemap(w);
@@ -38,19 +51,21 @@ public:
             generate_fbo(w, h);
     }
 
-    static Light create_directional(glm::vec3 dir, glm::vec3 col, float intens, unsigned int w = 1024, unsigned int h = 1024) {
-        return Light(light_type::DIRECTIONAL, glm::vec3(0.0f), dir, col, intens, w, h);
+    // TODO CLEAN TF UP HOLY
+    static Light create_directional(glm::vec3 dir, glm::vec3 col, float intens, uint32_t w = 1024, uint32_t h = 1024) {
+        return Light(Light_Type::DIRECTIONAL, glm::vec3(0.0f), dir, col, intens, w, h);
     }
 
-    static Light create_point(glm::vec3 pos, glm::vec3 col, float intens, unsigned int w = 1024, unsigned int h = 1024) {
-        return Light(light_type::POINT, pos, glm::vec3(0.0f, -1.0f, 0.0f), col, intens, w, h);
+    static Light create_point(glm::vec3 pos, glm::vec3 col, float intens, uint32_t w = 1024, uint32_t h = 1024) {
+        return Light(Light_Type::POINT, pos, glm::vec3(0.0f, -1.0f, 0.0f), col, intens, w, h);
     }
 
-    static Light create_spot(glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens, float fov_in, float fov_out, unsigned int w = 1024, unsigned int h = 1024) {
-        return Light(light_type::SPOT, pos, dir, col, intens, w, h, fov_in, fov_out);
+    static Light create_spot(glm::vec3 pos, glm::vec3 dir, glm::vec3 col, float intens, float fov_in, float fov_out, uint32_t w = 1024, uint32_t h = 1024) {
+        return Light(Light_Type::SPOT, pos, dir, col, intens, w, h, fov_in, fov_out);
     }
 
-    void generate_fbo(unsigned int width, unsigned int height) {
+    void generate_fbo(uint32_t width, uint32_t height) 
+    {
         // frame buffer
         glGenFramebuffers(1, &fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -84,7 +99,7 @@ public:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
-    void generate_cubemap(unsigned int width) {
+    void generate_cubemap(uint32_t width) {
         glGenTextures(1, &cube_depth);
         glBindTexture(GL_TEXTURE_2D, cube_depth);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, width, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -106,7 +121,7 @@ public:
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 
-        for (unsigned int i = 0; i < 6; i++) {
+        for (uint32_t i = 0; i < 6; i++) {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_R32F, width, width, 0, GL_RED, GL_FLOAT, NULL);
         }
 
@@ -143,8 +158,8 @@ public:
         glDrawBuffer(GL_COLOR_ATTACHMENT0);
     }
 
-    void bind_fbo_read(unsigned int location) {
+    void bind_fbo_read(uint32_t location) {
         glActiveTexture(GL_TEXTURE0 + location);
-        glBindTexture(type == light_type::POINT ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, shadow_map);
+        glBindTexture(type == Light_Type::POINT ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, shadow_map);
     }
 };

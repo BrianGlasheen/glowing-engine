@@ -1,6 +1,4 @@
 #pragma once
-#ifndef CAMERA_H
-#define CAMERA_H
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -36,7 +34,7 @@ public:
         pitch = pitch_;
         update_camera_vectors();
     }
-    // returns the view matrix calculated using Euler Angles and the LookAt Matrix
+
     glm::mat4 get_view_matrix() const {
         return glm::lookAt(position, position + front, up);
     }
@@ -49,6 +47,7 @@ public:
         // That yields a matrix that has no translation (camera at origin).
         return glm::lookAt(glm::vec3(0.0f), front, up);
     }
+
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
     void process_mouse_movement(float xoffset, float yoffset, bool constrainpitch = true) {
         xoffset *= mouse_sensitivity;
@@ -87,4 +86,3 @@ public:
         up    = glm::normalize(glm::cross(right, front));
     }
 };
-#endif

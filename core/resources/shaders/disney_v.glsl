@@ -1,4 +1,4 @@
-#version 330 core
+#version 460
 
 // Input vertex attributes
 layout (location = 0) in vec3 position;

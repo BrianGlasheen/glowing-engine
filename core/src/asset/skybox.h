@@ -1,5 +1,4 @@
-#ifndef SKYBOX_H
-#define SKYBOX_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -10,7 +9,8 @@
 
 class Skybox {
 public:
-    Skybox(const std::string& skybox_name) {
+    Skybox(const std::string& skybox_name) 
+    {
         std::vector<std::string> faceNames = {
             "px.png", "nx.png", "py.png", "ny.png", "pz.png", "nz.png"
         };
@@ -23,8 +23,8 @@ public:
             //std::cout << basePath + name << std::endl;
         }
 
-        texture_id = loadCubemap(faces);
-        setupCube();
+        load_cubemap(faces);
+        setup_cube();
     }
     
     void bind() const {
@@ -40,9 +40,9 @@ public:
     }
 
 private:
-    unsigned int vao, vbo, texture_id;
+    GLuint vao, vbo, texture_id;
 
-    void setupCube() {
+    void setup_cube() {
         float skyboxVertices[] = {
                 -1.0f,  1.0f, -1.0f,  -1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,
                  1.0f, -1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f,
@@ -56,48 +56,6 @@ private:
                  1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f,
                 -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f,
                  1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f
-
-                 //-1.0f, 1.0f, -1.0f,
-                //-1.0f, -1.0f, -1.0f,
-                //1.0f, -1.0f, -1.0f,
-                //1.0f, -1.0f, -1.0f,
-                //1.0f, 1.0f, -1.0f,
-                //-1.0f, 1.0f, -1.0f,
-
-                //-1.0f, -1.0f, 1.0f,
-                //-1.0f, -1.0f, -1.0f,
-                //-1.0f, 1.0f, -1.0f,
-                //-1.0f, 1.0f, -1.0f,
-                //-1.0f, 1.0f, 1.0f,
-                //-1.0f, -1.0f, 1.0f,
-
-                //1.0f, -1.0f, -1.0f,
-                //1.0f, -1.0f, 1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //1.0f, 1.0f, -1.0f,
-                //1.0f, -1.0f, -1.0f,
-
-                //-1.0f, -1.0f, 1.0f,
-                //-1.0f, 1.0f, 1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //1.0f, -1.0f, 1.0f,
-                //-1.0f, -1.0f, 1.0f,
-
-                //-1.0f, 1.0f, -1.0f,
-                //1.0f, 1.0f, -1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //1.0f, 1.0f, 1.0f,
-                //-1.0f, 1.0f, 1.0f,
-                //-1.0f, 1.0f, -1.0f,
-
-                //-1.0f, -1.0f, -1.0f,
-                //-1.0f, -1.0f, 1.0f,
-                //1.0f, -1.0f, -1.0f,
-                //1.0f, -1.0f, -1.0f,
-                //-1.0f, -1.0f, 1.0f,
-                //1.0f, -1.0f, 1.0f
         };
 
         glGenVertexArrays(1, &vao);
@@ -111,13 +69,13 @@ private:
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     }
 
-    unsigned int loadCubemap(const std::vector<std::string>& faces) {
-        unsigned int texID;
-        glGenTextures(1, &texID);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, texID);
+    void load_cubemap(const std::vector<std::string>& faces) {
+        // todo move to texture manager maybe
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
 
         int width, height, channels;
-        for (unsigned int i = 0; i < faces.size(); ++i) {
+        for (size_t i = 0; i < faces.size(); ++i) {
             unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &channels, 0);
             if (data) {
                 GLenum format;
@@ -147,9 +105,6 @@ private:
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-        return texID;
     }
 
 };
-#endif

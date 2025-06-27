@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-Scene::Scene(std::string skybox_name) : skybox (skybox_name) {
+Scene::Scene(std::string skybox_name) : skybox(skybox_name) {
     entities = std::vector<Entity>();
     timed_entities = std::vector<Entity>();
 }
@@ -20,21 +20,21 @@ void Scene::include(Entity ntitty) {
     }
 }
 
-int Scene::cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos) {
-    int hits = 0;
-    float min_dist = 999999999.0f;
-    glm::vec3 hit_pos_temp(0.0f);
-
-    for (Entity e : entities) {
-        if (e.collides(pos, dir, hit_pos_temp)) {
-            hits++;
-            float dist = glm::distance(hit_pos_temp, pos);
-            if (dist < min_dist) {
-                min_dist = dist;
-                hit_pos  = hit_pos_temp;
-            }
-        }
-    }
-
-    return hits;
-}
+//int Scene::cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos) {
+//    int hits = 0;
+//    float min_dist = 999999999.0f;
+//    glm::vec3 hit_pos_temp(0.0f);
+//
+//    for (Entity e : entities) {
+//        if (e.collides(pos, dir, hit_pos_temp)) {
+//            hits++;
+//            float dist = glm::distance(hit_pos_temp, pos);
+//            if (dist < min_dist) {
+//                min_dist = dist;
+//                hit_pos  = hit_pos_temp;
+//            }
+//        }
+//    }
+//
+//    return hits;
+//}

@@ -1,5 +1,4 @@
-#ifndef SHADER_MANAGER_H
-#define SHADER_MANAGER_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -12,7 +11,7 @@ namespace fs = std::filesystem;
 
 typedef size_t shader_handle;
 
-struct ShaderData {
+struct Shader_Data {
     Shader shader;
     std::string name;
     std::string vertex_name;
@@ -21,9 +20,9 @@ struct ShaderData {
     fs::file_time_type fragment_last_modified;
 };
 
-namespace Shader_manager {
-    void init(std::string base_path); // done
-    void cleanup(); // done
+namespace Shader_Manager {
+    void init(std::string base_path);
+    void cleanup();
 
     shader_handle load_from_paths(const std::string& name, const std::string& vertex_name, const std::string& fragment_name);
     shader_handle load_from_name(const std::string& shader_name);
@@ -33,7 +32,6 @@ namespace Shader_manager {
 
     bool reload(shader_handle handle);
     void hot_reload_all();
-    //bool force_reload(shader_handle handle);
 
     size_t get_shader_count();
     //std::string get_name(shader_handle handle);
@@ -41,4 +39,3 @@ namespace Shader_manager {
     bool loaded_already(const std::string& vertex_name, const std::string& fragment_name, shader_handle& existing_handle);
     fs::file_time_type get_file_time(const std::string& name);
 }
-#endif

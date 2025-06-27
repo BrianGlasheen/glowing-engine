@@ -278,7 +278,7 @@ namespace Physics {
         g_state.physicsSystem->OptimizeBroadPhase();
     }
 
-    JPH::BodyID addBox(const glm::vec3& pos, const glm::vec3& size, bool isStatic) {
+    JPH::BodyID add_box(const glm::vec3& pos, const glm::vec3& size, bool isStatic) {
         // Create box shape
         RefConst<Shape> box_shape = new BoxShape(Vec3(size.x * 0.5f, size.y * 0.5f, size.z * 0.5f));
 
@@ -299,7 +299,7 @@ namespace Physics {
         return body_id;
     }
 
-    JPH::BodyID addSphere(const glm::vec3& pos, float radius, bool isStatic) {
+    JPH::BodyID add_sphere(const glm::vec3& pos, float radius, bool isStatic) {
         // Create sphere shape
         RefConst<Shape> sphere_shape = new SphereShape(radius);
 
@@ -315,48 +315,48 @@ namespace Physics {
         return body_id;
     }
 
-    void removeBody(JPH::BodyID id) {
+    void remove_body(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         body_interface.RemoveBody(id);
         body_interface.DestroyBody(id);
     }
 
-    glm::vec3 getBodyPosition(JPH::BodyID id) {
+    glm::vec3 get_body_position(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         RVec3 pos = body_interface.GetPosition(id);
         return glm::vec3(static_cast<float>(pos.GetX()), static_cast<float>(pos.GetY()), static_cast<float>(pos.GetZ()));
     }
 
-    void setBodyPosition(JPH::BodyID id, const glm::vec3& pos) {
+    void set_body_position(JPH::BodyID id, const glm::vec3& pos) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         body_interface.SetPosition(id, RVec3(pos.x, pos.y, pos.z), EActivation::Activate);
     }
 
-    glm::vec3 getBodyVelocity(JPH::BodyID id) {
+    glm::vec3 get_body_velocity(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         Vec3 vel = body_interface.GetLinearVelocity(id);
         return glm::vec3(vel.GetX(), vel.GetY(), vel.GetZ());
     }
 
-    void setBodyVelocity(JPH::BodyID id, const glm::vec3& vel) {
+    void set_body_velocity(JPH::BodyID id, const glm::vec3& vel) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         body_interface.SetLinearVelocity(id, Vec3(vel.x, vel.y, vel.z));
     }
 
-    glm::quat getBodyRotation(JPH::BodyID id) {
+    glm::quat get_body_rotation(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         Quat rot = body_interface.GetRotation(id);
         return glm::quat(rot.GetW(), rot.GetX(), rot.GetY(), rot.GetZ());
     }
 
-    void setBodyRotation(JPH::BodyID id, const glm::quat& rot) {
+    void set_body_rotation(JPH::BodyID id, const glm::quat& rot) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         JPH::Quat joltQuat(rot.x, rot.y, rot.z, rot.w);
         body_interface.SetRotation(id, joltQuat, JPH::EActivation::Activate);
     }
 
 
-    Util::AABB getWorldAABB(JPH::BodyID id) {
+    Util::AABB get_world_AABB(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
 
         RefConst<Shape> shape = body_interface.GetShape(id);
@@ -371,7 +371,7 @@ namespace Physics {
         return Util::AABB{ min_bounds, max_bounds };
     }
 
-    Util::OBB getShapeOBB(JPH::BodyID id) {
+    Util::OBB get_world_OBB(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
 
         // Get the shape from the body
@@ -465,9 +465,9 @@ namespace Physics {
         return false;
     }
 
-    JPH::BodyInterface& getBodyInterface() {
-        return g_state.physicsSystem->GetBodyInterface();
-    }
+    // JPH::BodyInterface& getBodyInterface() {
+    //     return g_state.physicsSystem->GetBodyInterface();
+    // }
 
     //glm::vec3 toGlm(const JPH::RVec3& v) {
     //    return glm::vec3(static_cast<float>(v.GetX()), static_cast<float>(v.GetY()), static_cast<float>(v.GetZ()));

@@ -33,23 +33,23 @@ namespace Physics {
     // You should definitely not call this every frame or when e.g. streaming in a new level section as it is an expensive operation.
     // Instead insert all new objects in batches instead of 1 at a time to keep the broad phase efficient.
 
-    JPH::BodyID addBox(const glm::vec3& pos, const glm::vec3& size, bool isStatic = false);
-    JPH::BodyID addSphere(const glm::vec3& pos, float radius, bool isStatic = false);
-    void removeBody(JPH::BodyID id);
+    JPH::BodyID add_box(const glm::vec3& pos, const glm::vec3& size, bool isStatic = false);
+    JPH::BodyID add_sphere(const glm::vec3& pos, float radius, bool isStatic = false);
+    void remove_body(JPH::BodyID id);
 
-    glm::vec3 getBodyPosition(JPH::BodyID id);
-    void setBodyPosition(JPH::BodyID id, const glm::vec3& pos);
-    glm::vec3 getBodyVelocity(JPH::BodyID id);
-    void setBodyVelocity(JPH::BodyID id, const glm::vec3& vel);
-    glm::quat getBodyRotation(JPH::BodyID id);
-    void setBodyRotation(JPH::BodyID id, const glm::quat& rot);
+    glm::vec3 get_body_position(JPH::BodyID id);
+    void set_body_position(JPH::BodyID id, const glm::vec3& pos);
+    glm::vec3 get_body_velocity(JPH::BodyID id);
+    void set_body_velocity(JPH::BodyID id, const glm::vec3& vel);
+    glm::quat get_body_rotation(JPH::BodyID id);
+    void set_body_rotation(JPH::BodyID id, const glm::quat& rot);
 
-    Util::AABB getWorldAABB(JPH::BodyID id);
-    Util::OBB getShapeOBB(JPH::BodyID id);
+    Util::AABB get_world_AABB(JPH::BodyID id);
+    Util::OBB get_world_OBB(JPH::BodyID id);
 
     bool shoot(const glm::vec3& origin, const glm::vec3& direction, float force, float maxDistance);
 
-    JPH::BodyInterface& getBodyInterface();
+    // JPH::BodyInterface& getBodyInterface();
 
     //glm::vec3 toGlm(const JPH::RVec3& v);
     //glm::quat toGlm(const JPH::Quat& q);
@@ -57,7 +57,7 @@ namespace Physics {
     //JPH::Quat toJolt(const glm::quat& q);
 
 
-    struct CharacterController {
+    struct Character_Controller {
         JPH::BodyID body_id;
         glm::vec3 velocity = glm::vec3(0.0f);
         bool is_on_ground = false;

@@ -9,7 +9,7 @@
 #include "asset/shader.h"
 #include "util/obb.h"
 
-struct Debug_line {
+struct Debug_Line {
     glm::vec3 start;
     glm::vec3 end;
     glm::vec3 color;
@@ -21,10 +21,10 @@ struct Debug_sphere {
     glm::vec3 color;
 };
 
-class Renderer_debug {
+class Renderer_Debug {
 public:
-    Renderer_debug() {}
-    ~Renderer_debug() {}
+    Renderer_Debug() {}
+    ~Renderer_Debug() {}
 
     void init();
     void add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color);
@@ -36,15 +36,12 @@ public:
     void render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view);
 
 private:
-    std::vector<Debug_line> lines;
-    unsigned int lineVBO = 0;
-    unsigned int lineVAO = 0;
+    std::vector<Debug_Line> lines;
+    GLuint line_vao, line_vbo;
 
     std::vector<Debug_sphere> spheres;
-    unsigned int sphereVBO = 0;
-    unsigned int sphereVAO = 0;
-    unsigned int sphereEBO = 0;
-    int sphereIndexCount = 0;
+    GLuint sphere_vbo = 0, sphere_vao = 0, sphere_ebo = 0;
+    int sphere_index_count = 0;
     
     void build_sphere_geometry();
 };

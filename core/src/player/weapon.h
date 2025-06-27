@@ -6,9 +6,9 @@
 
 #include <core/audio.h>
 #include <core/physics.h>
-#include <asset/model_ass.h>
+#include <asset/model.h>
 
-enum class Weapon_id {
+enum class Weapon_Id {
     M4A1,
     GLOCK,
     KNIFE,
@@ -19,7 +19,7 @@ enum class Weapon_id {
 
 class Weapon {
 public:
-    Model_ass model;
+    Model model;
 
     // Visual properties
     glm::vec3 wep_pos;      // Current position
@@ -30,7 +30,7 @@ public:
     float ads_speed;        // ADS transition speed
     
     // Gameplay properties
-    Weapon_id id;           // Weapon identifier
+    Weapon_Id id;           // Weapon identifier
     std::string name;       // Display name
     std::string sound_file; // Sound file to play when firing
     std::string sound_dry;
@@ -67,7 +67,7 @@ public:
           sprint_pos(glm::vec3(0.0f)),
           wep_rot(glm::vec3(0.0f)),
           ads_speed(0.0f),
-          id(Weapon_id::NONE),
+          id(Weapon_Id::NONE),
           name("none"),
           sound_file(""),
           sound_dry(""),
@@ -89,10 +89,8 @@ public:
     
     static Weapon M4A1() {
         Weapon weapon;
-        printf("here\n");
-        weapon.model.load_model("../resources/models/m4a1/M4A1.obj");
-        printf("here23\n");
-        weapon.id = Weapon_id::M4A1;
+        //weapon.model.load_model("../resources/models/m4a1/M4A1.obj");
+        weapon.id = Weapon_Id::M4A1;
         weapon.name = "m4a1";
         weapon.min_pos = glm::vec3(0.6f, -0.5f, -1.6f);
         weapon.wep_pos = weapon.min_pos;
@@ -121,8 +119,8 @@ public:
     
     static Weapon GLOCK() {
         Weapon weapon;
-        weapon.model.load_model("../resources/models/glock/glock.gltf");
-        weapon.id = Weapon_id::GLOCK;
+        //weapon.model.load_model("../resources/models/glock/glock.gltf");
+        weapon.id = Weapon_Id::GLOCK;
         weapon.name = "glock";
         weapon.min_pos = glm::vec3(0.4f, -0.4f, -1.3f);
         weapon.wep_pos = weapon.min_pos;

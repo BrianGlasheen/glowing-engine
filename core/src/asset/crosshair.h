@@ -1,7 +1,5 @@
-#ifndef CROSSHAIR_H
-#define CROSSHAIR_H
+#pragma once
 
-//#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <dearimgui/imgui.h>
 
@@ -9,44 +7,49 @@
 
 class Crosshair {
 public:
-    //Crosshair(const char* file) {}
-
-    //Crosshair(float thickness, float gap, float length, glm::vec3 color) {
-    //    Crosshair(thickness, gap, length, length, color);
-    //}
-
-    Crosshair(float thickness, float gap, float height, float width, float opacity, glm::vec3 color)
-    : thickness(thickness), gap(gap), height(height), width(width), opacity(opacity), color(color)
+    Crosshair(float thickness,
+              float gap,
+              float height,
+              float width,
+              float opacity,
+              glm::vec3 color)
+        : thickness(thickness), 
+          gap(gap), 
+          height(height), 
+          width(width), 
+          opacity(opacity), 
+          color(color)
     {
-        glGenVertexArrays(1, &idiot);
+        glGenVertexArrays(1, &no_buffer);
     }
 
     ~Crosshair() {
-        glDeleteVertexArrays(1, &idiot);
+        glDeleteVertexArrays(1, &no_buffer);
     }
 
-    void draw(const Shader* shader, const int& screen_width, const int& screen_height) const {
-
-        shader->setFloat("thickness", thickness);
-        shader->setFloat("gap", gap);
-        shader->setFloat("height", height);
-        shader->setFloat("width", width);
-        shader->setFloat("opacity", opacity);
-        shader->setVec3("color", color);
-        shader->setVec2("screen_size", glm::vec2(screen_width, screen_height));
+    void draw(const Shader* shader, const int& screen_width, const int& screen_height) const 
+    {
+        shader->set_float("thickness", thickness);
+        shader->set_float("gap", gap);
+        shader->set_float("height", height);
+        shader->set_float("width", width);
+        shader->set_float("opacity", opacity);
+        shader->set_vec3("color", color);
+        shader->set_vec2("screen_size", glm::vec2(screen_width, screen_height));
 
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        glBindVertexArray(idiot);
+        glBindVertexArray(no_buffer);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
     }
 
-    void gui() {
+    void gui() 
+    {
         ImGui::Begin("Crosshair");
 
         ImGui::SliderFloat("Thickness", &thickness, 0.5f, 10.0f);
@@ -61,8 +64,7 @@ public:
     }
 
 //private:
-    unsigned int idiot;
+    GLuint no_buffer;
     float thickness, gap, height, width, opacity;
     glm::vec3 color;
 };
-#endif
