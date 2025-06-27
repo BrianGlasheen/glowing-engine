@@ -1,15 +1,17 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#pragma once
 
 #include <filesystem>
 #include <ctime>
 #include <cfloat>
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <dearimgui/imgui.h>
+#include <dearimgui/imgui_impl_glfw.h>
+#include <dearimgui/imgui_impl_opengl3.h>
 #include <imguizmo/ImGuizmo.h>
 
 #include "renderer_debug.h"
@@ -33,7 +35,7 @@ struct camera_dir {
     glm::vec3 direction;
     glm::vec3 up;
 };
-camera_dir camera_directions[] = {
+static camera_dir camera_directions[] = {
     { GL_TEXTURE_CUBE_MAP_POSITIVE_X, glm::vec3(1.0f, 0.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f) },
     { GL_TEXTURE_CUBE_MAP_NEGATIVE_X, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f) },
     { GL_TEXTURE_CUBE_MAP_POSITIVE_Y, glm::vec3(0.0f, 1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f) },
@@ -57,7 +59,7 @@ enum gizmo_modes {
     ROTATE,
     SCALE
 };
-std::string gize_mode_strs[]{"none", "translate", "rotate", "scale"};
+static std::string gize_mode_strs[]{"none", "translate", "rotate", "scale"};
 
 struct ortho_view_data {
     ortho_view type;
@@ -239,43 +241,8 @@ public:
     Renderer(){};
     ~Renderer(){};
 
-    float get_time() { return static_cast<float>(glfwGetTime()); }
-    bool open() { return !glfwWindowShouldClose(window); }
+    bool init() {
 
-    bool init(int width, int height, const char* title, bool edit_mode) {
-        editor_mode = edit_mode;
-        scr_width = width;
-        scr_height = height;
-
-        glfwInit();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-        window = glfwCreateWindow(width, height, title, NULL, NULL);
-        if (window == NULL) {
-            std::cout << "Failed to create GLFW window" << std::endl;
-            glfwTerminate();
-            return false;
-        } else {
-            std::cout << "~~~ cool quote here ~~~" << std::endl;
-        }
-
-        glfwMakeContextCurrent(window); // idk
-        glfwSetWindowUserPointer(window, this); // same as below
-        glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); // todo maybe move kinda weird
-
-        // tell GLFW to capture our mouse
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        // glad: load all OpenGL function pointers
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            std::cout << "Failed to initialize GLAD" << std::endl;
-            return false;
-        }
-
-        Texture_Manager::init();
-
-        // TODO MOVE TO TO WINDOW CLASS MAYBE EDITOR WINDOW TOO
         // make viewports
         editor_viewports.top.init_text  ("top------"); // pad to 9 xD
         editor_viewports.front.init_text("front----");
@@ -318,16 +285,7 @@ public:
         return true;
     }
 
-    void sync_callbacks(Player& player) {
-        current_player = &player;
 
-        //glfwSetWindowUserPointer(window, &player);
-        glfwSetCursorPosCallback(window, Renderer::static_mouse_callback);
-        glfwSetMouseButtonCallback(window, Renderer::static_mouse_button_callback);
-        glfwSetScrollCallback(window, Renderer::static_scroll_callback);
-        glfwSetKeyCallback(window, Renderer::static_key_callback);
-        glfwSetCharCallback(window, Renderer::static_char_callback);
-    }
 
     bool setup_buffers() {
         // Create and bind G-buffer framebuffer
@@ -774,7 +732,7 @@ public:
                 assert(false);
 
             // no snap
-            bool smooth = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+            bool smooth = false;//glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
             float snap_value = 0.5f;
             if (guizmo_op == ImGuizmo::OPERATION::ROTATE)
                 snap_value = 15.0f;
@@ -786,6 +744,7 @@ public:
                 glm::vec3 position, scale, rotation;
                 Util::decompose(model, position, scale, rotation);
 
+                // todo change
                 Physics::set_body_position(scene.entities[target_entity].physics_id, position);
                 Physics::set_body_rotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
             }
@@ -994,11 +953,7 @@ public:
     void debug_sphere_at(glm::vec3 pos) {
         debug_renderer.add_sphere(pos, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
     }
-    
-    void flush() {
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
+
 
     void shutdown() {
         glDeleteFramebuffers(1, &g_buffer);
@@ -1008,7 +963,6 @@ public:
         
         glDeleteVertexArrays(1, &quadVAO);
         
-        glfwTerminate();
     }
 
     ortho_view_data* get_viewport_at_mouse(double xpos, double ypos) {
@@ -1031,169 +985,10 @@ public:
         }
     }
 
-    static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-        glViewport(0, 0, width, height);
-        renderer->scr_width = width;
-        renderer->scr_height = height;
-    }
-
-    static void static_mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-        if (renderer && renderer->current_player) {
-            if (renderer->editor_mode) {
-                // Handle editor mode mouse button input
-                if (button == GLFW_MOUSE_BUTTON_MIDDLE ||
-                    (button == GLFW_MOUSE_BUTTON_LEFT && (mods & GLFW_MOD_SHIFT))) {
-
-                    double xpos, ypos;
-                    glfwGetCursorPos(window, &xpos, &ypos);
-
-                    ortho_view_data* active_viewport = renderer->get_viewport_at_mouse(xpos, ypos);
-                    if (active_viewport && active_viewport->type != ortho_view::SCENE) {
-                        if (action == GLFW_PRESS) {
-                            active_viewport->start_pan(glm::vec2(xpos, ypos));
-                        }
-                        else if (action == GLFW_RELEASE) {
-                            active_viewport->stop_pan();
-                        }
-                    }
-                }
-                // Add other editor mouse button handling here (selection, etc.)
-            }
-            else {
-                // Game mode mouse button handling - forward to player if they have this method
-                // renderer->current_player->mouse_button_callback(window, button, action, mods);
-            }
-        }
-    }
-
-    static void static_mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-        if (renderer && renderer->current_player) {
-            if (renderer->editor_mode) {
-
-                ortho_view_data* active_viewport = renderer->get_viewport_at_mouse(xpos, ypos);
-                if (active_viewport && active_viewport->is_panning) {
-                    glm::vec2 current_mouse(xpos, ypos);
-                    glm::vec2 mouse_delta = current_mouse - active_viewport->last_mouse_pos;
-                    active_viewport->handle_pan(mouse_delta);
-                    active_viewport->last_mouse_pos = current_mouse;
-                }
-
-                // Editor mode input handling
-                double half_width = renderer->scr_width / 2.0;
-                double half_height = renderer->scr_height / 2.0;
-
-                if (xpos < half_width && ypos < half_height) {
-                    // std::cout << "Top-Left: (" << xpos << ", " << ypos << ")" << std::endl;
-                }
-                else if (xpos >= half_width && ypos < half_height) {
-                    // std::cout << "Top-Right: (" << xpos << ", " << ypos << ")" << std::endl;
-                }
-                else if (xpos < half_width && ypos >= half_height) {
-                    // std::cout << "Bottom-Left: (" << xpos << ", " << ypos << ")" << std::endl;
-                }
-                else {
-                    // std::cout << "Bottom-Right: (" << xpos << ", " << ypos << ")" << std::endl;
-                }
-            }
-            else {
-                renderer->current_player->mouse_callback(window, xpos, ypos);
-            }
-        }
-    }
-
-    static void static_scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-        if (renderer && renderer->current_player) {
-            if (renderer->editor_mode) {
-
-                double xpos, ypos;
-                glfwGetCursorPos(window, &xpos, &ypos);
-
-                ortho_view_data* active_viewport = renderer->get_viewport_at_mouse(xpos, ypos);
-                if (active_viewport) {
-                    active_viewport->handle_zoom(static_cast<float>(-yoffset));
-                }
-            }
-            else {
-                // Game mode scroll handling
-                renderer->current_player->scroll_callback(window, xoffset, yoffset);
-            }
-        }
-    }
-
-    static void static_key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-
-        // exit
-        if (key == GLFW_KEY_C && (mods & GLFW_MOD_CONTROL))
-            glfwSetWindowShouldClose(window, true);
-
-               
-        if (renderer && renderer->current_player) {
-             if (renderer->editor_mode) {
-                  std::cout << "Char in Editor: " << (char)scancode << std::endl;
-
-                 if (key == GLFW_KEY_RIGHT)
-                     renderer->target_entity = (renderer->target_entity + 1);
-
-                 if (key == GLFW_KEY_LEFT)
-                     renderer->target_entity = (renderer->target_entity - 1);
-             }
-             else {
-                 // Game mode character input handling (e.g., for console, chat)
-                 // You might have a process_char method in Player or a separate UI handler
-                 //renderer->current_player->char_callback(window, key); // Placeholder assuming this method exists
-             }
-        }
-    }
-
-    static void static_char_callback(GLFWwindow* window, uint32_t key) {
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-
-        if (key == 'm') {
-            renderer->editor_mode = !renderer->editor_mode;
-            if (renderer->editor_mode)
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            else
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        }
-
-        if (key == '\'')
-            Shader_Manager::hot_reload_all();
-
-        if (renderer) {
-            if (renderer->editor_mode) {
-                double xpos, ypos;
-                glfwGetCursorPos(window, &xpos, &ypos);
-
-                ortho_view_data* active_viewport = renderer->get_viewport_at_mouse(xpos, ypos);
-                if (active_viewport) {
-                    if (key == '1')
-                        active_viewport->set_gizmo_mode(gizmo_modes::TRANSLATE);
-                    if (key == '2')
-                        active_viewport->set_gizmo_mode(gizmo_modes::ROTATE);
-                    if (key == '3')
-                        active_viewport->set_gizmo_mode(gizmo_modes::SCALE);
-                    if (key == 27)
-                        active_viewport->set_gizmo_mode(gizmo_modes::NONE);
-                }
-            }
-            else {
-                // Game mode character input handling (e.g., for console, chat)
-                // You might have a process_char method in Player or a separate UI handler
-                renderer->current_player->char_callback(window, key); // Placeholder assuming this method exists
-            }
-        }
-    }
 
 // private:
-    Player* current_player;
 
-    GLFWwindow* window;
-    int scr_width, scr_height;
+    int scr_width = 1600, scr_height = 900;
     Renderer_Debug debug_renderer;
 
     Light spotlight, directional_light, point_light;
@@ -1203,15 +998,13 @@ public:
     shader_handle debug_shader;
     shader_handle shadow_map_shader, point_shadow_map_shader;
     shader_handle hud_text_shader;
-    //Shader weapon_shader, disney_shader;
     shader_handle crosshair_shader;
 
     Shader toon;
 
     editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
-    bool editor_mode;
-
+    bool editor_mode = false;
     size_t target_entity = 0;
 
     float penis = 25.0f;
@@ -1225,4 +1018,3 @@ public:
     GLuint g_buffer, g_position, g_normal, g_albedo_specular;
     GLuint quadVAO;
 };
-#endif

@@ -28,4 +28,5 @@ class Model {
         void process_node(aiNode *node, const aiScene *scene, const std::string& path);
         Mesh process_mesh(aiMesh *mesh, const aiScene *scene, const std::string& path);
         void calculate_aabb();
+        void shift_mesh_up();
 };

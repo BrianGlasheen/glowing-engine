@@ -25,6 +25,8 @@ int Model::load_model(const std::string &path)
 
     process_node(scene->mRootNode, scene, path);
     calculate_aabb();
+    shift_mesh_up();
+    calculate_aabb();
     return 0;
 }
 
@@ -148,10 +150,12 @@ void Model::calculate_aabb()
         }
     }
 
-    //printf("starting aabb max %f %f %f\n", aabb_max.x, aabb_max.y, aabb_max.z);
-    //printf("starting aabb min %f %f %f\n", aabb_min.x, aabb_min.y, aabb_min.z);
+}
 
-    //glm::vec3 center = 0.5f * (aabb.min + aabb.max);
+void Model::shift_mesh_up()
+{
+    glm::vec3 center = 0.5f * (aabb.min + aabb.max);
+
     //glm::vec3 diff   = aabb.max - aabb.min;
     //float maxDim     = std::max(diff.x, std::max(diff.y, diff.z));
     //if (maxDim < 1e-8f) {
@@ -160,34 +164,12 @@ void Model::calculate_aabb()
     ////float scale_f = scale / maxDim;  // so the largest dimension goes from -1 to +1
     //float scale_f = 1.0f; // dont scale, just center
 
-    //for (auto& m : meshes) {
-    //    for (auto& v : m.vertices) {
-    //        // Center around origin
-    //        v.position = (v.position - center) * scale_f;
-    //        // Then shift Y so bottom is at y=0
-    //        //v.Position.y += (center.y - aabb_min.y) * scale_f; // why ?>?????? todo figure out bruh
-    //    }
-    //    m.update_vertex_buffer();
-    //}
-
-    // Recalculate final AABB
-    //aabb_min = glm::vec3(FLT_MAX);
-    //aabb_max = glm::vec3(-FLT_MAX);
-    //for (auto& m : meshes) {
-    //    for (auto& v : m.vertices) {
-    //        aabb_min.x = std::min(aabb_min.x, v.position.x);
-    //        aabb_min.y = std::min(aabb_min.y, v.position.y);
-    //        aabb_min.z = std::min(aabb_min.z, v.position.z);
-
-    //        aabb_max.x = std::max(aabb_max.x, v.position.x);
-    //        aabb_max.y = std::max(aabb_max.y, v.position.y);
-    //        aabb_max.z = std::max(aabb_max.z, v.position.z);
-    //    }
-    //}
-
-    //printf("after aabb max %f %f %f\n", aabb_max.x, aabb_max.y, aabb_max.z);
-    //printf("after aabb min %f %f %f\n", aabb_min.x, aabb_min.y, aabb_min.z);
-
-    //printf("after aabb max %f %f %f\n", aabb_max.x, aabb_max.y, aabb_max.z);
-    //printf("after aabb min %f %f %f\n", aabb_min.x, aabb_min.y, aabb_min.z);
+    for (auto& m : meshes) {
+        for (auto& v : m.vertices) {
+            v.position = v.position - center;
+            // Then shift Y so bottom is at y=0
+            //v.Position.y += (center.y - aabb_min.y) * scale_f; // why ?>?????? todo figure out bruh
+        }
+        m.update_vertex_buffer();
+    }
 }

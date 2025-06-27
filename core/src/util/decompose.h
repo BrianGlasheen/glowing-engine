@@ -17,7 +17,7 @@ namespace Util {
         rot = glm::quat_cast(rotMtx);
     }*/
 
-    void decompose(const glm::mat4& m, glm::vec3& pos, glm::vec3& scale, glm::vec3& rot) {
+    inline void decompose(const glm::mat4& m, glm::vec3& pos, glm::vec3& scale, glm::vec3& rot) {
         // Extract translation directly
         pos = glm::vec3(m[3]);
 

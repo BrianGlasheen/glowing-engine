@@ -8,6 +8,7 @@
 
 #include "shader.h"
 #include "material.h"
+#include "util/aabb.h"
 
 struct Vertex {
     glm::vec3 position;
@@ -19,7 +20,7 @@ struct Vertex {
  
 class Mesh {
     public:
-        std::vector<Vertex>       vertices;
+        std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         Material material;
 
@@ -30,6 +31,7 @@ class Mesh {
 
     private:
         GLuint VAO, VBO, EBO;
+        Util::AABB aabb;
 
         void setup_mesh();
 };

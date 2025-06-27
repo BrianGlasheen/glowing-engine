@@ -42,6 +42,7 @@ set(SOURCES
     "src/core/scene.cpp"
     "src/core/audio.cpp"
     "src/core/renderer_debug.cpp"
+    "src/core/window.cpp"
     "src/asset/mesh.cpp"
     "src/asset/model.cpp"
     "src/asset/texture_manager.cpp"

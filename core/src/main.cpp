@@ -1,27 +1,36 @@
-﻿#include <dearimgui/imgui.h>
-#include <dearimgui/imgui_impl_glfw.h>
-#include <dearimgui/imgui_impl_opengl3.h>
+﻿//#include <dearimgui/imgui.h>
+//#include <dearimgui/imgui_impl_glfw.h>
+//#include <dearimgui/imgui_impl_opengl3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "core/renderer.h"
-#include "core/entity.h"
-#include "core/scene.h"
-#include "core/physics.h"
-#include "core/audio.h"
-#include "player/player.h"
 #include "asset/crosshair.h"
 #include "asset/text.h"
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
 
-float delta_time = 0.0f;
-float last_frame = 0.0f;
+#include "core/window.h"
+//#include "core/renderer.h"
+#include "core/entity.h"
+#include "core/scene.h"
+#include "core/physics.h"
+#include "core/audio.h"
+
+#include "player/player.h"
 
 int main() 
 {
+    float delta_time = 0.0f;
+    float last_frame = 0.0f;
+
+    Window window;
+    if (!window.init(1600, 900, "GLOW"))
+        return -1;
+
+    Texture_Manager::init();
+
     Renderer renderer;
-    if (!renderer.init(1600, 900, "GLOW", false))
+    if (!renderer.init())
         return -1;
     
     Audio::init();
@@ -31,11 +40,11 @@ int main()
     Model_Manager::init("../resources/models/");
 
     Player player;
-    renderer.sync_callbacks(player);
+    window.sync_callbacks(player, renderer);
 
     Crosshair crosshair(1.0f, 6.0f, 10.0f, 10.0f, 1.0f, glm::vec3(1.0f, 0.5f, 1.0f));
     
-    Scene scene("sky"); 
+    Scene scene("sky"); //.todo move lights here?
 
     model_handle plane = Model_Manager::load_model("plane.obj", 0);
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -80,7 +89,7 @@ int main()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    ImGui_ImplGlfw_InitForOpenGL(renderer.window, true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+    ImGui_ImplGlfw_InitForOpenGL(window.get_window(), true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplOpenGL3_Init();
 
     Font font("tx02");
@@ -105,8 +114,8 @@ int main()
     // render loop
     uint32_t frame = 0;
     printf("RENDERING\n");
-    while (renderer.open()) {
-        float currentFrame = renderer.get_time();
+    while (window.open()) {
+        float currentFrame = window.get_time();
 
         delta_time = currentFrame - last_frame;
         last_frame = currentFrame;
@@ -127,7 +136,7 @@ int main()
         // draws hud (weapon, etc)
 
         if (!renderer.editor_mode) {
-            player.controller_step(renderer.window, delta_time, scene);
+            player.controller_step(window.get_window(), delta_time, scene);
             Physics::update(); // default 1/60 delta time
         }
 
@@ -184,7 +193,7 @@ int main()
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
-        renderer.flush();
+        window.present();
         Audio::update();
     }
 

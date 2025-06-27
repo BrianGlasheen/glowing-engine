@@ -213,7 +213,7 @@ void Renderer_Debug::add_obb(const Util::OBB obb, const glm::vec3& color) {
     add_line(obb.corners[3], obb.corners[7], color); // +x+y to max
 }
 
-void Renderer_Debug::draw_frustum(const glm::vec3 cameraPos, const glm::vec3 cameraDir, const glm::vec3 cameraUp, float fov, float aspect, float near, float far) {
+void Renderer_Debug::draw_frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir, const glm::vec3& cameraUp, const float& fov, const float& aspect, const float& near, const float& far) {
     glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
     glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
 

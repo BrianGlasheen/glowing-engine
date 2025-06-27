@@ -4,6 +4,30 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+//struct Entity_CreateInfo {
+//    glm::vec3 position;
+//    glm::quat rotation;
+//    glm::vec3 scale;
+//    model_handle model_id;
+//    bool physics_enabled;
+//    bool fade;
+//    float ttl;
+//    float max_ttl;
+//};
+//
+//Entity::Entity(const Entity_CreateInfo& CI)
+//        : position(CI.position),
+//        rotation(CI.rotation),
+//        scale(CI.scale),
+//        model_id(CI.model_id),
+//        physics_enabled(CI.physics_enabled),
+//        fade(CI.fade), ttl(CI.ttl), max_ttl(CI.max_ttl)
+//{
+//    Util::AABB aabb = Model_Manager::get_aabb(model_id);
+//    if (physics_enabled)
+//        physics_id = Physics::add_box(position, (aabb.max - aabb.min) * scale, false);
+//}
+
 Entity::Entity(glm::vec3 position,
                glm::quat rotation,
                glm::vec3 scale,

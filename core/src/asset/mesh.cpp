@@ -7,7 +7,7 @@ Mesh::Mesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices, Material
     this->indices = indices;
 
     setup_mesh();
-    // maybe calc aabb?
+    // calc aabb?
 }
 
 void Mesh::setup_mesh() 
