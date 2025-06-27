@@ -1,4 +1,4 @@
-#version 460
+#version 460 core
 
 in vec3 FragPos; // World space position from vertex shader
 uniform vec3 point_light_position;

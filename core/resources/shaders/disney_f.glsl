@@ -1,4 +1,4 @@
-#version 460
+#version 460 core
 
 // Input uniforms for the Disney BRDF parameters
 uniform vec3 base_color;     // Base color of the material

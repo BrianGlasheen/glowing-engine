@@ -1,4 +1,4 @@
-#version 460
+#version 460 core
 
 uniform float thickness;
 uniform float gap;
