@@ -164,12 +164,12 @@ void Model::shift_mesh_up()
     ////float scale_f = scale / maxDim;  // so the largest dimension goes from -1 to +1
     //float scale_f = 1.0f; // dont scale, just center
 
-    for (auto& m : meshes) {
-        for (auto& v : m.vertices) {
-            v.position = v.position - center;
-            // Then shift Y so bottom is at y=0
-            //v.Position.y += (center.y - aabb_min.y) * scale_f; // why ?>?????? todo figure out bruh
-        }
-        m.update_vertex_buffer();
-    }
+    //for (auto& m : meshes) {
+    //    for (auto& v : m.vertices) {
+    //        v.position = v.position - center;
+    //        // Then shift Y so bottom is at y=0
+    //        //v.Position.y += (center.y - aabb_min.y) * scale_f; // why ?>?????? todo figure out bruh
+    //    }
+    //    m.update_vertex_buffer();
+    //}
 }

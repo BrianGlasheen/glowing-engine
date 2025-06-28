@@ -25,6 +25,7 @@
 #include "player/player.h"
 #include "util/decompose.h"
 #include "util/frustum.h"
+#include "util/colors.h"
 
 const float FAR_PLANE = 500.0f;
 
@@ -643,42 +644,50 @@ public:
         // flush(); !!
     }
 
-    // assuming object was rendererd with stencil mask
+
     void render_selected_outlined(Player& player, const Scene& scene) {
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
-        glDisable(GL_DEPTH_TEST);
-        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-        Entity selected_entity = scene.entities[target_entity];
+        for (size_t selected : selected_entites) {
+            glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        Shader* shader = Shader_Manager::get_shader(outline_shader);
-        shader->use();
+            Entity selected_entity = scene.entities[selected];
 
-        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-        shader->set_mat4("projection", projection);
-        shader->set_mat4("view", player.get_view_matrix());
+            glStencilFunc(GL_ALWAYS, 1, 0xFF);
+            glStencilMask(0xFF);
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-        glm::mat4 model = selected_entity.get_model_matrix();
-        shader->set_mat4("model", model);
-        //glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-        //shader->set_mat3("normal_matrix", normal_matrix);
-        selected_entity.draw(shader);
+            Shader* shader = Shader_Manager::get_shader(outline_shader);
+            shader->use();
 
-        shader->set_vec3("color", glm::vec3(1.0f, 0.5f, 0.0f)); // Any color
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        //glDisable(GL_DEPTH_TEST);
-        //glCullFace(GL_FRONT);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+            shader->set_mat4("projection", projection);
+            shader->set_mat4("view", player.get_view_matrix());
 
-        shader->set_mat4("model", glm::scale(model, glm::vec3(outline_scale)));
-        selected_entity.draw(shader);
+            glm::mat4 model = selected_entity.get_model_matrix();
+            shader->set_mat4("model", model);
+            //glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
+            //shader->set_mat3("normal_matrix", normal_matrix);
+            shader->set_float("scale", 0.0);
+            selected_entity.draw(shader);
 
-        glStencilMask(0xFF);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        //glCullFace(GL_BACK);
-        glEnable(GL_DEPTH_TEST);
+            shader->set_vec3("color", Util::orange);
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+            glStencilMask(0x00);
+            //glDisable(GL_DEPTH_TEST);
+            //glEnable(GL_DEPTH_TEST);
+            //glCullFace(GL_FRONT);
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+            //shader->set_mat4("model", glm::scale(model, glm::vec3(outline_scale)));
+            shader->set_float("scale", outline_scale);
+            selected_entity.draw(shader);
+
+            glStencilMask(0xFF);
+            glStencilFunc(GL_ALWAYS, 0, 0xFF);
+            //glCullFace(GL_BACK);
+            glEnable(GL_DEPTH_TEST);
+        }
+
     }
 
     void render_scene_ortho(Player& player, Scene& scene, float deltaTime, const ortho_view_data& view_data) {
@@ -755,62 +764,62 @@ public:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
 
-    void render_gizmo(const Scene& scene, const Player& player) {
-        if (editor_viewports.scene.gizmo_mode != gizmo_modes::NONE && target_entity != -1) {
-            float w = scr_width / 2;
-            float h = scr_height / 2;
+    //void render_gizmo(const Scene& scene, const Player& player) {
+    //    if (editor_viewports.scene.gizmo_mode != gizmo_modes::NONE && target_entity != -1) {
+    //        float w = scr_width / 2;
+    //        float h = scr_height / 2;
 
-            ImGuizmo::BeginFrame();
+    //        ImGuizmo::BeginFrame();
 
-            ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2(w, h));
-            ImGui::Begin("gizmode",
-                nullptr,
-                ImGuiWindowFlags_NoTitleBar |
-                ImGuiWindowFlags_NoResize |
-                ImGuiWindowFlags_NoMove |
-                ImGuiWindowFlags_NoScrollbar |
-                ImGuiWindowFlags_NoBackground);
+    //        ImGui::SetNextWindowPos(ImVec2(0, 0));
+    //        ImGui::SetNextWindowSize(ImVec2(w, h));
+    //        ImGui::Begin("gizmode",
+    //            nullptr,
+    //            ImGuiWindowFlags_NoTitleBar |
+    //            ImGuiWindowFlags_NoResize |
+    //            ImGuiWindowFlags_NoMove |
+    //            ImGuiWindowFlags_NoScrollbar |
+    //            ImGuiWindowFlags_NoBackground);
 
-            ImGuizmo::SetOrthographic(false);
-            ImGuizmo::SetDrawlist();
+    //        ImGuizmo::SetOrthographic(false);
+    //        ImGuizmo::SetDrawlist();
 
-            ImGuizmo::SetRect(0.0f, 0.0f, w, h);
+    //        ImGuizmo::SetRect(0.0f, 0.0f, w, h);
 
-            glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-            glm::mat4 view = player.camera.get_view_matrix();
-            glm::mat4 model = scene.entities[target_entity].get_model_matrix();
+    //        glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    //        glm::mat4 view = player.camera.get_view_matrix();
+    //        glm::mat4 model = scene.entities[target_entity].get_model_matrix();
 
-            ImGuizmo::OPERATION guizmo_op;
-            if (editor_viewports.scene.gizmo_mode == gizmo_modes::TRANSLATE)
-                guizmo_op = ImGuizmo::OPERATION::TRANSLATE;
-            else if (editor_viewports.scene.gizmo_mode == gizmo_modes::ROTATE)
-                guizmo_op = ImGuizmo::OPERATION::ROTATE;
-            else if (editor_viewports.scene.gizmo_mode == gizmo_modes::SCALE)
-                guizmo_op = ImGuizmo::OPERATION::SCALE;
-            else
-                assert(false);
+    //        ImGuizmo::OPERATION guizmo_op;
+    //        if (editor_viewports.scene.gizmo_mode == gizmo_modes::TRANSLATE)
+    //            guizmo_op = ImGuizmo::OPERATION::TRANSLATE;
+    //        else if (editor_viewports.scene.gizmo_mode == gizmo_modes::ROTATE)
+    //            guizmo_op = ImGuizmo::OPERATION::ROTATE;
+    //        else if (editor_viewports.scene.gizmo_mode == gizmo_modes::SCALE)
+    //            guizmo_op = ImGuizmo::OPERATION::SCALE;
+    //        else
+    //            assert(false);
 
-            // no snap
-            bool smooth = false;//glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
-            float snap_value = 0.5f;
-            if (guizmo_op == ImGuizmo::OPERATION::ROTATE)
-                snap_value = 15.0f;
-            float snap_values[3] = { snap_value, snap_value, snap_value };
+    //        // no snap
+    //        bool smooth = false;//glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+    //        float snap_value = 0.5f;
+    //        if (guizmo_op == ImGuizmo::OPERATION::ROTATE)
+    //            snap_value = 15.0f;
+    //        float snap_values[3] = { snap_value, snap_value, snap_value };
 
-            if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), guizmo_op, ImGuizmo::LOCAL,
-                glm::value_ptr(model), nullptr, smooth ? nullptr : snap_values)) {
+    //        if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), guizmo_op, ImGuizmo::LOCAL,
+    //            glm::value_ptr(model), nullptr, smooth ? nullptr : snap_values)) {
 
-                glm::vec3 position, scale, rotation;
-                Util::decompose(model, position, scale, rotation);
+    //            glm::vec3 position, scale, rotation;
+    //            Util::decompose(model, position, scale, rotation);
 
-                // todo change
-                Physics::set_body_position(scene.entities[target_entity].physics_id, position);
-                Physics::set_body_rotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
-            }
-            ImGui::End();
-        }
-    }
+    //            // todo change
+    //            Physics::set_body_position(scene.entities[target_entity].physics_id, position);
+    //            Physics::set_body_rotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
+    //        }
+    //        ImGui::End();
+    //    }
+    //}
     
     void render_debug(Player& player) {
         Shader* shader = Shader_Manager::get_shader(debug_shader);
@@ -1067,8 +1076,8 @@ public:
     editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
     bool editor_mode = false;
-    size_t target_entity = 1;
-    float outline_scale = 1.1f;
+    std::vector<size_t> selected_entites = { 0, 1, 2, 3, 4 };
+    float outline_scale = 0.1f;
 
     float penis = 25.0f;
     float ambient_light = 0.05f;

@@ -195,11 +195,11 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
     if (renderer) {
         //if (renderer->editor_mode) {
 
-            if (key == GLFW_KEY_RIGHT)
-                renderer->target_entity = (renderer->target_entity + 1);
+            //if (key == GLFW_KEY_RIGHT)
+            //    renderer->target_entity = (renderer->target_entity + 1);
 
-            if (key == GLFW_KEY_LEFT)
-                renderer->target_entity -= (renderer->target_entity > 0 ? 1 : 0);
+            //if (key == GLFW_KEY_LEFT)
+            //    renderer->target_entity -= (renderer->target_entity > 0 ? 1 : 0);
         //}
         //else {
             // Game mode character input handling (e.g., for console, chat)

@@ -179,7 +179,7 @@ int main()
 
         //player.debug_hud();
         if (renderer.editor_mode) {
-            renderer.render_gizmo(scene, player);
+            //renderer.render_gizmo(scene, player);
         }
         else {
             renderer.render_crosshair(crosshair);
