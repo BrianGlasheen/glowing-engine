@@ -253,6 +253,10 @@ public:
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
 
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
         // LIGHTs
         // makes opengl calls
         spotlight = Light::create_spot(glm::vec3(0.0f, 5.0f, -5.0f), glm::vec3(0.0f, -1.0f, -0.5f), glm::vec3(1.0f), 15.0f, 25.0f, 45.0f, 1024, 1024);
@@ -270,6 +274,7 @@ public:
         point_shadow_map_shader = Shader_Manager::load_from_name("shadow_map_point");
         hud_text_shader = Shader_Manager::load_from_name("text_hud");
         //debug_shader.init("../resources/shaders/debug_v.glsl", "../resources/shaders/debug_f.glsl");
+        outline_shader = Shader_Manager::load_from_name("outline");
         
         //setup_buffers(); // defferd g buffer setup
         //deferred_shader.init("../resources/shaders/deferred_v.glsl", "../resources/shaders/deferred_f.glsl");
@@ -501,11 +506,18 @@ public:
 
     void render_scene(Player& player, Scene& scene, float delta_time) {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        
+
+        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
+        glm::mat4 view = player.get_view_matrix();
+        render_skybox(scene.skybox, view, projection); // not efficient but gets outlines ontop of skybox
+
 
         //Shader used_shader = toon;
         Shader* shader = Shader_Manager::get_shader(pbr_shader);
         shader->use();
+        glStencilMask(0x00);
 
         shader->set_bool("use_alpha_clipping", use_alpha_clipping);
         shader->set_float("alpha_cutoff", alpha_cutoff);
@@ -559,10 +571,10 @@ public:
         /////
 
 
-        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
+        //glm::projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
         shader->set_mat4("projection", projection);
         
-        glm::mat4 view = player.get_view_matrix();
+        //glm::mat4 view = player.get_view_matrix();
         shader->set_mat4("view", view);
         shader->set_vec3("view_position", player.get_view_position());
 
@@ -574,6 +586,15 @@ public:
         Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
         int count = 0;
         for (Entity& entity : scene.entities) {
+
+            //if (&entity == &scene.entities[target_entity]) {
+            //    count++;
+            //    continue;
+            //}   
+            //else {
+            //    glStencilMask(0x00);
+            //}
+
             Util::AABB box;
             if (entity.physics_enabled) {
                 box = Physics::get_world_AABB(entity.physics_id);
@@ -585,7 +606,6 @@ public:
 
                     glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
                     shader->set_mat3("normal_matrix", normal_matrix);
-
                     entity.draw(shader);
                 }
             }
@@ -615,10 +635,50 @@ public:
             }
         }
         //printf("drawing %d entities\n", count);
-        
-        render_skybox(scene.skybox, view, projection);
+
+        //if (editor_mode)
+            render_selected_outlined(player, scene);
+
 
         // flush(); !!
+    }
+
+    // assuming object was rendererd with stencil mask
+    void render_selected_outlined(Player& player, const Scene& scene) {
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
+        glDisable(GL_DEPTH_TEST);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+        Entity selected_entity = scene.entities[target_entity];
+
+        Shader* shader = Shader_Manager::get_shader(outline_shader);
+        shader->use();
+
+        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+        shader->set_mat4("projection", projection);
+        shader->set_mat4("view", player.get_view_matrix());
+
+        glm::mat4 model = selected_entity.get_model_matrix();
+        shader->set_mat4("model", model);
+        //glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
+        //shader->set_mat3("normal_matrix", normal_matrix);
+        selected_entity.draw(shader);
+
+        shader->set_vec3("color", glm::vec3(1.0f, 0.5f, 0.0f)); // Any color
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilMask(0x00);
+        //glDisable(GL_DEPTH_TEST);
+        //glCullFace(GL_FRONT);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+        shader->set_mat4("model", glm::scale(model, glm::vec3(outline_scale)));
+        selected_entity.draw(shader);
+
+        glStencilMask(0xFF);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        //glCullFace(GL_BACK);
+        glEnable(GL_DEPTH_TEST);
     }
 
     void render_scene_ortho(Player& player, Scene& scene, float deltaTime, const ortho_view_data& view_data) {
@@ -1000,12 +1060,15 @@ public:
     shader_handle hud_text_shader;
     shader_handle crosshair_shader;
 
+    shader_handle outline_shader;
+
     Shader toon;
 
     editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
     bool editor_mode = false;
-    size_t target_entity = 0;
+    size_t target_entity = 1;
+    float outline_scale = 1.1f;
 
     float penis = 25.0f;
     float ambient_light = 0.05f;

@@ -14,6 +14,7 @@ bool Window::init(int w, int h, const char* title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
     window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (window == NULL) {
@@ -190,23 +191,22 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
     if (key == GLFW_KEY_C && (mods & GLFW_MOD_CONTROL))
         glfwSetWindowShouldClose(glfw_window, true);
 
+    Renderer* renderer = this_window->renderer;
+    if (renderer) {
+        //if (renderer->editor_mode) {
 
-    //if (renderer && renderer->current_player) {
-    //    if (renderer->editor_mode) {
-    //        std::cout << "Char in Editor: " << (char)scancode << std::endl;
+            if (key == GLFW_KEY_RIGHT)
+                renderer->target_entity = (renderer->target_entity + 1);
 
-    //        if (key == GLFW_KEY_RIGHT)
-    //            renderer->target_entity = (renderer->target_entity + 1);
-
-    //        if (key == GLFW_KEY_LEFT)
-    //            renderer->target_entity = (renderer->target_entity - 1);
-    //    }
-    //    else {
-    //        // Game mode character input handling (e.g., for console, chat)
-    //        // You might have a process_char method in Player or a separate UI handler
-    //        //renderer->current_player->char_callback(window, key); // Placeholder assuming this method exists
-    //    }
-    //}
+            if (key == GLFW_KEY_LEFT)
+                renderer->target_entity -= (renderer->target_entity > 0 ? 1 : 0);
+        //}
+        //else {
+            // Game mode character input handling (e.g., for console, chat)
+            // You might have a process_char method in Player or a separateUIhandler
+            //renderer->current_player->char_callback(window, key); /Placeholder assuming this method exists
+        //}
+    }
 }
 
 void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {

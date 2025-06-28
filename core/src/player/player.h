@@ -191,13 +191,13 @@ private:
               dashing = false;
           }*/
 
-        //bool f1_is_pressed = (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS);
-        //if (f1_is_pressed && !f1_was_pressed) {
-        //    // spawn glock
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("glock", camera.position + camera.front * 5.0f, true, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
+        bool f1_is_pressed = (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS);
+        if (f1_is_pressed && !f1_was_pressed) {
+            // spawn glock
+            Audio::play_audio("beep.wav", 0.1f);
+            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "glock", true);
+            scene.include(e);
+        }
 
         //if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS) {
         //    Audio::play_audio("beep.wav", 0.1f);
@@ -211,23 +211,23 @@ private:
         //    scene.include(e);
         //}
 
-        //if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("sword_ice", camera.position + camera.front * 5.0f, true, glm::vec3(1.0f), 0.1f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
+        if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
+            Audio::play_audio("beep.wav", 0.1f);
+            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
+            scene.include(e);
+        }
 
-        //if (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS) {
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("link", camera.position + camera.front * 5.0f, true, glm::vec3(1.0f), 0.1f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
+        if (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS) {
+            Audio::play_audio("beep.wav", 0.1f);
+            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "link", true);
+            scene.include(e);
+        }
 
-        //if (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS) {
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("fuzziebox", camera.position + camera.front * 5.0f, true, glm::vec3(1.0f), 0.5f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
+        if (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS) {
+            Audio::play_audio("beep.wav", 0.1f);
+            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "fuzziebox", true);
+            scene.include(e);
+        }
 
         if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS) {
             Physics::optimize_broad_phase();

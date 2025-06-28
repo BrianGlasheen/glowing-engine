@@ -240,7 +240,7 @@ public:
         last_shot_time = 0.0f;
         current_ammo--;
         
-        if (Physics::shoot(pos, facing, 6500.0f, 1000.0f)) {
+        if (Physics::shoot(pos, facing, 999999999.f, 1000.0f)) {
             //Audio::play_audio("hitmarker.wav", 0.15f);
         }
         //apply_shake();
