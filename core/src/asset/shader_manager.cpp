@@ -1,4 +1,8 @@
 #include "shader_manager.h"
+
+// #include <glad/glad.h>
+#include "core/opengl.h"
+
 #include <iostream>
 #include <cassert>
 

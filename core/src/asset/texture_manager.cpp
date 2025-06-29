@@ -3,14 +3,16 @@
 #include <iostream>
 #include <cassert>
 
-#include <glad/glad.h>
+// #include <glad/glad.h>
+#include "core/opengl.h"
+
 #include <stb_image.h>
 
 #include "texture_manager.h"
 
 namespace Texture_Manager {
 
-    static std::vector<GLuint> textures;
+    static std::vector<uint32_t> textures;
     static std::vector<std::string> paths;
     //static std::vector<texture_data> texture_data;
 
@@ -34,7 +36,7 @@ namespace Texture_Manager {
 
     void cleanup() 
     {
-        for (GLuint texture : textures) {
+        for (uint32_t texture : textures) {
             if (texture != 0) {
                 glDeleteTextures(1, &texture);
             }
@@ -50,7 +52,7 @@ namespace Texture_Manager {
             return existing_texture_index;
         }
 
-        GLuint texture_id = 0;
+        uint32_t texture_id = 0;
         glGenTextures(1, &texture_id);
         int width, height, nrComponents;
         unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &nrComponents, 0);
@@ -109,7 +111,7 @@ namespace Texture_Manager {
             return existing_texture_index;
         }
 
-        GLuint texture_id = 0;
+        uint32_t texture_id = 0;
         glGenTextures(1, &texture_id);
         int width, height, nrComponents;
         unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &nrComponents, 0);

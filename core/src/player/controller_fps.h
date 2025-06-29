@@ -1,7 +1,8 @@
 #ifndef CONTROLLER_FPS_H
 #define CONTROLLER_FPS_H
 
-#include "GLFW/glfw3.h"
+#include "core/opengl.h"
+
 #include <glm/glm.hpp>
 
 #include "core/camera.h"

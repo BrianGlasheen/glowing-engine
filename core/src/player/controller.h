@@ -2,7 +2,8 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#include <GLFW/glfw3.h>
+#include "core/opengl.h"
+
 #include <dearimgui/imgui.h>
 #include <dearimgui/imgui_impl_glfw.h>
 #include <dearimgui/imgui_impl_opengl3.h>

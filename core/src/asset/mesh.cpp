@@ -1,4 +1,8 @@
 #include "mesh.h"
+
+// #include <glad/glad.h>
+#include "core/opengl.h"
+
 #include "texture_manager.h"
 
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<uint32_t> indices, Material material) : material(material) 

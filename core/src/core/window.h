@@ -1,11 +1,14 @@
 #pragma once
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+// #include <glad/glad.h>
+// #include <GLFW/glfw3.h>
+#include "core/opengl.h"
+
 #include <glm/glm.hpp>
 
 #include "renderer.h"
 #include "player/player.h"
+#include "editor.h"
 
 class Window {
 public:
@@ -13,7 +16,7 @@ public:
 	Window() = default;
     ~Window();
 
-    bool init(int w, int h, const char* title);
+    int init(int w, int h, const char* title);
     void shutdown();
 
     void present();
@@ -23,7 +26,7 @@ public:
     glm::vec2 get_window_size();
     GLFWwindow* get_window();
 
-    void sync_callbacks(Player& p, Renderer& r);
+    void sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor);
 
 private:
 
@@ -32,6 +35,8 @@ private:
 
     Player* player;
     Renderer* renderer;
+    Editor* editor;
+    bool* editor_mode;
 
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
     static void static_mouse_button_callback(GLFWwindow* window, int button, int action, int mods);

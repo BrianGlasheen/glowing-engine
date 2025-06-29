@@ -1,5 +1,8 @@
 #include "renderer_debug.h"
 
+// #include <glad/glad.h>
+#include "core/opengl.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>

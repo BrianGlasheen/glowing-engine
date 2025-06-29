@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glow.h>
+#include "glow.h"
 
 #include <vector>
 
@@ -30,7 +30,7 @@ class Mesh {
         void update_vertex_buffer();
 
     private:
-        GLuint VAO, VBO, EBO;
+        uint32_t VAO, VBO, EBO;
         Util::AABB aabb;
 
         void setup_mesh();

@@ -4,17 +4,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "asset/crosshair.h"
-#include "asset/text.h"
-#include "asset/texture_manager.h"
-#include "asset/model_manager.h"
-
 #include "core/window.h"
 //#include "core/renderer.h"
 #include "core/entity.h"
 #include "core/scene.h"
 #include "core/physics.h"
 #include "core/audio.h"
+#include "core/editor.h"
+
+#include "asset/crosshair.h"
+#include "asset/text.h"
+#include "asset/texture_manager.h"
+#include "asset/model_manager.h"
 
 #include "player/player.h"
 
@@ -22,17 +23,22 @@ int main()
 {
     float delta_time = 0.0f;
     float last_frame = 0.0f;
+    bool editor_mode = 0;
 
     Window window;
-    if (!window.init(1600, 900, "GLOW"))
+    if (window.init(1600, 900, "GLOW"))
+        return -1;
+
+    Renderer renderer;
+    if (renderer.init())
         return -1;
 
     Texture_Manager::init();
 
-    Renderer renderer;
-    if (!renderer.init())
+    Editor editor;
+    if (editor.init())
         return -1;
-    
+
     Audio::init();
     Physics::init();
 
@@ -40,7 +46,7 @@ int main()
     Model_Manager::init("../resources/models/");
 
     Player player;
-    window.sync_callbacks(player, renderer);
+    window.sync_callbacks(player, renderer, editor, editor_mode);
 
     Crosshair crosshair(1.0f, 6.0f, 10.0f, 10.0f, 1.0f, glm::vec3(1.0f, 0.5f, 1.0f));
     
@@ -121,12 +127,12 @@ int main()
         last_frame = currentFrame;
 
         if (!(frame++ % 10)) {
-            fpscounter.updateText(std::to_string((int)(1.0f / delta_time)));
-            weapon_ammo_text.updateText(std::to_string(player.active_weapon->current_ammo));
-            reserve_ammo_text.updateText(std::to_string(player.active_weapon->reserve_ammo));
+            fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
+            weapon_ammo_text.update_text(std::to_string(player.active_weapon->current_ammo));
+            reserve_ammo_text.update_text(std::to_string(player.active_weapon->reserve_ammo));
            /* player_position.updateText("pos 1 00 1 00 1 00");
             player_facing.updateText("dir 1 00 1 00 1 00");*/
-            player_holding.updateText("hand " + player.active_weapon->name);
+            player_holding.update_text("hand " + player.active_weapon->name);
         }
 
         // todo maybe refactor all into jolt controller hmmm
@@ -135,7 +141,7 @@ int main()
         // updates camera
         // draws hud (weapon, etc)
 
-        if (!renderer.editor_mode) {
+        if (!editor_mode) {
             player.controller_step(window.get_window(), delta_time, scene);
             Physics::update(); // default 1/60 delta time
         }
@@ -178,10 +184,10 @@ int main()
         ImGui::End();
 
         //player.debug_hud();
-        if (renderer.editor_mode) {
+        //if (renderer.editor_mode) {
             //renderer.render_gizmo(scene, player);
-        }
-        else {
+        //}
+        //else {
             renderer.render_crosshair(crosshair);
             renderer.render_hud_text(fpscounter);
             renderer.render_hud_text(weapon_ammo_text);
@@ -189,7 +195,7 @@ int main()
             //renderer.render_hud_text(player_position);
             //renderer.render_hud_text(player_facing);
             renderer.render_hud_text(player_holding);
-        }
+        //}
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
@@ -205,5 +211,6 @@ int main()
     Texture_Manager::cleanup();
     Physics::shutdown();
     renderer.shutdown();
+    window.shutdown();
     return 0;
 }

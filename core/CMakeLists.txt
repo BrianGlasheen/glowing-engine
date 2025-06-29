@@ -36,27 +36,35 @@ include_directories(
 set(SOURCES
     ext/stb_image_impl.cpp
     src/main.cpp
-
-    "src/core/entity.cpp"
-    "src/core/physics.cpp"
-    "src/core/scene.cpp"
-    "src/core/audio.cpp"
-    "src/core/renderer_debug.cpp"
-    "src/core/window.cpp"
+    
+    "src/asset/crosshair.cpp"
     "src/asset/mesh.cpp"
     "src/asset/model.cpp"
+    "src/asset/text.cpp"
     "src/asset/texture_manager.cpp"
     "src/asset/model_manager.cpp"
+    "src/asset/shader.cpp"
     "src/asset/shader_manager.cpp"
+    "src/asset/skybox.cpp"
 
-    ext/glad/glad.c
-    ext/dearimgui/imgui.cpp
-    ext/dearimgui/imgui_draw.cpp
-    ext/dearimgui/imgui_widgets.cpp
-    ext/dearimgui/imgui_tables.cpp
-    ext/dearimgui/imgui_impl_glfw.cpp
-    ext/dearimgui/imgui_impl_opengl3.cpp
-    ext/imguizmo/ImGuizmo.cpp
+    "src/core/audio.cpp"
+    "src/core/editor.cpp"
+    "src/core/entity.cpp"
+    "src/core/light.cpp"
+    "src/core/physics.cpp"
+    "src/core/renderer.cpp"
+    "src/core/renderer_debug.cpp"
+    "src/core/scene.cpp"
+    "src/core/window.cpp"
+
+    "ext/glad/glad.c"
+    "ext/dearimgui/imgui.cpp"
+    "ext/dearimgui/imgui_draw.cpp"
+    "ext/dearimgui/imgui_widgets.cpp"
+    "ext/dearimgui/imgui_tables.cpp"
+    "ext/dearimgui/imgui_impl_glfw.cpp"
+    "ext/dearimgui/imgui_impl_opengl3.cpp"
+    "ext/imguizmo/ImGuizmo.cpp"
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

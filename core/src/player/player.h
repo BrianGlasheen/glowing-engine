@@ -149,10 +149,10 @@ private:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         // R
         // TOGGLE MOUSE
-        if (!key_toggles[(unsigned)'q'])
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        else
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        // if (!key_toggles[(unsigned)'q'])
+        //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        // else
+        //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
         if (key_toggles[(unsigned)'i']) {
             printf("[CONTROLLER] setting fps \n");

@@ -2,7 +2,6 @@
 #include <string>
 #include <cassert>
 
-#include <glad/glad.h>
 #include <stb_image.h>
 
 #include "model_manager.h"

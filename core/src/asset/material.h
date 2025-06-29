@@ -1,7 +1,6 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include <glad/glad.h>
 #include <dearimgui/imgui.h>
 
 #include "texture_manager.h"

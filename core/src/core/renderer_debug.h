@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -37,10 +36,10 @@ public:
 
 private:
     std::vector<Debug_Line> lines;
-    GLuint line_vao, line_vbo;
+    uint32_t line_vao, line_vbo;
 
     std::vector<Debug_sphere> spheres;
-    GLuint sphere_vbo = 0, sphere_vao = 0, sphere_ebo = 0;
+    uint32_t sphere_vbo = 0, sphere_vao = 0, sphere_ebo = 0;
     int sphere_index_count = 0;
     
     void build_sphere_geometry();
