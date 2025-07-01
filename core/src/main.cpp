@@ -33,7 +33,7 @@ int main()
     if (renderer.init())
         return -1;
 
-    Texture_Manager::init();
+    //Texture_Manager::init();
 
     Editor editor;
     if (editor.init())
@@ -50,7 +50,7 @@ int main()
 
     Crosshair crosshair(1.0f, 6.0f, 10.0f, 10.0f, 1.0f, glm::vec3(1.0f, 0.5f, 1.0f));
     
-    Scene scene("sky"); //.todo move lights here?
+    Scene scene("star"); //.todo move lights here?
 
     model_handle plane = Model_Manager::load_model("plane.obj", 0);
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -63,7 +63,10 @@ int main()
     //scene.include(e233232332);
 
     Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
-    scene.include(e2323322);
+    scene.include(e2323322);    
+    
+    Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
+    scene.include(e232lamp3322);
 
     for (int j = 0; j < 10; j++) {
         Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
@@ -174,7 +177,8 @@ int main()
         ImGui::Dummy(ImVec2(0.0f, 20.0f));
         ImGui::SliderFloat3("point_light_pos", &renderer.point_light.position.x, -15.0f, 15.0f);
         ImGui::SliderFloat3("point_light_color", &renderer.point_light.color.x, 0.0f, 1.0f);
-        ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 1000.0f);
+        ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 5000.0f);
+        ImGui::SliderFloat("point light close", &renderer.close_plane, 0.0f, 10.0f);
         ImGui::SliderFloat("point light farplane", &renderer.penis, 0.0f, 50.0f);
         ImGui::Dummy(ImVec2(0.0f, 20.0f));
         ImGui::SliderFloat("amb light", &renderer.ambient_light, 0.0f, 1.0f);

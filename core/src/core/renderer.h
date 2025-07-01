@@ -7,6 +7,7 @@
 #include "scene.h"
 #include "light.h"
 
+#include "asset/compute_shader.h"
 #include "asset/crosshair.h"
 #include "asset/model.h"
 #include "asset/shader.h"
@@ -31,6 +32,7 @@ public:
     void render_scene(Player& player, Scene& scene, float delta_time);
     void render(Player& player, Scene& scene, float delta_time);
     void render_debug(Player& player);
+    void bloom_pass();
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 
@@ -65,6 +67,7 @@ public:
 
 
     float penis = 25.0f;
+    float close_plane = 0.5f;
     float ambient_light = 0.01f;
 
     bool use_alpha_clipping = true;
@@ -73,5 +76,12 @@ public:
     // deferred pipeline
     Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
     uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
+
+    uint32_t render_target, render_depth_buffer;
+    texture_handle scene_texture, bright_texture;
+    shader_handle quad_shader;
+
+    Compute_Shader bloom_down, bloom_up;
+
     uint32_t quadVAO;
 };

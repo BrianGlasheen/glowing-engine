@@ -4,6 +4,7 @@
 #include <ctime>
 #include <cfloat>
 #include <iostream>
+#include <algorithm>
 
 // #include <glad/glad.h>
 // #include <GLFW/glfw3.h>
@@ -54,7 +55,7 @@ int Renderer::init() {
     // makes opengl calls
     spotlight = Light::create_spot(glm::vec3(0.0f, 5.0f, -5.0f), glm::vec3(0.0f, -1.0f, -0.5f), glm::vec3(1.0f), 15.0f, 25.0f, 45.0f, 1024, 1024);
     directional_light = Light::create_directional(glm::vec3(0.0f, -0.25f, 0.25f), glm::vec3(1.0f), 0.1f);
-    point_light = Light::create_point(glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
+    point_light = Light::create_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
 
     // SHADERS
     Shader_Manager::init("../resources/shaders/");
@@ -68,12 +69,18 @@ int Renderer::init() {
     //debug_shader.init("../resources/shaders/debug_v.glsl", "../resources/shaders/debug_f.glsl");
     outline_shader = Shader_Manager::load_from_name("outline");
 
-    //setup_buffers(); // defferd g buffer setup
+    quad_shader = Shader_Manager::load_from_name("quad");
+
+    Texture_Manager::init();
+    setup_buffers(); // defferd g buffer setup
     //deferred_shader.init("../resources/shaders/deferred_v.glsl", "../resources/shaders/deferred_f.glsl");
     //deferred_lighting_shader.init("../resources/shaders/deferred_light_v.glsl", "../resources/shaders/deferred_light_f.glsl");
     //debug_gbuffer_shader.init("../resources/shaders/deferred_light_v.glsl", "../resources/shaders/deferred_lighting_debug_f.glsl");
 
     crosshair_shader = Shader_Manager::load_from_name("crosshair");
+
+    bloom_down.init("../resources/shaders/compute/bloomdown.comp");
+    bloom_up.init("../resources/shaders/compute/bloomup.comp");
 
     //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
 
@@ -86,51 +93,78 @@ int Renderer::init() {
 
 bool Renderer::setup_buffers() {
     // Create and bind G-buffer framebuffer
-    glGenFramebuffers(1, &g_buffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, g_buffer);
+    //glGenFramebuffers(1, &g_buffer);
+    //glBindFramebuffer(GL_FRAMEBUFFER, g_buffer);
 
-    // 1. Position buffer
-    glGenTextures(1, &g_position);
-    glBindTexture(GL_TEXTURE_2D, g_position);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_position, 0);
+    //// 1. Position buffer
+    //glGenTextures(1, &g_position);
+    //glBindTexture(GL_TEXTURE_2D, g_position);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_position, 0);
 
-    // 2. Normal buffer
-    glGenTextures(1, &g_normal);
-    glBindTexture(GL_TEXTURE_2D, g_normal);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, g_normal, 0);
+    //// 2. Normal buffer
+    //glGenTextures(1, &g_normal);
+    //glBindTexture(GL_TEXTURE_2D, g_normal);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, g_normal, 0);
 
-    // 3. Color + specular buffer
-    glGenTextures(1, &g_albedo_specular);
-    glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, g_albedo_specular, 0);
+    //// 3. Color + specular buffer
+    //glGenTextures(1, &g_albedo_specular);
+    //glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, g_albedo_specular, 0);
 
-    // Tell OpenGL which color attachments we'll use for rendering
-    uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
+    //// Tell OpenGL which color attachments we'll use for rendering
+    //uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    //glDrawBuffers(3, attachments);
 
-    // Create and attach depth buffer
-    uint32_t rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, scr_width, scr_height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    //// Create and attach depth buffer
+    //uint32_t rboDepth;
+    //glGenRenderbuffers(1, &rboDepth);
+    //glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    //glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, scr_width, scr_height);
+    //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
 
-    // Check if framebuffer is complete
+    //// Check if framebuffer is complete
+    //if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    //    std::cout << "Framebuffer not complete!" << std::endl;
+    //    return false;
+    //}
+
+    //// Unbind framebuffer
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glGenFramebuffers(1, &render_target);
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+
+    //// Create two color textures - one for scene, one for bright areas
+    scene_texture = Texture_Manager::create_render_texture(scr_width, scr_height, true);
+    bright_texture = Texture_Manager::create_bloom_texture(scr_width, scr_height);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(scene_texture), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(bright_texture), 0);
+
+    // Create depth renderbuffer
+    glGenRenderbuffers(1, &render_depth_buffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, render_depth_buffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, scr_width, scr_height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_depth_buffer);
+
+    // Specify which color attachments to use
+    uint32_t attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    // Check framebuffer completeness
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cout << "Framebuffer not complete!" << std::endl;
-        return false;
+        std::cerr << "[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT" << std::endl;
+        assert(false);
     }
-
-    // Unbind framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     uint32_t quadVBO;
@@ -156,6 +190,7 @@ bool Renderer::setup_buffers() {
 
     // Print debug info
     printf("Quad VAO created: %u\n", quadVAO);
+    glBindVertexArray(0);
 
     return true;
 }
@@ -245,7 +280,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     glEnable(GL_DEPTH_TEST);
     glClearColor(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
 
-    projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, penis);
+    projection = glm::perspective(glm::radians(90.0f), 1.0f, close_plane, penis);
     shader->set_mat4("projection", projection);
 
     shader->set_vec3("point_light_position", point_light.position);
@@ -260,9 +295,9 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
         shader->set_mat4("view", view);
 
         if (player.key_toggles['l'])
-            debug_renderer.draw_frustum(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, 0.01f, penis);
+            debug_renderer.draw_frustum(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, close_plane, penis);
 
-        Util::Frustum frustum2(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, 0.01f, penis);
+        Util::Frustum frustum2(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, close_plane, penis);
 
         for (Entity& entity : scene.entities) {
             if (entity.physics_enabled) {
@@ -285,7 +320,7 @@ void Renderer::render(Player& player, Scene& scene, float delta_time) {
 
     shadow_pass(scene, player);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
     render_scene(player, scene, delta_time);
@@ -348,10 +383,8 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     shader->set_float("point_light_intensity", point_light.intensity);
     shader->set_float("point_light_far_plane", 50.0f);
     debug_renderer.add_sphere(point_light.position, 0.1f, glm::vec3(1.0f));
-
     point_light.bind_fbo_read(5);
     shader->set_int("point_shadow_map", 5);
-
 
     shader->set_float("ambient_light", ambient_light);
     /////
@@ -425,6 +458,29 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     glStencilMask(0xFF);
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
     // flush(); !!
+    
+
+
+    // post process pass theoretically
+    bloom_pass();
+
+
+    // composite pass
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+
+    shader = Shader_Manager::get_shader(quad_shader);
+    shader->use();
+
+    shader->set_int("scene_color", 0);
+    Texture_Manager::bind(scene_texture, 0);
+    shader->set_int("bright_color", 1);
+    Texture_Manager::bind(bright_texture, 1);
+
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0); // unbind quad
 }
 
 
@@ -436,6 +492,44 @@ void Renderer::render_debug(Player& player) {
     shader->set_mat4("view", view);
 
     debug_renderer.render(shader, projection, view);
+}
+
+void Renderer::bloom_pass() {
+    uint32_t texture_id = Texture_Manager::get_ogl_id(bright_texture);
+
+    int base_width = 1600;
+    int base_height = 900;
+    const int MIP_LEVELS = 6;
+
+    for (int i = 1; i < MIP_LEVELS; i++) {
+        int mip_width = std::max(1, base_width >> i);
+        int mip_height = std::max(1, base_height >> i);
+
+        // prev mip input
+        glBindImageTexture(0, texture_id, i - 1, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA16F);
+        // current mip output
+        glBindImageTexture(1, texture_id, i, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+
+        bloom_down.use();
+        int groups_x = (mip_width + 7) / 8;
+        int groups_y = (mip_height + 7) / 8;
+        bloom_down.dispatch_and_wait(groups_x, groups_y, 1);
+    }
+
+    for (int i = MIP_LEVELS - 2; i >= 0; i--) {
+        int mip_width = std::max(1, base_width >> i);
+        int mip_height = std::max(1, base_height >> i);
+
+        // bind current mip
+        glBindImageTexture(0, texture_id, i, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
+        // bind higher res mip
+        glBindImageTexture(1, texture_id, i + 1, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA16F);
+
+        bloom_up.use();
+        int groups_x = (mip_width + 7) / 8;
+        int groups_y = (mip_height + 7) / 8;
+        bloom_up.dispatch_and_wait(groups_x, groups_y, 1);
+    }
 }
 
 //void render_scene_deferred(Player& player, Scene& scene, float delta_time) {
@@ -619,10 +713,12 @@ void Renderer::debug_sphere_at(glm::vec3 pos) {
 
 
 void Renderer::shutdown() {
-    glDeleteFramebuffers(1, &g_buffer);
-    glDeleteTextures(1, &g_position);
-    glDeleteTextures(1, &g_normal);
-    glDeleteTextures(1, &g_albedo_specular);
+    //glDeleteFramebuffers(1, &g_buffer);
+    //glDeleteTextures(1, &g_position);
+    //glDeleteTextures(1, &g_normal);
+    //glDeleteTextures(1, &g_albedo_specular);
+
+    glDeleteFramebuffers(1, &render_target);
 
     glDeleteVertexArrays(1, &quadVAO);
 }

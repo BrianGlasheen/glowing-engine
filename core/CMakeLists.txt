@@ -37,6 +37,7 @@ set(SOURCES
     ext/stb_image_impl.cpp
     src/main.cpp
     
+    "src/asset/compute_shader.cpp"
     "src/asset/crosshair.cpp"
     "src/asset/mesh.cpp"
     "src/asset/model.cpp"

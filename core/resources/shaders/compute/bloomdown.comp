@@ -1,0 +1,90 @@
+/*#version 460
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(binding = 0, rgba16f) uniform readonly image2D inputImage;
+layout(binding = 1, rgba16f) uniform writeonly image2D outputImage;
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 outputSize = imageSize(outputImage);
+    
+    if (coord.x >= outputSize.x || coord.y >= outputSize.y) {
+        return;
+    }
+    
+    ivec2 inputCoord = coord * 2;
+    
+    vec4 color = vec4(0.0);
+    color += imageLoad(inputImage, inputCoord + ivec2(0, 0));
+    color += imageLoad(inputImage, inputCoord + ivec2(1, 0));
+    color += imageLoad(inputImage, inputCoord + ivec2(0, 1));
+    color += imageLoad(inputImage, inputCoord + ivec2(1, 1));
+    color *= 0.25;
+
+    imageStore(outputImage, coord, color);
+}*/
+
+#version 460
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(binding = 0, rgba16f) uniform readonly image2D inputMip;
+layout(binding = 1, rgba16f) uniform writeonly image2D outputMip;
+
+uniform float bloomThreshold = 1.0;
+uniform float bloomKnee = 0.1;
+uniform int mipLevel = 0; // 0 = first downsample (apply threshold), >0 = subsequent levels
+
+// Soft threshold for HDR bloom extraction
+vec3 QuadraticThreshold(vec3 color, float threshold, float knee) {
+    float brightness = max(color.r, max(color.g, color.b));
+    float rq = clamp(brightness - threshold + knee, 0.0, 2.0 * knee);
+    rq = rq * rq * 0.25 / knee;
+    return color * max(rq, brightness - threshold) / max(brightness, 1e-4);
+}
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 outputSize = imageSize(outputMip);
+    
+    if (coord.x >= outputSize.x || coord.y >= outputSize.y) {
+        return;
+    }
+    
+    ivec2 inputSize = imageSize(inputMip);
+    vec2 texelSize = 1.0 / vec2(inputSize);
+    vec2 uv = (vec2(coord) + 0.5) / vec2(outputSize);
+    
+    // Enhanced 13-tap downsampling with blur
+    // This gives us both downsampling and some blur in one pass
+    vec4 color = vec4(0.0);
+    
+    // Center 4 samples (main downsample)
+    vec2 offset = texelSize * 0.5;
+    color += imageLoad(inputMip, ivec2((uv + vec2(-offset.x, -offset.y)) * inputSize)) * 0.25;
+    color += imageLoad(inputMip, ivec2((uv + vec2( offset.x, -offset.y)) * inputSize)) * 0.25;
+    color += imageLoad(inputMip, ivec2((uv + vec2(-offset.x,  offset.y)) * inputSize)) * 0.25;
+    color += imageLoad(inputMip, ivec2((uv + vec2( offset.x,  offset.y)) * inputSize)) * 0.25;
+    
+    // Additional 9 samples for blur (sledgehammer approach)
+    vec4 blur = vec4(0.0);
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            vec2 sampleUV = uv + vec2(x, y) * texelSize * 2.0;
+            ivec2 sampleCoord = ivec2(sampleUV * inputSize);
+            sampleCoord = clamp(sampleCoord, ivec2(0), inputSize - 1);
+            blur += imageLoad(inputMip, sampleCoord);
+        }
+    }
+    blur /= 9.0;
+    
+    // Blend center samples with blur based on mip level
+    float blurWeight = min(float(mipLevel) * 0.3, 0.8);
+    color = mix(color, blur, blurWeight);
+    
+    // Apply brightness threshold only on first downsample
+    if (mipLevel == 0) {
+        color.rgb = QuadraticThreshold(color.rgb, bloomThreshold, bloomKnee);
+    }
+    
+    imageStore(outputMip, coord, color);
+}

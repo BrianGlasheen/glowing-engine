@@ -7,7 +7,6 @@
 #include <glm/glm.hpp>
 #include <json.hpp>
 
-#include "shader.h"
 #include "texture_manager.h"
 
 // TODO make not shit font manager thing

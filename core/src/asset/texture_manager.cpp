@@ -152,10 +152,72 @@ namespace Texture_Manager {
     }
 
 
+    texture_handle create_render_texture(int width, int height, bool hdr)
+    {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        if (hdr) {
+            // Use floating point format for HDR
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        }
+        else {
+            // Standard RGBA format
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        }
+
+        // Set texture parameters - important for framebuffer textures
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        textures.push_back(texture_id);
+        paths.push_back(hdr ? "render_texture_hdr" : "render_texture");
+
+        std::cout << "[RENDER TEXTURE] Created " << (hdr ? "HDR " : "") << width << "x" << height << std::endl;
+        return textures.size() - 1;
+    }
+
+    texture_handle create_bloom_texture(int width, int height)
+    {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        // Calculate number of mip levels
+        int mip_levels = 6;
+
+        // Allocate storage for all mip levels
+        glTexStorage2D(GL_TEXTURE_2D, mip_levels, GL_RGBA16F, width, height);
+
+        // Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        textures.push_back(texture_id);
+        paths.push_back("bloom_texture_with_mips");
+
+        std::cout << "[BLOOM TEXTURE] Created with " << mip_levels << " mip levels: " << width << "x" << height << std::endl;
+        return textures.size() - 1;
+    }
+
     void bind(texture_handle texture_id, uint32_t texture_unit) 
     {
         glActiveTexture(GL_TEXTURE0 + texture_unit);
         glBindTexture(GL_TEXTURE_2D, textures[texture_id]);
+    }
+
+    uint32_t get_ogl_id(texture_handle texture_id)
+    {
+        return textures[texture_id];
     }
 
     size_t get_texture_count() 
