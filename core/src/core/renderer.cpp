@@ -15,6 +15,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
+
 const float FAR_PLANE = 500.0f;
 
 // point light shadow mapping
@@ -81,6 +82,9 @@ int Renderer::init() {
 
     bloom_down.init("../resources/shaders/compute/bloomdown.comp");
     bloom_up.init("../resources/shaders/compute/bloomup.comp");
+    particle.init("../resources/shaders/compute/particle.comp");
+    particle_shader = Shader_Manager::load_from_name("particle");
+
 
     //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
 
@@ -316,17 +320,18 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
 
 }
 
-void Renderer::render(Player& player, Scene& scene, float delta_time) {
+void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
 
     shadow_pass(scene, player);
 
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
-    render_scene(player, scene, delta_time);
+    render_scene(player, scene, delta_time, particles);
+    //particle_pass(delta_time);
 }
 
-void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
+void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles) {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -455,10 +460,13 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     }
     //printf("drawing %d entities\n", count);
 
-    glStencilMask(0xFF);
-    glStencilFunc(GL_ALWAYS, 0, 0xFF);
+
     // flush(); !!
     
+    particle_pass(delta_time, particles, player);
+    
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 0, 0xFF);
 
 
     // post process pass theoretically
@@ -492,6 +500,30 @@ void Renderer::render_debug(Player& player) {
     shader->set_mat4("view", view);
 
     debug_renderer.render(shader, projection, view);
+}
+
+void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& player) {
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    const int MAX_PARTICLES = 10000;
+    
+    particle.use();
+    particle.set_float("dt", delta_time);
+    particle_ssbo.bind(0);
+    glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    Shader* shader = Shader_Manager::get_shader(particle_shader);
+    shader->use();
+    shader->set_mat4("view", player.get_view_matrix());
+    shader->set_mat4("projection", projection);
+    particle_ssbo.bind(0);
+    glBindVertexArray(quadVAO);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, MAX_PARTICLES);
+    
+    glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::bloom_pass() {

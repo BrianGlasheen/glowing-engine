@@ -6,6 +6,7 @@
 #include "renderer_debug.h"
 #include "scene.h"
 #include "light.h"
+#include "core/ssbo.h"
 
 #include "asset/compute_shader.h"
 #include "asset/crosshair.h"
@@ -29,9 +30,10 @@ public:
     bool setup_buffers();
 
     void shadow_pass(Scene& scene, const Player& player);
-    void render_scene(Player& player, Scene& scene, float delta_time);
-    void render(Player& player, Scene& scene, float delta_time);
+    void render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles);
+    void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
     void render_debug(Player& player);
+    void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
     void bloom_pass();
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
@@ -81,7 +83,8 @@ public:
     texture_handle scene_texture, bright_texture;
     shader_handle quad_shader;
 
-    Compute_Shader bloom_down, bloom_up;
+    Compute_Shader bloom_down, bloom_up, particle;
+    shader_handle particle_shader;
 
     uint32_t quadVAO;
 };

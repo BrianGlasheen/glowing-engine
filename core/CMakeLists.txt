@@ -56,6 +56,7 @@ set(SOURCES
     "src/core/renderer.cpp"
     "src/core/renderer_debug.cpp"
     "src/core/scene.cpp"
+    "src/core/ssbo.cpp"
     "src/core/window.cpp"
 
     "ext/glad/glad.c"

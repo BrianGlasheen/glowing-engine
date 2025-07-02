@@ -19,6 +19,16 @@
 
 #include "player/player.h"
 
+#include "core/ssbo.h"
+#include <vector>
+#include <random>
+#include <glm/gtc/random.hpp>
+struct Particle {
+    glm::vec4 position;  // w = lifetime
+    glm::vec4 velocity;  // w = unused
+};
+
+
 int main() 
 {
     float delta_time = 0.0f;
@@ -120,6 +130,20 @@ int main()
     JPH::BodyID ground = Physics::add_box(glm::vec3(0.0f, -0.5f, 0.0f), glm::vec3(100.0f, 1.0f, 100.0f), true);
     Physics::optimize_broad_phase();
 
+
+    // todo move
+    const int MAX_PARTICLES = 10000;
+    std::vector<Particle> particles(MAX_PARTICLES);
+    for (auto& p : particles) {
+        p.position = glm::vec4(0.0f, 2.0f, 0.0f, 5.0f);
+        p.velocity = glm::vec4(glm::linearRand(-1.0f, 1.0f), glm::linearRand(1.0f, 3.0f), glm::linearRand(-1.0f, 1.0f), 0.0f);
+    }
+    SSBO particle_ssbo;
+    particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
+    ///////////////////////////////////////////////////////////
+
+
+
     // render loop
     uint32_t frame = 0;
     printf("RENDERING\n");
@@ -150,7 +174,7 @@ int main()
         }
 
         // render scene
-        renderer.render(player, scene, delta_time);
+        renderer.render(player, scene, delta_time, particle_ssbo);
 
         if (!player.key_toggles[(unsigned)'r'])
             renderer.render_debug(player);
