@@ -1,9 +1,16 @@
-#version 460
+﻿#version 460
 layout(local_size_x = 128) in;
 
 struct Particle {
-    vec4 position; // xyz = pos, w = lifetime
-    vec4 velocity; // xyz = vel
+    vec3 position;
+    float ttl;
+    vec3 velocity;
+    float max_ttl;
+    vec4 color_start;
+    vec4 color_end;
+    float size_start;
+    float size_end;
+    vec2 padding;
 };
 
 layout(std430, binding = 0) buffer Particles {
@@ -11,21 +18,88 @@ layout(std430, binding = 0) buffer Particles {
 };
 
 uniform float dt;
+uniform vec3 emitter_position;
+uniform vec3 acceleration_direction;
+uniform float acceleration_force;
+//uniform vec3 gravity;
+//uniform float damping;
+
+// Spawning parameters
+uniform vec2 life_range;              // min/max particle lifetime
+//uniform vec2 size_start_range;        // randomization bounds
+//uniform vec2 size_end_range;
+uniform vec4 color_start_base;        // base colors for variation
+uniform vec4 color_end_base;
+uniform vec3 velocity_base;           // base spawn velocity
+//uniform vec3 velocity_variation;      // velocity randomization
+uniform vec3 velocity_random_bias;
+uniform float velocity_mag;
+//uniform float spawn_radius;           // spawn area radius
+
+// Emission control
+uniform float emission_rate;          // particles per second
+uniform int max_particles;            // maximum active particles
+
+float hash(float n) {
+    return fract(sin(n) * 43758.5453);
+}
+
+vec3 hash3(float n) {
+    return fract(sin(vec3(n, n + 1.0, n + 2.0)) * vec3(43758.5453, 28001.8384, 50849.4141));
+}
+
+void respawn_particle(uint i) {
+    float base_seed = float(i) + dt * 1000.0; // time-based seed variation
+    
+    //vec3 spawn_offset = random_sphere_direction(base_seed) * hash(base_seed + 10.0) * spawn_radius;
+    particles[i].position = emitter_position;
+    
+    // Random velocity
+    vec3 vel_rand = hash3(base_seed + 20.0) * 2.0 - 1.0;
+    particles[i].velocity = velocity_base + vel_rand * velocity_random_bias * velocity_mag;
+    
+    // Random lifetime
+    particles[i].max_ttl = mix(life_range.x, life_range.y, hash(base_seed + 30.0));
+    particles[i].ttl = 0.0;
+    
+    // Random sizes
+    //particles[i].size_start = mix(size_start_range.x, size_start_range.y, hash(base_seed + 40.0));
+    //particles[i].size_end = mix(size_end_range.x, size_end_range.y, hash(base_seed + 50.0));
+
+    particles[i].size_start = 1.0;
+    particles[i].size_end = 0.0;
+    
+    // Random colors with variation
+    vec4 color_var = hash3(base_seed + 60.0).xyzx * 0.3 - 0.15; // ±15% variation
+    //particles[i].color_start = clamp(color_start_base + color_var, 0.0, 1.0);
+    particles[i].color_start = color_start_base;
+    
+    //color_var = hash3(base_seed + 70.0).xyzx * 0.3 - 0.15;
+    particles[i].color_end = clamp(color_end_base + color_var, 0.0, 1.0);
+    particles[i].color_end = color_end_base;
+}
 
 void main() {
     uint i = gl_GlobalInvocationID.x;
     if (i >= particles.length()) return;
-
-    particles[i].position.xyz += particles[i].velocity.xyz * dt;
-    particles[i].position.w -= dt;
-
-    if (particles[i].position.w <= 0.0) {
-        particles[i].position.xyz = vec3(0.0, 10.0, 0.0);
-        particles[i].velocity.xyz = vec3(
-            (fract(sin(i * 12.9898) * 43758.5453) - 0.5) * 2.0,
-            (fract(sin(i * 728.233) * 125.6789) - 0.5) * 2.0,
-            (fract(sin(i * 78.233) * 12345.6789) - 0.5) * 2.0
-        );
-        particles[i].position.w = 3.0 + fract(sin(i * 91.234) * 56789.123) * 4.0;
+    
+    particles[i].ttl += dt;
+    bool is_alive = particles[i].ttl < particles[i].max_ttl;
+    if (is_alive) {
+        vec3 acceleration = vec3(0.0);
+        acceleration += acceleration_direction * acceleration_force;
+        //acceleration += gravity;
+        
+        particles[i].velocity += acceleration * dt;
+        //particles[i].velocity *= pow(damping, dt);
+        particles[i].position += particles[i].velocity * dt;
+    } else {
+        // todo for single effects dont do
+        float spawn_probability = emission_rate * dt / float(max_particles);
+        float random_spawn = hash(float(i));
+        
+        if (random_spawn < spawn_probability) {
+            respawn_particle(i);
+        }
     }
 }

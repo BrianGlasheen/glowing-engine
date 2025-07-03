@@ -465,7 +465,7 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
     
     particle_pass(delta_time, particles, player);
     
-    glStencilMask(0xFF);
+    glStencilMask(0xFF); // todo figure out where this goes?
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
 
 
@@ -505,11 +505,26 @@ void Renderer::render_debug(Player& player) {
 void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& player) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_DEPTH_TEST);
+    //glDisable(GL_DEPTH_TEST);
     const int MAX_PARTICLES = 10000;
     
     particle.use();
     particle.set_float("dt", delta_time);
+
+    particle.set_vec3("emitter_position", emitter_position);
+    particle.set_vec3("acceleration_direction", acceleration_direction);
+    particle.set_float("acceleration_force", acceleration_force);
+
+    particle.set_vec2("life_range", life_range);
+    particle.set_vec4("color_start_base", color_start_base);
+    particle.set_vec4("color_end_base", color_end_base);
+    particle.set_vec3("velocity_base", velocity_base);
+    particle.set_vec3("velocity_random_bias", velocity_random_bias);
+    particle.set_float("velocity_mag", velocity_mag);
+
+    particle.set_float("emission_rate", emission_rate);
+    particle.set_int("max_particle", MAX_PARTICLES);
+
     particle_ssbo.bind(0);
     glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -523,7 +538,7 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     glBindVertexArray(quadVAO);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, MAX_PARTICLES);
     
-    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::bloom_pass() {

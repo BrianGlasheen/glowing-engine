@@ -4,9 +4,15 @@ layout(location = 1) out vec4 BrightColor;
 
 in float lifetime;
 
+//in vec2 tex_coord;
+in vec4 particle_color;
+in float life_ratio;
+in float alpha;
+
 void main() {
-    float alpha = clamp(lifetime / 10.0, 0.0, 1.0);
+    if (life_ratio > 1.0 || life_ratio < 0.0)
+        return ;
     //FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    //FragColor = vec4(1.0, 0.5, 0.1, alpha);
-    BrightColor = 3.0 * vec4(1.0, 0.5, 0.1, alpha);
+    FragColor = vec4(particle_color.xyz, life_ratio);
+    BrightColor = vec4(3.0 * particle_color.xyz, life_ratio);
 }

@@ -1,20 +1,18 @@
 world representation
-    frsutum culling (everything / entities)
     spline geom
     heightmap
     walls
     floors
 
 skeletal animation
+
 make ssimp good (bones)
+
 weapon / holdable class
     animate weapons (same system, blending, IK)
 
-break up renderer
-window class
 framebuffer class
 
-ssbo class for 
 shadow atlas
 
 clustered forward rendering / deferred
@@ -33,4 +31,6 @@ controllers
     interaction
     player (use)
 
+particle class
 
+move compute into shader manager

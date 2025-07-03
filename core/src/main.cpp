@@ -23,11 +23,18 @@
 #include <vector>
 #include <random>
 #include <glm/gtc/random.hpp>
-struct Particle {
-    glm::vec4 position;  // w = lifetime
-    glm::vec4 velocity;  // w = unused
-};
 
+struct Particle {
+    glm::vec3 position;
+    float ttl;
+    glm::vec3 velocity;
+    float max_ttl;
+    glm::vec4 color_start;
+    glm::vec4 color_end;
+    float size_start;
+    float size_end;
+    glm::vec2 padding;
+};
 
 int main() 
 {
@@ -135,8 +142,15 @@ int main()
     const int MAX_PARTICLES = 10000;
     std::vector<Particle> particles(MAX_PARTICLES);
     for (auto& p : particles) {
-        p.position = glm::vec4(0.0f, 2.0f, 0.0f, 5.0f);
-        p.velocity = glm::vec4(glm::linearRand(-1.0f, 1.0f), glm::linearRand(1.0f, 3.0f), glm::linearRand(-1.0f, 1.0f), 0.0f);
+        p.position = glm::vec3(0.0f);
+        p.ttl = 0.0f;
+        p.velocity = glm::vec3(0.0f);
+        p.max_ttl = 0.0f;
+        p.color_start = glm::vec4(0.0f);
+        p.color_end = glm::vec4(0.0f);
+        p.size_start = 0.0f;
+        p.size_end = 0.0f;
+        p.padding;
     }
     SSBO particle_ssbo;
     particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
@@ -186,29 +200,43 @@ int main()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        {
+            ImGui::Begin("Light");
+            ImGui::SliderFloat3("pos", &renderer.spotlight.position.x, -10.0f, 10.0f);
+            ImGui::SliderFloat3("dir", &renderer.spotlight.direction.x, -1.0f, 1.0f);
+            ImGui::SliderFloat3("color", &renderer.spotlight.color.x, 0.0f, 1.0f); // 1.0f;     
+            ImGui::SliderFloat("itensity", &renderer.spotlight.intensity, 0.0f, 10000.0f); // 1.0f;  
+            ImGui::SliderFloat("FOV outer", &renderer.spotlight.outer_fov, 0.0f, 180.0f); // 1.0f;     
+            ImGui::SliderFloat("FOV inner", &renderer.spotlight.inner_fov, 0.0f, 180.0f); // 1.0f;        
+            ImGui::Dummy(ImVec2(0.0f, 20.0f));
+            ImGui::SliderFloat3("directional_light_direction", &renderer.directional_light.direction.x, -1.0f, 1.0f);
+            ImGui::SliderFloat3("directional_light_color", &renderer.directional_light.color.x, -1.0f, 1.0f);
+            ImGui::SliderFloat("directional_light_intensity", &renderer.directional_light.intensity, 0.0f, 2.0f);
+            ImGui::Dummy(ImVec2(0.0f, 20.0f));
+            ImGui::SliderFloat3("point_light_pos", &renderer.point_light.position.x, -15.0f, 15.0f);
+            ImGui::SliderFloat3("point_light_color", &renderer.point_light.color.x, 0.0f, 1.0f);
+            ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 5000.0f);
+            ImGui::SliderFloat("point light close", &renderer.close_plane, 0.0f, 10.0f);
+            ImGui::SliderFloat("point light farplane", &renderer.penis, 0.0f, 50.0f);
+            ImGui::Dummy(ImVec2(0.0f, 20.0f));
+            ImGui::SliderFloat("amb light", &renderer.ambient_light, 0.0f, 1.0f);
+            ImGui::Dummy(ImVec2(0.0f, 20.0f));
+            ImGui::Checkbox("use alpha", &renderer.use_alpha_clipping);
+            ImGui::SliderFloat("alpha cutoff", &renderer.alpha_cutoff, 0.0, 1.0f);
+            ImGui::End();
+        }
 
-        ImGui::Begin("Light");
-        ImGui::SliderFloat3("pos", &renderer.spotlight.position.x, -10.0f, 10.0f);
-        ImGui::SliderFloat3("dir", &renderer.spotlight.direction.x, -1.0f, 1.0f);
-        ImGui::SliderFloat3("color", &renderer.spotlight.color.x, 0.0f, 1.0f); // 1.0f;     
-        ImGui::SliderFloat("itensity", &renderer.spotlight.intensity, 0.0f, 10000.0f); // 1.0f;  
-        ImGui::SliderFloat("FOV outer", &renderer.spotlight.outer_fov, 0.0f, 180.0f); // 1.0f;     
-        ImGui::SliderFloat("FOV inner", &renderer.spotlight.inner_fov, 0.0f, 180.0f); // 1.0f;        
-        ImGui::Dummy(ImVec2(0.0f, 20.0f));
-        ImGui::SliderFloat3("directional_light_direction", &renderer.directional_light.direction.x, -1.0f, 1.0f);
-        ImGui::SliderFloat3("directional_light_color", &renderer.directional_light.color.x, -1.0f, 1.0f);
-        ImGui::SliderFloat("directional_light_intensity", &renderer.directional_light.intensity, 0.0f, 2.0f);
-        ImGui::Dummy(ImVec2(0.0f, 20.0f));
-        ImGui::SliderFloat3("point_light_pos", &renderer.point_light.position.x, -15.0f, 15.0f);
-        ImGui::SliderFloat3("point_light_color", &renderer.point_light.color.x, 0.0f, 1.0f);
-        ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 5000.0f);
-        ImGui::SliderFloat("point light close", &renderer.close_plane, 0.0f, 10.0f);
-        ImGui::SliderFloat("point light farplane", &renderer.penis, 0.0f, 50.0f);
-        ImGui::Dummy(ImVec2(0.0f, 20.0f));
-        ImGui::SliderFloat("amb light", &renderer.ambient_light, 0.0f, 1.0f);
-        ImGui::Dummy(ImVec2(0.0f, 20.0f));
-        ImGui::Checkbox("use alpha", &renderer.use_alpha_clipping);
-        ImGui::SliderFloat("alpha cutoff", &renderer.alpha_cutoff, 0.0, 1.0f);
+        ImGui::Begin("particle");
+        ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
+        ImGui::SliderFloat3("acceleration dir", &renderer.acceleration_direction.x, -1.0f, 1.0f);     
+        ImGui::SliderFloat("acceleration mag", &renderer.acceleration_force, -17.0f, 19.0f);
+        ImGui::SliderFloat2("life_range", &renderer.life_range.x, 0.0, 10.0f);
+        ImGui::SliderFloat4("color_start_base", &renderer.color_start_base.x, 0.0f, 1.0f);
+        ImGui::SliderFloat4("color_start_end", &renderer.color_end_base.x, 0.0f, 1.0f);
+        ImGui::SliderFloat3("velocity_base", &renderer.velocity_base.x, -20.0f, 20.0f);
+        ImGui::SliderFloat3("velocity_random_bias", &renderer.velocity_random_bias.x, -1.0, 1.0);
+        ImGui::SliderFloat("velocity_mag", &renderer.velocity_mag, -100.0f, 100.0f);
+        ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
         ImGui::End();
 
         //player.debug_hud();
