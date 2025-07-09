@@ -7,9 +7,22 @@ struct GPU_Light {
     vec4 params; // inner cone, outer cone, shadow map idx, unused 
 };
 
+struct Cluster {
+    vec4 minPoint;
+    vec4 maxPoint;
+    uint count;
+    uint lightIndices[100];
+};
+
 layout(std430, binding = 0) readonly buffer Lights {
     GPU_Light lights[];
 };
+
+layout(std430, binding = 1) restrict buffer clusterSSBO {
+    Cluster clusters[];
+};
+
+int num_lights = 200;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
@@ -28,10 +41,10 @@ uniform bool shadows_enabled;
 
 uniform float ambient_light;
 
-uniform vec3 point_light_position;
-uniform vec3 point_light_color;
-uniform float point_light_intensity;
-uniform float point_light_far_plane;
+//uniform vec3 point_light_position;
+//uniform vec3 point_light_color;
+//uniform float point_light_intensity;
+//uniform float point_light_far_plane;
 
 uniform vec3 directional_light_direction;
 uniform vec3 directional_light_color;
@@ -214,7 +227,11 @@ vec3 CalculateLighting(vec3 L, vec3 radiance, vec3 N, vec3 V, vec3 F0, vec3 albe
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
-vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness) {
+vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, GPU_Light light) {
+    vec3 point_light_position = light.position_radius.xyz;
+    vec3 point_light_color = light.color_strength.xyz;
+    float point_light_intensity = light.color_strength.w;
+
     vec3 L = normalize(point_light_position - FragPos);
     float distance = length(point_light_position - FragPos);
     float attenuation = point_light_intensity / (distance * distance);
@@ -224,9 +241,9 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
     
     //float shadow = PointShadowCalculationPCF(FragPos, point_light_position, point_light_far_plane);
     float shadow;
-    if (shadows_enabled)
-        PointShadowCalculation(FragPos, point_light_position, point_light_far_plane);
-    else
+    //if (shadows_enabled)
+        //PointShadowCalculation(FragPos, point_light_position, point_light_far_plane);
+    //else
         shadow = 0.0;
 
     return lighting * (1.0 - shadow);
@@ -283,7 +300,6 @@ void main() {
         discard;
     }
 
-
     vec3 N = normalize(Normal);
     if (has_normal) {
         vec3 normalMap = texture(normal, TexCoord).rgb;
@@ -313,10 +329,21 @@ void main() {
     F0 = mix(F0, albedo, metallic);
     
     vec3 Lo = vec3(0.0);
-    
-    Lo += CalculatePointLight(N, V, F0, albedo, metallic, roughness);
+
+    for (int i = 0; i < num_lights; i++) {
+        GPU_Light light = lights[i];
+        int light_type = int(light.direction_type.w);
+
+        if (light_type == 0) {
+            Lo += CalculatePointLight(N, V, F0, albedo, metallic, roughness, light);
+        }
+        else if (light_type == 1) {
+            //Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness, light);
+        }
+    }
+    //Lo += CalculatePointLight(N, V, F0, albedo, metallic, roughness);
     Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness);
-    Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness);
+    //Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness);
 
     float brightness = dot(Lo, vec3(0.2126, 0.7152, 0.0722));
     if (brightness > 1.0) {
@@ -327,7 +354,6 @@ void main() {
 
     vec3 ambient = vec3(ambient_light) * albedo;
     vec3 color = ambient + Lo;
-
     
     // HDR tonemapping and gamma correction
     color = color / (color + vec3(1.0));

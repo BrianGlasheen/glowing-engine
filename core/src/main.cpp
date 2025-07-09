@@ -39,7 +39,7 @@ int main()
 {
     float delta_time = 0.0f;
     float last_frame = 0.0f;
-    bool editor_mode = 0;
+    bool editor_mode = 1;
 
     Window window;
     if (window.init(1600, 900, "GLOW"))
@@ -90,11 +90,10 @@ int main()
     }
 
     {
-        //model_handle gdfhgsd = Model_Manager::load_model("sponza");
-        //pos = glm::vec3(0.0f);
-        //scale = glm::vec3(0.1f);
-        //Entity e5555(gdfhgsd, pos, false, scale, 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //scene.include(e5555);
+        pos = glm::vec3(0.0f);
+        scale = glm::vec3(0.1f);
+        Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza", false);
+        scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);
         scale = glm::vec3(1.0f);
@@ -152,6 +151,7 @@ int main()
         // p.padding;
     }
     SSBO particle_ssbo;
+    particle_ssbo.init();
     particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
     ///////////////////////////////////////////////////////////
 
@@ -179,10 +179,10 @@ int main()
         // updates camera
         // draws hud (weapon, etc)
 
-        if (!editor_mode) {
+        //if (!editor_mode) {
             player.controller_step(window.get_window(), delta_time, scene);
             Physics::update(); // default 1/60 delta time
-        }
+        //}
 
         scene.update_dirty();
         // render scene

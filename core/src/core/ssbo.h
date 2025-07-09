@@ -3,9 +3,10 @@
 
 class SSBO {
 public:
-    SSBO();
+    SSBO() = default;
     ~SSBO();
 
+    void init();
     void bind(uint32_t binding);
     void set_data(uint32_t size, const void* data, GLenum usage);
     void update_sub_data(uint32_t offset, uint32_t size, const void* data);

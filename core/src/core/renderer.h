@@ -16,6 +16,13 @@
 
 #include "player/player.h"
 
+struct Cluster {
+    glm::vec4 minPoint;
+    glm::vec4 maxPoint;
+    uint32_t count;
+    uint32_t* lightIndices[100];
+};
+
 class Renderer {
 public:
     Renderer() = default;
@@ -26,6 +33,7 @@ public:
 
     void shadow_pass(Scene& scene, const Player& player);
     void render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles);
+    void build_cluster_pass(Player& player);
     void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
     void render_debug(Player& player);
     void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
@@ -53,6 +61,11 @@ public:
     Renderer_Debug debug_renderer;
 
     Light spotlight, directional_light, point_light;
+    std::vector<GPU_Light> lights;
+    SSBO light_ssbo;
+    SSBO cluster_ssbo;
+    Compute_Shader cluster_build;
+    shader_handle slice_vis;
 
     shader_handle pbr_shader;
     shader_handle skybox_shader;
@@ -86,7 +99,7 @@ public:
     shader_handle particle_shader;
 
     glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);
-    glm::vec3 acceleration_direction = glm::vec3(0.0f, -1.0f, 0.0f);
+    glm::vec3 acceleration_direction = glm::vec3(0.0f, 1.0f, 0.0f);
     float acceleration_force = 9.8f;
     
     glm::vec2 life_range = glm::vec2(3.0f, 6.0f);
@@ -100,7 +113,7 @@ public:
     int max_particles = 10000;
 
     // todo make settings
-    bool shadows_enabled = false;
+    bool shadows_enabled = true;
 
     uint32_t quadVAO;
 };

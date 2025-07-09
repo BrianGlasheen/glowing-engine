@@ -17,7 +17,7 @@
 #include "util/frustum.h"
 #include "util/colors.h"
 
-const float FAR_PLANE = 500.0f;
+const float FAR_PLANE = 240.0f;
 
 // point light shadow mapping
 struct camera_dir {
@@ -58,6 +58,27 @@ int Renderer::init() {
     directional_light = Light::create_directional(glm::vec3(0.0f, -0.25f, 0.25f), glm::vec3(1.0f), 0.1f);
     point_light = Light::create_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
 
+    for (int i = 0; i < 200; i++) {
+        float x = ((float)rand() / RAND_MAX * 100.0f - 50);
+        float y = ((float)rand() / RAND_MAX * 100.0f - 50);
+
+        GPU_Light point_light2 = {
+            glm::vec4(x, 1.0f, y, 1.0f),          // position + radius (attenuation range)
+            glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),          // color (white) + intensity
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
+        };
+        lights.emplace_back(point_light2);
+
+    }
+
+    light_ssbo.init();
+    light_ssbo.set_data(sizeof(Light) * 200, lights.data(), GL_DYNAMIC_DRAW);
+
+    void* penis2 = calloc(1, sizeof(Cluster) * 16 * 9 * 24);
+    cluster_ssbo.init();
+    cluster_ssbo.set_data(sizeof(Cluster) * 16 * 9 * 24, penis2, GL_DYNAMIC_DRAW);
+
     // SHADERS
     Shader_Manager::init("../resources/shaders/");
 
@@ -84,6 +105,9 @@ int Renderer::init() {
     particle.init("../resources/shaders/compute/particle2.comp");
     particle_shader = Shader_Manager::load_from_name("particle");
 
+
+    cluster_build.init("../resources/shaders/compute/cluster.comp");
+    slice_vis = Shader_Manager::load_from_name("cluster_vis");
 
     //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
 
@@ -345,7 +369,25 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
 
 }
 
+void Renderer::build_cluster_pass(Player& player) {
+    cluster_ssbo.bind(1);
+    
+    // compute pass
+    cluster_build.set_float("zNear", 0.1f);
+    cluster_build.set_float("zFar", FAR_PLANE);
+    glm::mat4 inv_proj = glm::inverse(glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE));
+
+    cluster_build.set_mat4 ("inverseProjection", inv_proj);
+    cluster_build.set_vec3 ("gridSize", glm::vec3(100.0f));
+    cluster_build.set_vec2 ("screenDimensions", glm::vec2(1600, 900));
+
+    cluster_build.dispatch_and_wait(16, 9, 24);
+}
+
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
+
+    //depth_pass();
+    build_cluster_pass(player);
 
     if (shadows_enabled)
         shadow_pass(scene, player);
@@ -367,9 +409,20 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
     render_skybox(scene.skybox, view, projection); // not efficient but gets outlines ontop of skybox
 
     //Shader used_shader = toon;
-    Shader* shader = Shader_Manager::get_shader(pbr_shader);
+    //Shader* shader = Shader_Manager::get_shader(pbr_shader);
+    Shader* shader = Shader_Manager::get_shader(slice_vis);
     shader->use();
+
+    shader->set_float("zNear", 0.1f);
+    shader->set_float("zFar", FAR_PLANE);
+    glm::mat4 inv_proj = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    shader->set_mat4("projection", inv_proj);
+    shader->set_vec3("gridSize", glm::vec3(16.0f, 9.0f, 24.0f));
+    shader->set_vec2("screenDimensions", glm::vec2(1600, 900));
+
     glStencilMask(0x00);
+
+    light_ssbo.bind(0);
 
     shader->set_bool("use_alpha_clipping", use_alpha_clipping);
     shader->set_float("alpha_cutoff", alpha_cutoff);

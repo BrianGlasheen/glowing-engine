@@ -1,11 +1,11 @@
 #include "core/ssbo.h"
 
-SSBO::SSBO() {
-    glGenBuffers(1, &id);
-}
-
 SSBO::~SSBO() {
     glDeleteBuffers(1, &id);
+}
+
+void SSBO::init() {
+    glGenBuffers(1, &id);
 }
 
 void SSBO::bind(uint32_t binding) {
