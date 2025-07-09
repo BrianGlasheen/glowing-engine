@@ -52,20 +52,20 @@ void Mesh::draw(const Shader* shader, bool shadow_pass) const
     if (!shadow_pass) {
 
         Texture_Manager::bind(material.albedo_map, 0);
-        shader->set_int("diffuse", 0);
+        // shader->set_int("diffuse", 0);
         //printf("bound diffuse: %s\n", Texture_Manager::get_name(material.albedo_map).c_str());
 
         shader->set_bool("has_normal", material.has_normal);
         if (material.has_normal) {
             Texture_Manager::bind(material.normal_map, 1);
-            shader->set_int("normal", 1);
+            // shader->set_int("normal", 1);
             //printf("bound normal: %s\n", Texture_Manager::get_name(material.normal_map).c_str());
         }
 
         shader->set_bool("has_metallic_roughness", material.metallic_roughness_map != 0);
         if (material.metallic_roughness_map != 0) {
             Texture_Manager::bind(material.metallic_roughness_map, 2);
-            shader->set_int("metallic_roughness", 2);
+            // shader->set_int("metallic_roughness", 2);
         }
     }
 

@@ -43,6 +43,7 @@ namespace Physics {
     void set_body_velocity(JPH::BodyID id, const glm::vec3& vel);
     glm::quat get_body_rotation(JPH::BodyID id);
     void set_body_rotation(JPH::BodyID id, const glm::quat& rot);
+    bool is_active(JPH::BodyID id);
 
     Util::AABB get_world_AABB(JPH::BodyID id);
     Util::OBB get_world_OBB(JPH::BodyID id);

@@ -10,6 +10,13 @@ enum Light_Type {
     POINT
 };
 
+struct GPU_Light {
+    glm::vec4 position_radius; // x, y ,z, radius
+    glm::vec4 color_strength; // r g b intensity
+    glm::vec4 direction_type; // x y z type
+    glm::vec4 params; // inner cone, outer cone, shadow map idx, unused 
+};
+
 class Light {
 public:
     Light() = default;

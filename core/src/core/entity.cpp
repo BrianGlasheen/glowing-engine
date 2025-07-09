@@ -1,4 +1,6 @@
 #include "entity.h"
+#include "Jolt/Physics/PhysicsSystem.h"
+#include "core/physics.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -39,7 +41,8 @@ Entity::Entity(glm::vec3 position,
           scale(scale),
           model_id(model_id),
           physics_enabled(physics_enabled),
-          fade(fade), ttl(ttl), max_ttl(max_ttl)
+          fade(fade), ttl(ttl), max_ttl(max_ttl), 
+          is_dirty(true), prev_pos(position), prev_rot(rotation)
 {
     Util::AABB aabb = Model_Manager::get_aabb(model_id);
     if (physics_enabled)
@@ -56,7 +59,8 @@ Entity::Entity(glm::vec3 position,
           rotation(rotation),
           scale(scale),
           physics_enabled(physics_enabled),
-          fade(fade), ttl(ttl), max_ttl(max_ttl)
+          fade(fade), ttl(ttl), max_ttl(max_ttl), 
+          is_dirty(true), prev_pos(position), prev_rot(rotation)
 {
     model_id = Model_Manager::load_model(model_name);
     Util::AABB aabb = Model_Manager::get_aabb(model_id);
@@ -74,6 +78,31 @@ glm::mat4 Entity::get_model_matrix() const {
 
     model_matrix = translation * rot * scaling;
     return model_matrix;
+}
+
+void Entity::check_moved() 
+{
+    if (physics_enabled) {
+        if (Physics::is_active(physics_id)) 
+        {
+            glm::vec3 pos = Physics::get_body_position(physics_id);
+            if (pos != prev_pos) {
+                prev_pos = pos;
+                is_dirty = true;
+                return;
+            }
+
+            glm::quat rot = Physics::get_body_rotation(physics_id);
+            if (rot != prev_rot) {
+                prev_rot = rot;
+                is_dirty = true;
+                return;
+            }
+
+            // todo add scale
+        }
+    }
+    is_dirty = false;
 }
 
 void Entity::draw(const Shader* shader, bool shadow_pass) const 

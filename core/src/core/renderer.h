@@ -10,16 +10,11 @@
 
 #include "asset/compute_shader.h"
 #include "asset/crosshair.h"
-#include "asset/model.h"
 #include "asset/shader.h"
 #include "asset/shader_manager.h"
 #include "asset/text.h"
 
 #include "player/player.h"
-
-#include "util/decompose.h"
-#include "util/frustum.h"
-#include "util/colors.h"
 
 class Renderer {
 public:
@@ -45,6 +40,9 @@ public:
     //todo rm
     void debug_sphere_at(float x, float y, float z);
     void debug_sphere_at(glm::vec3 pos);
+
+    void imgui_pass();
+
 
     void shutdown();
 
@@ -100,6 +98,9 @@ public:
 
     float emission_rate = 500;
     int max_particles = 10000;
+
+    // todo make settings
+    bool shadows_enabled = false;
 
     uint32_t quadVAO;
 };

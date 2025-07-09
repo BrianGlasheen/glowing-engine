@@ -1,4 +1,16 @@
 #version 460 core
+
+struct GPU_Light {
+    vec4 position_radius; // x, y ,z, radius
+    vec4 color_strength; // r g b intensity
+    vec4 direction_type; // x y z type
+    vec4 params; // inner cone, outer cone, shadow map idx, unused 
+};
+
+layout(std430, binding = 0) readonly buffer Lights {
+    GPU_Light lights[];
+};
+
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
 
@@ -12,6 +24,7 @@ in vec3 Bitangentout;
 
 uniform bool use_alpha_clipping; 
 uniform float alpha_cutoff;
+uniform bool shadows_enabled;
 
 uniform float ambient_light;
 
@@ -36,9 +49,13 @@ uniform vec3 viewPos;
 uniform bool has_diffuse;
 uniform bool has_normal;
 uniform bool has_metallic_roughness;
-uniform sampler2D diffuse;
-uniform sampler2D normal;
-uniform sampler2D metallic_roughness;
+// uniform sampler2D diffuse;
+// uniform sampler2D normal;
+// uniform sampler2D metallic_roughness;
+layout(binding = 0) uniform sampler2D diffuse;
+layout(binding = 1) uniform sampler2D normal;
+layout(binding = 2) uniform sampler2D metallic_roughness;
+
 uniform sampler2D shadow_map; // spotlight
 uniform sampler2D directional_shadow_map;
 uniform samplerCube point_shadow_map;
@@ -206,8 +223,12 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
     vec3 lighting = CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
     
     //float shadow = PointShadowCalculationPCF(FragPos, point_light_position, point_light_far_plane);
-    float shadow = PointShadowCalculation(FragPos, point_light_position, point_light_far_plane);
-    
+    float shadow;
+    if (shadows_enabled)
+        PointShadowCalculation(FragPos, point_light_position, point_light_far_plane);
+    else
+        shadow = 0.0;
+
     return lighting * (1.0 - shadow);
 }
 vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness) {
@@ -215,8 +236,13 @@ vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metal
     vec3 radiance = directional_light_color * directional_light_intensity;
     
     vec3 lighting = CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
-    
-    float shadow = DirectionalShadowCalculation(FragPosLightDirectional);
+        
+    float shadow;
+    if (shadows_enabled)
+        shadow = DirectionalShadowCalculation(FragPosLightDirectional);
+    else
+        shadow = 0.0;
+
     return lighting * (1.0 - shadow);
 }
 
@@ -235,7 +261,12 @@ vec3 CalculateSpotLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, fl
     
     vec3 lighting = CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
     
-    float shadow = SpotShadowCalculation(FragPosLight);
+    float shadow;
+    if (shadows_enabled)
+        shadow = SpotShadowCalculation(FragPosLight);
+    else
+        shadow = 0.0;
+    
     return lighting * (1.0 - shadow);
 }
 
@@ -287,15 +318,16 @@ void main() {
     Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness);
     Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness);
 
-    vec3 ambient = vec3(ambient_light) * albedo;
-    vec3 color = ambient + Lo;
-
-    float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    float brightness = dot(Lo, vec3(0.2126, 0.7152, 0.0722));
     if (brightness > 1.0) {
-        BrightColor = vec4(color, 1.0);
+        BrightColor = vec4(Lo, 1.0);
     } else {
         BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
+
+    vec3 ambient = vec3(ambient_light) * albedo;
+    vec3 color = ambient + Lo;
+
     
     // HDR tonemapping and gamma correction
     color = color / (color + vec3(1.0));

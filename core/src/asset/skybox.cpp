@@ -3,6 +3,8 @@
 // #include <glad/glad.h>
 #include "core/opengl.h"
 
+#include "asset/texture_manager.h"
+
 Skybox::Skybox(const std::string& skybox_name)
 {
     std::vector<std::string> faceNames = {

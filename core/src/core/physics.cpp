@@ -270,7 +270,7 @@ namespace Physics {
     }
 
     void update(float deltaTime) {
-        const int cCollisionSteps = 1;
+        const int cCollisionSteps = 1; // todo change if running slow
         g_state.physicsSystem->Update(deltaTime, cCollisionSteps, g_state.tempAllocator.get(), g_state.jobSystem.get());
     }
 
@@ -353,6 +353,11 @@ namespace Physics {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         JPH::Quat joltQuat(rot.x, rot.y, rot.z, rot.w);
         body_interface.SetRotation(id, joltQuat, JPH::EActivation::Activate);
+    }
+
+    bool is_active(JPH::BodyID id) {
+        BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
+        return body_interface.IsActive(id);
     }
 
 

@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-#include <filesystem>
+#include <cstddef>
 #include <ctime>
 #include <cfloat>
 #include <iostream>
@@ -14,7 +14,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-
+#include "util/frustum.h"
+#include "util/colors.h"
 
 const float FAR_PLANE = 500.0f;
 
@@ -53,7 +54,6 @@ int Renderer::init() {
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     // LIGHTs
-    // makes opengl calls
     spotlight = Light::create_spot(glm::vec3(0.0f, 5.0f, -5.0f), glm::vec3(0.0f, -1.0f, -0.5f), glm::vec3(1.0f), 15.0f, 25.0f, 45.0f, 1024, 1024);
     directional_light = Light::create_directional(glm::vec3(0.0f, -0.25f, 0.25f), glm::vec3(1.0f), 0.1f);
     point_light = Light::create_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
@@ -69,7 +69,6 @@ int Renderer::init() {
     hud_text_shader = Shader_Manager::load_from_name("text_hud");
     //debug_shader.init("../resources/shaders/debug_v.glsl", "../resources/shaders/debug_f.glsl");
     outline_shader = Shader_Manager::load_from_name("outline");
-
     quad_shader = Shader_Manager::load_from_name("quad");
 
     Texture_Manager::init();
@@ -82,7 +81,7 @@ int Renderer::init() {
 
     bloom_down.init("../resources/shaders/compute/bloomdown.comp");
     bloom_up.init("../resources/shaders/compute/bloomup.comp");
-    particle.init("../resources/shaders/compute/particle.comp");
+    particle.init("../resources/shaders/compute/particle2.comp");
     particle_shader = Shader_Manager::load_from_name("particle");
 
 
@@ -222,41 +221,67 @@ bool Renderer::setup_buffers() {
 //}
 
 void Renderer::shadow_pass(Scene& scene, const Player& player) {
-    spotlight.bind_fbo_write();
-    glEnable(GL_DEPTH_TEST);
-    glClear(GL_DEPTH_BUFFER_BIT);
 
-    // use shadow shader
-    Shader* shader = Shader_Manager::get_shader(shadow_map_shader);
-    shader->use();
-    glm::mat4 projection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
-    if (player.key_toggles['l'])
-        debug_renderer.draw_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
+    bool spotlight_shadowmap_dirty = false;
+    // todo add check for LIGHT dirty
 
-    shader->set_mat4("projection", projection);
-    glm::mat4 view = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-    shader->set_mat4("view", view);
-
-    Util::Frustum frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
-    // frusutm cull objects + check move?
+    Util::Frustum spotlight_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
+    
+    // if shadow map not dirty check if should be
+    std::vector<size_t> spotlight_entities(16);
+    size_t idx = 0;
     for (Entity& entity : scene.entities) {
         if (entity.physics_enabled) {
             Util::AABB box = Physics::get_world_AABB(entity.physics_id);
-            if (frustum.intersectsAABB(box.min, box.max)) {
-                glm::mat4 model = entity.get_model_matrix();
-                shader->set_mat4("model", model);
-
-                bool shadow_pass = true;
-                entity.draw(shader, shadow_pass);
-
+            if (spotlight_frustum.intersectsAABB(box.min, box.max)) {
+                // mark as in shadow map
+                spotlight_entities.push_back(idx);
+                // check if dirty -> shadow map re-render
+                if (entity.is_dirty) {
+                    spotlight_shadowmap_dirty = true;
+                    break;
+                }
             }
         }
+        idx++;
     }
-    // dir light, maybe scene BB
+
+    if (player.key_toggles['l'])
+        debug_renderer.draw_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f, spotlight_shadowmap_dirty ? Util::magenta : Util::red);
+
+    if (spotlight_shadowmap_dirty) {
+        // todo totally change
+        spotlight.bind_fbo_write();
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        // use shadow shader
+        Shader* shader = Shader_Manager::get_shader(shadow_map_shader);
+        shader->use();
+        glm::mat4 projection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
+
+        shader->set_mat4("projection", projection);
+        glm::mat4 view = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        shader->set_mat4("view", view);
+
+        // frusutm cull objects + check move?
+        for (size_t idx : spotlight_entities) {
+            Entity& entity = scene.entities[idx];
+            glm::mat4 model = entity.get_model_matrix();
+            shader->set_mat4("model", model);
+            bool shadow_pass = true;
+            entity.draw(shader, shadow_pass);
+        }
+        printf("did spotlight shadowpass\n");
+    }
+
+    // dir light, maybe scene BB + csm
     directional_light.bind_fbo_write();
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT);
 
+    Shader* shader = Shader_Manager::get_shader(shadow_map_shader);
+    shader->use();
     float scene_size = 50.0f;
     float light_distance = 50.0f;
     glm::vec3 scene_center = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -284,7 +309,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     glEnable(GL_DEPTH_TEST);
     glClearColor(FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX);
 
-    projection = glm::perspective(glm::radians(90.0f), 1.0f, close_plane, penis);
+    glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, close_plane, penis);
     shader->set_mat4("projection", projection);
 
     shader->set_vec3("point_light_position", point_light.position);
@@ -295,11 +320,11 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
         glm::vec3 target = point_light.position + camera_directions[i].direction;
-        view = glm::lookAt(point_light.position, target, camera_directions[i].up);
+        glm::mat4 view = glm::lookAt(point_light.position, target, camera_directions[i].up);
         shader->set_mat4("view", view);
 
         if (player.key_toggles['l'])
-            debug_renderer.draw_frustum(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, close_plane, penis);
+            debug_renderer.draw_frustum(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, close_plane, penis, Util::red);
 
         Util::Frustum frustum2(point_light.position, camera_directions[i].direction, camera_directions[i].up, glm::radians(90.0f), 1.0f, close_plane, penis);
 
@@ -322,16 +347,17 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
 
-    shadow_pass(scene, player);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
-    glViewport(0, 0, scr_width, scr_height);
+    if (shadows_enabled)
+        shadow_pass(scene, player);
 
     render_scene(player, scene, delta_time, particles);
-    //particle_pass(delta_time);
+    // particle_pass(delta_time);
 }
 
 void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles) {
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+    glViewport(0, 0, scr_width, scr_height);
+
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -348,13 +374,33 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
     shader->set_bool("use_alpha_clipping", use_alpha_clipping);
     shader->set_float("alpha_cutoff", alpha_cutoff);
 
-    // spotlight
-    spotlight.bind_fbo_read(3);
-    shader->set_int("shadow_map", 3);
-    glm::mat4 lprojection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
-    shader->set_mat4("light_projection", lprojection);
-    glm::mat4 lview = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-    shader->set_mat4("light_view", lview);
+    shader->set_bool("shadows_enabled", shadows_enabled);
+    if (shadows_enabled) {
+
+        // spotlight
+        spotlight.bind_fbo_read(3);
+        shader->set_int("shadow_map", 3);
+        glm::mat4 lprojection = glm::perspective(glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f);
+        shader->set_mat4("light_projection", lprojection);
+        glm::mat4 lview = glm::lookAt(spotlight.position, spotlight.position + spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        shader->set_mat4("light_view", lview);
+    
+        // dir light
+        directional_light.bind_fbo_read(4);
+        shader->set_int("directional_shadow_map", 4);
+        float scene_size = 50.0f;
+        float light_distance = 50.0f;
+        glm::vec3 scene_center = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 light_pos = scene_center - directional_light.direction * light_distance;
+        glm::mat4 dir_projection = glm::ortho(-scene_size, scene_size, -scene_size, scene_size, 0.1f, 150.0f);
+        shader->set_mat4("dir_light_projection", dir_projection);
+        glm::mat4 dir_view = glm::lookAt(light_pos, light_pos + directional_light.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+        shader->set_mat4("dir_light_view", dir_view);
+
+        point_light.bind_fbo_read(5);
+        shader->set_int("point_shadow_map", 5);
+        shader->set_float("point_light_far_plane", 50.0f);
+    }
 
     shader->set_vec3("spot_light_position", spotlight.position);
     shader->set_vec3("spot_light_direction", spotlight.direction);
@@ -365,34 +411,17 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
     debug_renderer.add_sphere(spotlight.position, 0.1f, spotlight.color);
     debug_renderer.add_line(spotlight.position, spotlight.position + spotlight.direction, spotlight.color);
 
-    // dir light
-    directional_light.bind_fbo_read(4);
-    shader->set_int("directional_shadow_map", 4);
-    float scene_size = 50.0f;
-    float light_distance = 50.0f;
-    glm::vec3 scene_center = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 light_pos = scene_center - directional_light.direction * light_distance;
-    glm::mat4 dir_projection = glm::ortho(-scene_size, scene_size, -scene_size, scene_size, 0.1f, 150.0f);
-    shader->set_mat4("dir_light_projection", dir_projection);
-    glm::mat4 dir_view = glm::lookAt(light_pos, light_pos + directional_light.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-    shader->set_mat4("dir_light_view", dir_view);
-
     shader->set_vec3("directional_light_direction", directional_light.direction);
     shader->set_vec3("directional_light_color", directional_light.color);
     shader->set_float("directional_light_intensity", directional_light.intensity);
     debug_renderer.add_line(glm::vec3(0.0f, 10.f, 0.0f), glm::vec3(0.0f, 10.f, 0.0f) + directional_light.direction, spotlight.color);
-    ///////////
 
     shader->set_vec3("point_light_position", point_light.position);
     shader->set_vec3("point_light_color", point_light.color);
     shader->set_float("point_light_intensity", point_light.intensity);
-    shader->set_float("point_light_far_plane", 50.0f);
     debug_renderer.add_sphere(point_light.position, 0.1f, glm::vec3(1.0f));
-    point_light.bind_fbo_read(5);
-    shader->set_int("point_shadow_map", 5);
 
     shader->set_float("ambient_light", ambient_light);
-    /////
 
 
     //glm::projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
@@ -404,7 +433,7 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
 
     if (player.out_of_body) {
         debug_renderer.add_sphere(player.camera.position, 1.0f, glm::vec3(1.0f));
-        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE, Util::red);
     }
 
     Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
@@ -758,6 +787,12 @@ void Renderer::debug_sphere_at(glm::vec3 pos) {
     debug_renderer.add_sphere(pos, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
 }
 
+void Renderer::imgui_pass() {
+    ImGui::Begin("Renderer Settings");
+    ImGui::Checkbox("shadows enabled", &shadows_enabled);
+
+    ImGui::End();
+}
 
 void Renderer::shutdown() {
     //glDeleteFramebuffers(1, &g_buffer);

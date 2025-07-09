@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glow.h"
+
 #include <vector>
 #include <string>
 #include <iostream>

@@ -13,6 +13,7 @@ public:
     ~Scene();
 
     void include(Entity ntitty);
+    void update_dirty();
     // returns the number of hits
     //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
 

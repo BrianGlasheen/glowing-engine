@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "asset/model.h"
 #include "asset/model_manager.h"
 #include "asset/shader.h"
 #include "util/aabb.h"
@@ -43,6 +42,7 @@ public:
 
     glm::mat4 get_model_matrix() const;
     glm::vec3 get_physics_position() const;
+    void check_moved();
     //Util::AABB get_aabb() const; // return model or physics, or mesh?
 
     void draw(const Shader* shader, bool shadow_pass = false) const;
@@ -54,7 +54,11 @@ public:
     model_handle model_id;
     bool physics_enabled;
     JPH::BodyID physics_id;
-    
+
+    bool is_dirty;
+    glm::vec3 prev_pos;
+    glm::quat prev_rot;
+
     bool fade;
     float ttl;
     float max_ttl;

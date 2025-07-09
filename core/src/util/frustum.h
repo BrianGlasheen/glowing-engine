@@ -22,9 +22,8 @@ namespace Util {
     struct Frustum {
         Plane planes[6]; // left, right, bottom, top, near, far
 
-        Frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir,
-            const glm::vec3& cameraUp, float fov, float aspect, float near, float far) {
-
+        Frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir, const glm::vec3& cameraUp, float fov, float aspect, float near, float far) 
+        {
             glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
             glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
 
@@ -67,6 +66,11 @@ namespace Util {
                 }
             }
             return true; // AABB intersects or is inside frustum
+        }
+
+        bool intersectsFrustum(const Frustum& other_frustum) const {
+
+
         }
     };
 }

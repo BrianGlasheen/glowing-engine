@@ -1,5 +1,7 @@
 #include "light.h"
 
+#include <cstdio>
+
 // #include <glad/glad.h>
 #include "core/opengl.h"
 

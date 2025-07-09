@@ -21,7 +21,6 @@
 
 #include "core/ssbo.h"
 #include <vector>
-#include <random>
 #include <glm/gtc/random.hpp>
 
 struct Particle {
@@ -150,13 +149,11 @@ int main()
         p.color_end = glm::vec4(0.0f);
         p.size_start = 0.0f;
         p.size_end = 0.0f;
-        p.padding;
+        // p.padding;
     }
     SSBO particle_ssbo;
     particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
     ///////////////////////////////////////////////////////////
-
-
 
     // render loop
     uint32_t frame = 0;
@@ -187,6 +184,7 @@ int main()
             Physics::update(); // default 1/60 delta time
         }
 
+        scene.update_dirty();
         // render scene
         renderer.render(player, scene, delta_time, particle_ssbo);
 
@@ -238,7 +236,8 @@ int main()
         ImGui::SliderFloat("velocity_mag", &renderer.velocity_mag, -100.0f, 100.0f);
         ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
         ImGui::End();
-
+        
+        renderer.imgui_pass();
         //player.debug_hud();
         //if (renderer.editor_mode) {
             //renderer.render_gizmo(scene, player);

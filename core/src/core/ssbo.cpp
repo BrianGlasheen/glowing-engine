@@ -1,4 +1,4 @@
-#include "core/SSBO.h"
+#include "core/ssbo.h"
 
 SSBO::SSBO() {
     glGenBuffers(1, &id);

@@ -20,6 +20,13 @@ void Scene::include(Entity ntitty) {
     }
 }
 
+void Scene::update_dirty() {
+    for (Entity& entity : entities) {
+        entity.check_moved();
+    }
+}
+
+
 //int Scene::cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos) {
 //    int hits = 0;
 //    float min_dist = 999999999.0f;
