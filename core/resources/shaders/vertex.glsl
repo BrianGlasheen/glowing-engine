@@ -6,8 +6,7 @@ layout (location = 3) in vec3 Tangent;
 layout (location = 4) in vec3 Bitangent;
 
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 mvp;
 uniform mat3 normal_matrix;
 uniform mat4 light_view;
 uniform mat4 light_projection;
@@ -34,5 +33,5 @@ void main() {
     Tangentout = normalize(normal_matrix * Tangent);
     Bitangentout = normalize(normal_matrix * Bitangent);
 
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
+    gl_Position = mvp * vec4(aPos, 1.0);
 }

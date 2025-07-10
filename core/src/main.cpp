@@ -23,6 +23,8 @@
 #include <vector>
 #include <glm/gtc/random.hpp>
 
+#include "util/profiler.h"
+
 struct Particle {
     glm::vec3 position;
     float ttl;
@@ -90,10 +92,10 @@ int main()
     }
 
     {
-        pos = glm::vec3(0.0f);
-        scale = glm::vec3(0.1f);
-        Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza", false);
-        scene.include(e5555);
+        //pos = glm::vec3(0.0f);
+        //scale = glm::vec3(0.1f);
+        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza", false);
+        //scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);
         scale = glm::vec3(1.0f);
@@ -105,7 +107,7 @@ int main()
         //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
         //scene.include(fdfsdfsdfsdfsdf);
 
-          //Entity sadasd23232323232332323("bistro", glm::vec3(0.0f), false, glm::vec3(0.025f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+         // Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "bistro", false);
          //scene.include(sadasd23232323232332323);
     }
 
@@ -115,6 +117,7 @@ int main()
     ImGuiIO& io = ImGui::GetIO();
     ImGui_ImplGlfw_InitForOpenGL(window.get_window(), true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplOpenGL3_Init();
+    ImGuiUtils::ProfilerGraph gpuGraph(300);
 
     Font font("tx02");
     Text fpscounter(font, "999", 0, 1, 50.0f, glm::vec3(0.5f, 0.2f, 0.7f));
@@ -159,6 +162,7 @@ int main()
     uint32_t frame = 0;
     printf("RENDERING\n");
     while (window.open()) {
+        legit::Profiler::Instance().BeginFrame();
         float currentFrame = window.get_time();
 
         delta_time = currentFrame - last_frame;
@@ -181,15 +185,32 @@ int main()
 
         //if (!editor_mode) {
             player.controller_step(window.get_window(), delta_time, scene);
+        {
+            PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
             Physics::update(); // default 1/60 delta time
-        //}
-
-        scene.update_dirty();
+        }
+        {
+            PROFILE_SCOPE_COLOR("scene dirty", legit::Colors::peterRiver);
+            scene.update_dirty();
+        }
         // render scene
-        renderer.render(player, scene, delta_time, particle_ssbo);
+        {
+            PROFILE_SCOPE_COLOR("total render", legit::Colors::turqoise);
+            renderer.render(player, scene, delta_time, particle_ssbo);
+        }
+        {
+            PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
+            if (!player.key_toggles[(unsigned)'r'])
+                renderer.render_debug(player);
+        }
 
-        if (!player.key_toggles[(unsigned)'r'])
-            renderer.render_debug(player);
+        renderer.render_crosshair(crosshair);
+        renderer.render_hud_text(fpscounter);
+        renderer.render_hud_text(weapon_ammo_text);
+        renderer.render_hud_text(reserve_ammo_text);
+        //renderer.render_hud_text(player_position);
+        //renderer.render_hud_text(player_facing);
+        renderer.render_hud_text(player_holding);
 
         // render scene deferred pipeline
         // renderer.render_scene_deferred(player, scene, delta_time);
@@ -243,14 +264,14 @@ int main()
             //renderer.render_gizmo(scene, player);
         //}
         //else {
-            renderer.render_crosshair(crosshair);
-            renderer.render_hud_text(fpscounter);
-            renderer.render_hud_text(weapon_ammo_text);
-            renderer.render_hud_text(reserve_ammo_text);
-            //renderer.render_hud_text(player_position);
-            //renderer.render_hud_text(player_facing);
-            renderer.render_hud_text(player_holding);
+
         //}
+
+        legit::Profiler::Instance().EndFrame();
+        auto& tasks = legit::Profiler::Instance().GetTasks();
+        gpuGraph.LoadFrameData(tasks.data(), tasks.size());
+        gpuGraph.RenderTimings(300, 200, 150, 0, 1.0f / 60.0f);
+
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         

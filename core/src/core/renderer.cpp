@@ -16,6 +16,7 @@
 
 #include "util/frustum.h"
 #include "util/colors.h"
+#include "util/profiler.h"
 
 const float FAR_PLANE = 240.0f;
 
@@ -49,7 +50,8 @@ int Renderer::init() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    glEnable(GL_STENCIL_TEST);
+    //glEnable(GL_STENCIL_TEST);
+    glDisable(GL_STENCIL_TEST);
     glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
@@ -61,10 +63,13 @@ int Renderer::init() {
     for (int i = 0; i < 200; i++) {
         float x = ((float)rand() / RAND_MAX * 100.0f - 50);
         float y = ((float)rand() / RAND_MAX * 100.0f - 50);
+        float r = ((float)rand() / RAND_MAX);
+        float g = ((float)rand() / RAND_MAX);
+        float b = ((float)rand() / RAND_MAX);
 
         GPU_Light point_light2 = {
             glm::vec4(x, 1.0f, y, 1.0f),          // position + radius (attenuation range)
-            glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),          // color (white) + intensity
+            glm::vec4(r, g, b, 15.0f),          // color (white) + intensity
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
         };
@@ -105,6 +110,7 @@ int Renderer::init() {
     particle.init("../resources/shaders/compute/particle2.comp");
     particle_shader = Shader_Manager::load_from_name("particle");
 
+    depth_prepass_shader = Shader_Manager::load_from_name("depth_prepass");
 
     cluster_build.init("../resources/shaders/compute/cluster.comp");
     slice_vis = Shader_Manager::load_from_name("cluster_vis");
@@ -119,54 +125,6 @@ int Renderer::init() {
 
 
 bool Renderer::setup_buffers() {
-    // Create and bind G-buffer framebuffer
-    //glGenFramebuffers(1, &g_buffer);
-    //glBindFramebuffer(GL_FRAMEBUFFER, g_buffer);
-
-    //// 1. Position buffer
-    //glGenTextures(1, &g_position);
-    //glBindTexture(GL_TEXTURE_2D, g_position);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_position, 0);
-
-    //// 2. Normal buffer
-    //glGenTextures(1, &g_normal);
-    //glBindTexture(GL_TEXTURE_2D, g_normal);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, scr_width, scr_height, 0, GL_RGBA, GL_FLOAT, NULL);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, g_normal, 0);
-
-    //// 3. Color + specular buffer
-    //glGenTextures(1, &g_albedo_specular);
-    //glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, scr_width, scr_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, g_albedo_specular, 0);
-
-    //// Tell OpenGL which color attachments we'll use for rendering
-    //uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    //glDrawBuffers(3, attachments);
-
-    //// Create and attach depth buffer
-    //uint32_t rboDepth;
-    //glGenRenderbuffers(1, &rboDepth);
-    //glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    //glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, scr_width, scr_height);
-    //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-
-    //// Check if framebuffer is complete
-    //if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    //    std::cout << "Framebuffer not complete!" << std::endl;
-    //    return false;
-    //}
-
-    //// Unbind framebuffer
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
     glGenFramebuffers(1, &render_target);
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
 
@@ -189,7 +147,7 @@ bool Renderer::setup_buffers() {
 
     // Check framebuffer completeness
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT" << std::endl;
+        printf("[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT\n");
         assert(false);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -222,28 +180,6 @@ bool Renderer::setup_buffers() {
     return true;
 }
 
-//void draw_player_model(Player& player, Model& player_model) {
-//    Shader* shader = Shader_Manager::get_shader(pbr_shader);
-//    shader->use();
-
-//    shader->set_vec3("lightPos", glm::vec3(2.0f, 2.0f, 2.0f));
-//    shader->set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-
-//    shader->set_vec3("viewPos", player.camera.position);
-
-//    glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-//    shader->set_mat4("projection", projection);
-//    glm::mat4 view = player.camera.get_view_matrix();
-//    shader->set_mat4("view", view);
-
-//    glm::mat4 model = player.get_model_matrix();
-//    shader->set_mat4("model", model);
-//
-//    shader->set_vec3("objectColor", glm::vec3(0.0f, 0.5f, 0.0f));
-//
-//    player_model.draw(shader);
-//}
-
 void Renderer::shadow_pass(Scene& scene, const Player& player) {
 
     bool spotlight_shadowmap_dirty = false;
@@ -271,7 +207,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     }
 
     if (player.key_toggles['l'])
-        debug_renderer.draw_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 0.1f, 50.0f, spotlight_shadowmap_dirty ? Util::magenta : Util::red);
+        debug_renderer.draw_frustum(spotlight.position, spotlight.direction, glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(spotlight.outer_fov * 2.0f), (float)spotlight.width / (float)spotlight.height, 1.0f, 50.0f, spotlight_shadowmap_dirty ? Util::magenta : Util::red);
 
     if (spotlight_shadowmap_dirty) {
         // todo totally change
@@ -373,9 +309,9 @@ void Renderer::build_cluster_pass(Player& player) {
     cluster_ssbo.bind(1);
     
     // compute pass
-    cluster_build.set_float("zNear", 0.1f);
+    cluster_build.set_float("zNear", 1.0f);
     cluster_build.set_float("zFar", FAR_PLANE);
-    glm::mat4 inv_proj = glm::inverse(glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE));
+    glm::mat4 inv_proj = glm::inverse(glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE));
 
     cluster_build.set_mat4 ("inverseProjection", inv_proj);
     cluster_build.set_vec3 ("gridSize", glm::vec3(100.0f));
@@ -385,40 +321,111 @@ void Renderer::build_cluster_pass(Player& player) {
 }
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
-
-    //depth_pass();
-    build_cluster_pass(player);
-
-    if (shadows_enabled)
-        shadow_pass(scene, player);
-
-    render_scene(player, scene, delta_time, particles);
-    // particle_pass(delta_time);
+    // begin frame
+    {
+        PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
+        if (use_depth_prepass)
+            depth_prepass(player, scene);
+    }
+    {
+        PROFILE_SCOPE_COLOR("create cluster", legit::Colors::emerald);
+        //build_cluster_pass(player);
+    }
+    {
+        PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
+        if (shadows_enabled)
+            shadow_pass(scene, player);
+    }
+    {
+        PROFILE_SCOPE_COLOR("scene", legit::Colors::clouds);
+        render_scene(player, scene, delta_time);
+    }
+    {
+        PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
+        particle_pass(delta_time, particles, player);
+    }
+    // post process pass theoretically
+    {
+        PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
+        bloom_pass();
+    }
+    {
+        PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
+        composite();
+    }
+    // end frame
 }
 
-void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles) {
+void Renderer::depth_prepass(Player& player, Scene& scene) {
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+    glViewport(0, 0, scr_width, scr_height);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glDepthMask(GL_TRUE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 view = player.get_view_matrix();
+    glm::mat4 viewproj = projection * view;
+
+    Shader* shader = Shader_Manager::get_shader(depth_prepass_shader);
+    shader->use();
+
+    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    for (Entity& entity : scene.entities) {
+        Util::AABB box;
+        if (entity.physics_enabled) {
+            box = Physics::get_world_AABB(entity.physics_id);
+            if (frustum.intersectsAABB(box.min, box.max)) {
+                glm::mat4 model = entity.get_model_matrix();
+                shader->set_mat4("mvp", viewproj * model);
+                bool no_materials = true;
+                entity.draw(shader, no_materials);
+            }
+        }
+        else {
+            glm::mat4 model = entity.get_model_matrix();
+            shader->set_mat4("mvp", viewproj * model);
+            bool no_materials = true;
+            entity.draw(shader, no_materials);
+        }
+    }
+}
+
+void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    if (use_depth_prepass) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDepthFunc(GL_LEQUAL); // fragments at same depth pass
+        glDepthMask(GL_FALSE); // dont write depth
+    }
+    else {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_TRUE);
+    }
 
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
+    glEnable(GL_DEPTH_TEST);
+
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     glm::mat4 view = player.get_view_matrix();
-
-    render_skybox(scene.skybox, view, projection); // not efficient but gets outlines ontop of skybox
+    glm::mat4 viewproj = projection * view;
 
     //Shader used_shader = toon;
-    //Shader* shader = Shader_Manager::get_shader(pbr_shader);
-    Shader* shader = Shader_Manager::get_shader(slice_vis);
+    Shader* shader = Shader_Manager::get_shader(pbr_shader);
+    //Shader* shader = Shader_Manager::get_shader(slice_vis);
     shader->use();
 
-    shader->set_float("zNear", 0.1f);
-    shader->set_float("zFar", FAR_PLANE);
-    glm::mat4 inv_proj = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-    shader->set_mat4("projection", inv_proj);
-    shader->set_vec3("gridSize", glm::vec3(16.0f, 9.0f, 24.0f));
-    shader->set_vec2("screenDimensions", glm::vec2(1600, 900));
+    //shader->set_float("zNear", 0.1f);
+    //shader->set_float("zFar", FAR_PLANE);
+    //glm::mat4 inv_proj = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    //shader->set_mat4("projection", inv_proj);
+    //shader->set_vec3("gridSize", glm::vec3(16.0f, 9.0f, 24.0f));
+    //shader->set_vec2("screenDimensions", glm::vec2(1600, 900));
 
     glStencilMask(0x00);
 
@@ -478,18 +485,14 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
 
 
     //glm::projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
-    shader->set_mat4("projection", projection);
-
-    //glm::mat4 view = player.get_view_matrix();
-    shader->set_mat4("view", view);
     shader->set_vec3("view_position", player.get_view_position());
 
     if (player.out_of_body) {
         debug_renderer.add_sphere(player.camera.position, 1.0f, glm::vec3(1.0f));
-        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE, Util::red);
+        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE, Util::red);
     }
 
-    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     int count = 0;
     for (Entity& entity : scene.entities) {
 
@@ -509,6 +512,7 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
 
                 glm::mat4 model = entity.get_model_matrix();
                 shader->set_mat4("model", model);
+                shader->set_mat4("mvp", viewproj * model);
 
                 glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
                 shader->set_mat3("normal_matrix", normal_matrix);
@@ -520,6 +524,7 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
 
             glm::mat4 model = entity.get_model_matrix();
             shader->set_mat4("model", model);
+            shader->set_mat4("mvp", viewproj * model);
 
             glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
             shader->set_mat3("normal_matrix", normal_matrix);
@@ -527,8 +532,6 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
             entity.draw(shader);
         }
 
-
-        /////////////////////////////////////////////////////////////////////////////////////////////////
         //debug_renderer.add_axes(entity.get_physics_position(), entity.rotation);
         if (entity.physics_enabled) {
             if (player.out_of_body) {
@@ -542,41 +545,16 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time, SSBO
     }
     //printf("drawing %d entities\n", count);
 
-
-    // flush(); !!
-    
-    particle_pass(delta_time, particles, player);
-    
     glStencilMask(0xFF); // todo figure out where this goes?
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
 
-
-    // post process pass theoretically
-    bloom_pass();
-
-
-    // composite pass
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
-
-    shader = Shader_Manager::get_shader(quad_shader);
-    shader->use();
-
-    shader->set_int("scene_color", 0);
-    Texture_Manager::bind(scene_texture, 0);
-    shader->set_int("bright_color", 1);
-    Texture_Manager::bind(bright_texture, 1);
-
-    glBindVertexArray(quadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0); // unbind quad
+    // flush(); !!
 }
 
 
 void Renderer::render_debug(Player& player) {
     Shader* shader = Shader_Manager::get_shader(debug_shader);
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     shader->set_mat4("projection", projection);
     glm::mat4 view = player.get_view_matrix();
     shader->set_mat4("view", view);
@@ -611,7 +589,7 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     Shader* shader = Shader_Manager::get_shader(particle_shader);
     shader->use();
     shader->set_mat4("view", player.get_view_matrix());
@@ -661,141 +639,23 @@ void Renderer::bloom_pass() {
     }
 }
 
-//void render_scene_deferred(Player& player, Scene& scene, float delta_time) {
-//    // 1. Geometry Pass: Render scene to G-buffer
-//    glBindFramebuffer(GL_FRAMEBUFFER, g_buffer);
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-//    
-//    // Prepare matrices
-//    glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-//    glm::mat4 view = player.camera.get_view_matrix();
+void Renderer::composite() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
 
-//    // Use deferred geometry shader for G-buffer pass
-//    deferred_shader.use();
-//    deferred_shader.set_mat4("projection", projection);
-//    deferred_shader.set_mat4("view", view);
+    Shader* shader = Shader_Manager::get_shader(quad_shader);
+    shader->use();
 
-//    // Render scene entities to G-buffer
-//    for (Entity& entity : scene.entities) {
-//        glm::mat4 model = entity.get_model_matrix();
-//        deferred_shader.set_mat4("model", model);
-//        
-//        // Calculate normal matrix (inverse transpose of the model matrix)
-//        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-//        deferred_shader.set_mat3("normal_matrix", normal_matrix);
-//        
-//        entity.draw(deferred_shader);
-//    }
+    shader->set_int("scene_color", 0);
+    Texture_Manager::bind(scene_texture, 0);
+    shader->set_int("bright_color", 1);
+    Texture_Manager::bind(bright_texture, 1);
 
-//    // 2. Lighting Pass: Render lighting using G-buffer
-//    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//    glDisable(GL_DEPTH_TEST);
-//    
-//    // Use lighting shader
-//    deferred_lighting_shader.use();
-//    
-//    // Bind G-buffer textures
-//    glActiveTexture(GL_TEXTURE0);
-//    glBindTexture(GL_TEXTURE_2D, g_position);
-//    glActiveTexture(GL_TEXTURE1);
-//    glBindTexture(GL_TEXTURE_2D, g_normal);
-//    glActiveTexture(GL_TEXTURE2);
-//    glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
-
-//    // Set lighting uniforms
-//    deferred_lighting_shader.set_vec3("viewPos", player.camera.position);
-//    
-//    // Set light parameters
-//    deferred_lighting_shader.set_vec3("light.Position", light.position);
-//    deferred_lighting_shader.set_vec3("light.Color", light.color);
-//    deferred_lighting_shader.set_float("light.Linear", 0.09f);
-//    deferred_lighting_shader.set_float("light.Quadratic", 0.032f);
-//    deferred_lighting_shader.set_float("light.Intensity", light.intensity);
-
-//    // glUniform1i(glGetUniformLocation(deferred_lighting_shader.ID, "debug_mode"), 999);
-
-//    // Render a screen-filling quad
-//    // render_quad();
-//    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-//    glBindVertexArray(quadVAO);
-//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-//    glBindVertexArray(0);
-//    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-//    glEnable(GL_DEPTH_TEST);
-
-//    // Optional: Render debug information
-//    if (!player.key_toggles[(unsigned)'r']) {
-//        // debug_renderer.render(debug_shader, projection, view);
-//        debug_visualize_gbuffer(player);
-//    }
-//}
-
-//void debug_visualize_gbuffer(Player& player) {
-//    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//
-//    debug_gbuffer_shader.use();
-//
-//    // Bind G-buffer textures
-//    glActiveTexture(GL_TEXTURE0);
-//    glBindTexture(GL_TEXTURE_2D, g_position);
-//    glActiveTexture(GL_TEXTURE1);
-//    glBindTexture(GL_TEXTURE_2D, g_normal);
-//    glActiveTexture(GL_TEXTURE2);
-//    glBindTexture(GL_TEXTURE_2D, g_albedo_specular);
-//
-//    const char* mode_names[] = {
-//        "Position", "Normal", "Albedo", "Specular", "Depth"
-//    };
-//    static int current_mode = 0;
-//
-//    for (int i = 0; i < 4; ++i) {
-//        debug_gbuffer_shader.set_int("debug_mode", i);
-//
-//        int x = (i % 2) * (scr_width / 2);
-//        int y = (i / 2) * (scr_height / 2);
-//        glViewport(x, y, scr_width / 2, scr_height / 2);
-//
-//        // render_quad();
-//        glBindVertexArray(quadVAO);
-//        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-//        glBindVertexArray(0);    
-//    }
-//
-//    // Reset viewport
-//    glViewport(0, 0, scr_width, scr_height);
-//}
-
-//void draw_player_stuff(Player& player, glm::vec3& clr, glm::vec3& emis_clr, glm::vec3& fres_clr, float expon, const Skybox& skybox) {
-//    // glDisable(GL_DEPTH_TEST);
-//    weapon_shader2.use();
-//    
-//    glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-//    weapon_shader2.set_mat4("projection", projection);
-//    
-//    glm::mat4 fullView = player.camera.get_view_matrix();
-//    glm::mat4 rotationOnlyView = glm::mat4(glm::mat3(fullView));
-//    weapon_shader2.set_mat4("view", rotationOnlyView);
-//    
-
-//    // REPLACE FROM HERE -------------------------------------------------------------
-//    glm::mat4 model = glm::mat4(1.0f);
-//    
-//    // FIX player.camera.yaw pitch roll maybe geeruc
-//    model = glm::rotate(model, -glm::radians(player.camera.yaw + 90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-//    model = glm::rotate(model, glm::radians(player.camera.pitch), glm::vec3(1.0f, 0.0f, 0.0f));
-//    
-//    model = glm::translate(model, player.controller->get_weapon_position());
-//    weapon_shader2.set_mat4("model", model);
-//    weapon_shader2.set_vec3("viewPos", player.camera.position);
-
-//    // HERE ------------------------------------
-//    // USE WEAPON + HANDS + QUATS + ANIMATION + OH GOD 
-
-//}
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0); // unbind quad
+}
 
 void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection) {
     glDepthFunc(GL_LEQUAL);
@@ -842,6 +702,7 @@ void Renderer::debug_sphere_at(glm::vec3 pos) {
 
 void Renderer::imgui_pass() {
     ImGui::Begin("Renderer Settings");
+    ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
     ImGui::Checkbox("shadows enabled", &shadows_enabled);
 
     ImGui::End();

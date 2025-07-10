@@ -31,13 +31,15 @@ public:
     int init();
     bool setup_buffers();
 
-    void shadow_pass(Scene& scene, const Player& player);
-    void render_scene(Player& player, Scene& scene, float delta_time, SSBO& particles);
+    void render_scene(Player& player, Scene& scene, float delta_time);
+    void depth_prepass(Player& player, Scene& scene);
     void build_cluster_pass(Player& player);
+    void shadow_pass(Scene& scene, const Player& player);
     void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
-    void render_debug(Player& player);
     void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
     void bloom_pass();
+    void composite();
+    void render_debug(Player& player);
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 
@@ -86,9 +88,12 @@ public:
     bool use_alpha_clipping = true;
     float alpha_cutoff = 0.5f;
 
+    bool use_depth_prepass = false;
+    shader_handle depth_prepass_shader;
+
     // deferred pipeline
-    Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
-    uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
+    //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
+    //uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
 
     uint32_t render_target, render_depth_buffer;
     texture_handle scene_texture, bright_texture;
@@ -113,7 +118,7 @@ public:
     int max_particles = 10000;
 
     // todo make settings
-    bool shadows_enabled = true;
+    bool shadows_enabled = false;
 
     uint32_t quadVAO;
 };
