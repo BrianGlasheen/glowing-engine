@@ -27,6 +27,12 @@ public:
     void set_mat3(const std::string& name, const glm::mat3& mat) const;
     void set_mat4(const std::string& name, const glm::mat4& mat) const;
 
+    void set_uvec2(const std::string& name, const glm::uvec2& value) const;
+    void set_uvec2(const std::string& name, unsigned int x, unsigned int y) const;
+    void set_uvec3(const std::string& name, const glm::uvec3& value) const;
+    void set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const;
+    void set_uint(const std::string& name, unsigned int value) const;
+
 private:
     void check_compile_errors(uint32_t shader, std::string type);
 };

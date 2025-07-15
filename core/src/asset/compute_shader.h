@@ -35,6 +35,11 @@ public:
     void set_mat2(const std::string& name, const glm::mat2& mat) const;
     void set_mat3(const std::string& name, const glm::mat3& mat) const;
     void set_mat4(const std::string& name, const glm::mat4& mat) const;
+
+    void set_uvec2(const std::string& name, const glm::uvec2& value) const;
+    void set_uvec2(const std::string& name, unsigned int x, unsigned int y) const;
+    void set_uvec3(const std::string& name, const glm::uvec3& value) const;
+    void set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const;
     
     void bind_image_texture(uint32_t unit, uint32_t texture, int32_t level, bool layered, int32_t layer, uint32_t access, uint32_t format) const;
     

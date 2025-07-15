@@ -17,10 +17,10 @@
 #include "player/player.h"
 
 struct Cluster {
-    glm::vec4 minPoint;
-    glm::vec4 maxPoint;
-    uint32_t count;
-    uint32_t* lightIndices[100];
+    glm::vec4 minPoint; // 16 bytes
+    glm::vec4 maxPoint; // 16 (32)
+    uint32_t count;     // 4 (36)
+    uint32_t* lightIndices[199]; // 396 (432 / 16 = 27)
 };
 
 class Renderer {
@@ -34,6 +34,7 @@ public:
     void render_scene(Player& player, Scene& scene, float delta_time);
     void depth_prepass(Player& player, Scene& scene);
     void build_cluster_pass(Player& player);
+    void cull_cluster_pass(Player& player);
     void shadow_pass(Scene& scene, const Player& player);
     void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
     void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
@@ -66,7 +67,7 @@ public:
     std::vector<GPU_Light> lights;
     SSBO light_ssbo;
     SSBO cluster_ssbo;
-    Compute_Shader cluster_build;
+    Compute_Shader cluster_build, cluster_cull;
     shader_handle slice_vis;
 
     shader_handle pbr_shader;
@@ -87,6 +88,8 @@ public:
 
     bool use_alpha_clipping = true;
     float alpha_cutoff = 0.5f;
+    int num_lights = 50;
+    bool forward_plus = true;
 
     bool use_depth_prepass = false;
     shader_handle depth_prepass_shader;

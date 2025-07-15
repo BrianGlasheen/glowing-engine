@@ -60,7 +60,7 @@ int Renderer::init() {
     directional_light = Light::create_directional(glm::vec3(0.0f, -0.25f, 0.25f), glm::vec3(1.0f), 0.1f);
     point_light = Light::create_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
 
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 1000; i++) {
         float x = ((float)rand() / RAND_MAX * 100.0f - 50);
         float y = ((float)rand() / RAND_MAX * 100.0f - 50);
         float r = ((float)rand() / RAND_MAX);
@@ -68,7 +68,7 @@ int Renderer::init() {
         float b = ((float)rand() / RAND_MAX);
 
         GPU_Light point_light2 = {
-            glm::vec4(x, 1.0f, y, 1.0f),          // position + radius (attenuation range)
+            glm::vec4(x, 1.0f, y, 5.0f),          // position + radius (attenuation range)
             glm::vec4(r, g, b, 15.0f),          // color (white) + intensity
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
@@ -78,11 +78,10 @@ int Renderer::init() {
     }
 
     light_ssbo.init();
-    light_ssbo.set_data(sizeof(Light) * 200, lights.data(), GL_DYNAMIC_DRAW);
+    light_ssbo.set_data(sizeof(GPU_Light) * 1000, lights.data(), GL_DYNAMIC_DRAW);
 
-    void* penis2 = calloc(1, sizeof(Cluster) * 16 * 9 * 24);
     cluster_ssbo.init();
-    cluster_ssbo.set_data(sizeof(Cluster) * 16 * 9 * 24, penis2, GL_DYNAMIC_DRAW);
+    cluster_ssbo.set_data(sizeof(Cluster) * 16 * 9 * 24, nullptr, GL_STATIC_COPY);
 
     // SHADERS
     Shader_Manager::init("../resources/shaders/");
@@ -113,6 +112,7 @@ int Renderer::init() {
     depth_prepass_shader = Shader_Manager::load_from_name("depth_prepass");
 
     cluster_build.init("../resources/shaders/compute/cluster.comp");
+    cluster_cull.init("../resources/shaders/compute/cluster_cull.comp");
     slice_vis = Shader_Manager::load_from_name("cluster_vis");
 
     //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
@@ -306,19 +306,32 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
 }
 
 void Renderer::build_cluster_pass(Player& player) {
+    cluster_build.use();
+
     cluster_ssbo.bind(1);
     
-    // compute pass
     cluster_build.set_float("zNear", 1.0f);
     cluster_build.set_float("zFar", FAR_PLANE);
     glm::mat4 inv_proj = glm::inverse(glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE));
-
     cluster_build.set_mat4 ("inverseProjection", inv_proj);
-    cluster_build.set_vec3 ("gridSize", glm::vec3(100.0f));
-    cluster_build.set_vec2 ("screenDimensions", glm::vec2(1600, 900));
+    cluster_build.set_uvec3 ("gridSize", glm::uvec3(16, 9, 24));
+    cluster_build.set_uvec2 ("screenDimensions", glm::uvec2(1600, 900));
 
     cluster_build.dispatch_and_wait(16, 9, 24);
 }
+
+void Renderer::cull_cluster_pass(Player& player) {
+    cluster_cull.use();
+
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
+
+    cluster_cull.set_mat4("viewMatrix", player.get_view_matrix());
+    cluster_cull.set_int("num_lights", num_lights);
+
+    cluster_cull.dispatch_and_wait(27, 1, 1);
+}
+
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
     // begin frame
@@ -328,8 +341,14 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
             depth_prepass(player, scene);
     }
     {
-        PROFILE_SCOPE_COLOR("create cluster", legit::Colors::emerald);
-        //build_cluster_pass(player);
+        PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+        if (forward_plus)
+            build_cluster_pass(player);
+    }
+    {
+        PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+        if (forward_plus)
+            cull_cluster_pass(player);
     }
     {
         PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
@@ -429,7 +448,8 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
 
     glStencilMask(0x00);
 
-    light_ssbo.bind(0);
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
 
     shader->set_bool("use_alpha_clipping", use_alpha_clipping);
     shader->set_float("alpha_cutoff", alpha_cutoff);
@@ -483,6 +503,13 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
 
     shader->set_float("ambient_light", ambient_light);
 
+    shader->set_int("num_lights", num_lights);
+    shader->set_bool("forward_plus", forward_plus);
+    shader->set_float("zNear", 1.0f);
+    shader->set_float("zFar", FAR_PLANE);
+    shader->set_mat4("viewMatrix", player.get_view_matrix());
+    shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+    shader->set_uvec2("screenDimensions", glm::uvec2(1600, 900));
 
     //glm::projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE * (player.out_of_body ? 1.5f : 1.0f));
     shader->set_vec3("view_position", player.get_view_position());
@@ -495,14 +522,6 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     int count = 0;
     for (Entity& entity : scene.entities) {
-
-        //if (&entity == &scene.entities[target_entity]) {
-        //    count++;
-        //    continue;
-        //}   
-        //else {
-        //    glStencilMask(0x00);
-        //}
 
         Util::AABB box;
         if (entity.physics_enabled) {
@@ -547,8 +566,6 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
 
     glStencilMask(0xFF); // todo figure out where this goes?
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
-
-    // flush(); !!
 }
 
 
@@ -704,6 +721,8 @@ void Renderer::imgui_pass() {
     ImGui::Begin("Renderer Settings");
     ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
     ImGui::Checkbox("shadows enabled", &shadows_enabled);
+    ImGui::SliderInt("num_lights", &num_lights, 0, 1000);
+    ImGui::Checkbox("forward+", &forward_plus);
 
     ImGui::End();
 }

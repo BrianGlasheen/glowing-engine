@@ -11,18 +11,24 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[100];
-};
-
-layout(std430, binding = 0) readonly buffer Lights {
-    GPU_Light lights[];
+    uint lightIndices[199];
 };
 
 layout(std430, binding = 1) restrict buffer clusterSSBO {
     Cluster clusters[];
 };
 
-int num_lights = 200;
+layout(std430, binding = 2) restrict buffer lightSSBO {
+    GPU_Light lights[];
+};
+
+uniform int num_lights;
+uniform bool forward_plus;
+uniform float zNear;
+uniform float zFar;
+uniform mat4 viewMatrix;
+uniform uvec3 gridSize;
+uniform uvec2 screenDimensions;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
@@ -327,11 +333,42 @@ void main() {
     // F0
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
-    
-    vec3 Lo = vec3(0.0);
 
-    for (int i = 0; i < num_lights; i++) {
-        GPU_Light light = lights[i];
+    // Locating which cluster this fragment is part of
+    vec3 fragViewPos = vec3(viewMatrix * vec4(FragPos, 1.0));
+    uint zTile = uint((log(abs(fragViewPos.z) / zNear) * gridSize.z) / log(zFar / zNear));
+    vec2 tileSize = screenDimensions / gridSize.xy;
+    uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
+    uint tileIndex = tile.x + (tile.y * gridSize.x) + (tile.z * gridSize.x * gridSize.y);
+
+    uint light_count;
+    if (forward_plus)
+        light_count = clusters[tileIndex].count;
+    else
+        light_count = num_lights;
+
+    //float normalizedCount = float(light_count) / 200.0;
+    //FragColor = vec4(normalizedCount, 0.0, 0.0, 1.0);
+    //return;
+
+    //float normalizedCount = float(tileIndex) / 16 * 9 * 24;
+    //FragColor = vec4(normalizedCount, 0.0, 0.0, 1.0);
+    //return;
+
+    //float normalizedZ = float(zTile) / float(gridSize.z);
+    //FragColor = vec4(normalizedZ, 0.0, 1.0 - normalizedZ, 1.0);
+    //return;
+
+    vec3 Lo = vec3(0.0);
+    for (int i = 0; i < light_count; i++) {
+        GPU_Light light;
+        if (forward_plus) {
+            uint lightIndex = clusters[tileIndex].lightIndices[i];
+            light = lights[lightIndex];
+        } else {
+            light = lights[i];
+        }
+
         int light_type = int(light.direction_type.w);
 
         if (light_type == 0) {

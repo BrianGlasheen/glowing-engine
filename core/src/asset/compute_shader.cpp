@@ -184,3 +184,22 @@ void Compute_Shader::check_compile_errors(uint32_t shader, const std::string& ty
         }
     }
 }
+
+
+
+void Compute_Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
+    glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+
+void Compute_Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
+    glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
+}
+
+// For uvec3 (3 unsigned integers)
+void Compute_Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
+    glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+
+void Compute_Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
+    glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
+}

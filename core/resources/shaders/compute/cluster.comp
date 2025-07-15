@@ -5,7 +5,7 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[100];
+    uint lightIndices[199];
 };
 
 layout(std430, binding = 1) restrict buffer clusterSSBO {
@@ -22,12 +22,6 @@ uniform uvec2 screenDimensions;
 vec3 screenToView(vec2 screenCoord);
 vec3 lineIntersectionWithZPlane(vec3 startPoint, vec3 endPoint, float zDistance);
 
-/*
- context: glViewport is referred to as the "screen"
- clusters are built based on a 2d screen-space grid and depth slices.
- Later when shading, it is easy to figure what cluster a fragment is in based on
- gl_FragCoord.xy and the fragment's z depth from camera
-*/
 void main() {
     uint tileIndex = gl_WorkGroupID.x + (gl_WorkGroupID.y * gridSize.x) + (gl_WorkGroupID.z * gridSize.x * gridSize.y);
     vec2 tileSize = screenDimensions / gridSize.xy;

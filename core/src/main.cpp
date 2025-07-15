@@ -194,10 +194,8 @@ int main()
             scene.update_dirty();
         }
         // render scene
-        {
-            PROFILE_SCOPE_COLOR("total render", legit::Colors::turqoise);
-            renderer.render(player, scene, delta_time, particle_ssbo);
-        }
+        renderer.render(player, scene, delta_time, particle_ssbo);
+
         {
             PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
             if (!player.key_toggles[(unsigned)'r'])
