@@ -60,8 +60,8 @@ bool sphereAABBIntersection(vec3 center, float radius, vec3 aabbMin, vec3 aabbMa
 // this just unpacks data for sphereAABBIntersection
 bool testSphereAABB(uint i, Cluster cluster) {
     vec3 center = vec3(viewMatrix * vec4(lights[i].position_radius.xyz, 1.0f));
-    //float effective_radius = min(lights[i].position_radius.w, lights[i].color_strength.w / (1 / 256.0) ^ 2 ???);
-    float effective_radius = lights[i].position_radius.w;
+    float effective_radius = min(lights[i].position_radius.w, 16 * sqrt(lights[i].color_strength.w));
+    //float effective_radius = lights[i].position_radius.w;
     vec3 aabbMin = cluster.minPoint.xyz;
     vec3 aabbMax = cluster.maxPoint.xyz;
 

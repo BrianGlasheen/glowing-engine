@@ -240,6 +240,8 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
 
     vec3 L = normalize(point_light_position - FragPos);
     float distance = length(point_light_position - FragPos);
+    if (distance > light.position_radius.w)
+        return vec3(0);
     float attenuation = point_light_intensity / (distance * distance);
     vec3 radiance = point_light_color * attenuation;
     

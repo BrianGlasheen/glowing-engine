@@ -5,7 +5,8 @@
 #include <stb_image.h>
 
 #include "model_manager.h"
-#include "model.h"
+#include "asset/model.h"
+#include "asset/model_indirect.h"
 
 namespace Model_Manager {
 

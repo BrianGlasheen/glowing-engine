@@ -1,0 +1,1 @@
+#include "asset/model_indirect.h"

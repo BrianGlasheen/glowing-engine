@@ -68,7 +68,7 @@ int Renderer::init() {
         float b = ((float)rand() / RAND_MAX);
 
         GPU_Light point_light2 = {
-            glm::vec4(x, 1.0f, y, 5.0f),          // position + radius (attenuation range)
+            glm::vec4(x, 1.0f, y, 15.0f),          // position + radius (attenuation range)
             glm::vec4(r, g, b, 15.0f),          // color (white) + intensity
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
