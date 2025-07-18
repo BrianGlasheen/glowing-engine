@@ -24,6 +24,7 @@ struct Mesh_Indirect {
 };
 
 class Model_Indirect {
+public:
 	Model_Indirect() = default;
 	Model_Indirect(std::string name, std::vector<Mesh_Indirect> meshes) : 
 		m_name(name), m_meshes(meshes)
@@ -36,15 +37,24 @@ class Model_Indirect {
 	}
 
 	void calculate_aabb() {
-		// go through mesh aabbs
-		// max min
+		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(FLT_MIN) };
+
+		for (const Mesh_Indirect& mesh : m_meshes) {
+			if (mesh.aabb.min.x < m_aabb.min.x) m_aabb.min.x = mesh.aabb.min.x;
+			if (mesh.aabb.min.y < m_aabb.min.y) m_aabb.min.y = mesh.aabb.min.y;
+			if (mesh.aabb.min.z < m_aabb.min.z) m_aabb.min.z = mesh.aabb.min.z;
+
+			if (mesh.aabb.max.x > m_aabb.min.x) m_aabb.max.x = mesh.aabb.max.x;			
+			if (mesh.aabb.max.y > m_aabb.min.y) m_aabb.max.y = mesh.aabb.max.y;
+			if (mesh.aabb.max.z > m_aabb.min.z) m_aabb.max.z = mesh.aabb.max.z;
+		}
 	}
 
 	Util::AABB get_aabb() {
 		return m_aabb;
 	}
 
-private:
+//private:
 	std::string m_name;
 	std::vector<Mesh_Indirect> m_meshes;
 	// todo maybe huge buffer of all meshes or something

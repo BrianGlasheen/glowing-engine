@@ -5,6 +5,7 @@
 #include "model.h"
 #include "shader.h"
 #include "util/aabb.h"
+#include "asset/model_indirect.h"
 
 typedef size_t model_handle;
 
@@ -22,4 +23,18 @@ namespace Model_Manager {
     size_t get_model_count();
     std::string get_name(const model_handle& model_id);
     Util::AABB get_aabb(const model_handle& model_id);
+
+    uint32_t get_num_meshes();
+    uint32_t get_num_models();
+    bool load_model_indirect(const std::string& path);
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind);
+    Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene);
+
+    Model_Indirect get_model_ind(uint32_t idx);
+
+    void setup_buffers();
+    void upload_data();
+
+    uint32_t get_big_vao();
+    uint32_t get_vbo();
 }

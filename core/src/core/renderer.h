@@ -16,12 +16,23 @@
 
 #include "player/player.h"
 
+// todo move to light class maybe, maybe not
 struct Cluster {
     glm::vec4 minPoint; // 16 bytes
     glm::vec4 maxPoint; // 16 (32)
     uint32_t count;     // 4 (36)
     uint32_t* lightIndices[199]; // 396 (432 / 16 = 27)
 };
+
+struct Draw_Elements_Indirect_Command {
+    uint32_t  count;
+    uint32_t  instance_count;
+    uint32_t  first_index;
+    int       base_vertex;
+    uint32_t  base_instance;
+};
+// todo draw cmd ssbo
+// todo uniform ssbo for model matricies, etc
 
 class Renderer {
 public:
@@ -30,6 +41,9 @@ public:
 
     int init();
     bool setup_buffers();
+
+    void Renderer::setup_indirect();
+    void Renderer::render_indirect(Player& player);
 
     void render_scene(Player& player, Scene& scene, float delta_time);
     void depth_prepass(Player& player, Scene& scene);
@@ -87,9 +101,11 @@ public:
     float ambient_light = 0.01f;
 
     bool use_alpha_clipping = true;
+    bool shadows_enabled = false;
     float alpha_cutoff = 0.5f;
     int num_lights = 50;
     bool forward_plus = true;
+    bool indirect_rendering = true;
 
     bool use_depth_prepass = false;
     shader_handle depth_prepass_shader;
@@ -120,8 +136,10 @@ public:
     float emission_rate = 500;
     int max_particles = 10000;
 
-    // todo make settings
-    bool shadows_enabled = false;
+
+    uint32_t draw_command_buffer;
+    std::vector<Draw_Elements_Indirect_Command> draw_commands;
+    shader_handle indirect_shader;
 
     uint32_t quadVAO;
 };

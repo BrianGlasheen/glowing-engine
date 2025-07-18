@@ -297,8 +297,8 @@ vec3 CalculateSpotLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, fl
 
 void main() { 
 
-//    FragColor = vec4(texture(diffuse, TexCoord).rgb, 1.0);
-//    return ;
+    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    return ;
 
     vec4 diffuseSample = texture(diffuse, TexCoord);
     vec3 albedo = diffuseSample.rgb;

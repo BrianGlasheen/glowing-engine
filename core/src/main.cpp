@@ -70,6 +70,13 @@ int main()
     
     Scene scene("star"); //.todo move lights here?
 
+    bool loaded = Model_Manager::load_model_indirect("../resources/models/sponza3/scene.gltf");
+    Model_Manager::setup_buffers();
+    //Model_Manager::upload_data();
+    printf(loaded ? "good\n" : "bad\n");
+
+    renderer.setup_indirect();
+
     model_handle plane = Model_Manager::load_model("plane.obj", 0);
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
@@ -80,11 +87,11 @@ int main()
     //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
     //scene.include(e233232332);
 
-    Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
-    scene.include(e2323322);    
+    //Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
+    //scene.include(e2323322);    
     
-    Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
-    scene.include(e232lamp3322);
+    //Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
+    //scene.include(e232lamp3322);
 
     for (int j = 0; j < 10; j++) {
         Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
@@ -94,7 +101,7 @@ int main()
     {
         //pos = glm::vec3(0.0f);
         //scale = glm::vec3(0.1f);
-        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza", false);
+        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza3", false);
         //scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);

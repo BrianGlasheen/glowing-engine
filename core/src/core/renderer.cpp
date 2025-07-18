@@ -122,7 +122,26 @@ int Renderer::init() {
     return 0;
 }
 
+void Renderer::setup_indirect() {
+    indirect_shader = Shader_Manager::load_from_paths("indirect", "vertex_ind.glsl", "fragment.glsl");
+    // indirect draw cmds buffer
+    Model_Indirect mind = Model_Manager::get_model_ind(0);
+    draw_commands.resize(mind.m_meshes.size());
+    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+        Draw_Elements_Indirect_Command draw_command;
+        draw_command.count = mind.m_meshes[i].index_count;
+        draw_command.instance_count = 1;
+        draw_command.first_index = mind.m_meshes[i].base_index;
+        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+        draw_command.base_instance = 0;
+        draw_commands[i] = draw_command;
+    }
 
+    glCreateBuffers(1, &draw_command_buffer);
+    glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * draw_commands.size(), (const void*)draw_commands.data(), 0);
+
+    printf("hello\n");
+}
 
 bool Renderer::setup_buffers() {
     glGenFramebuffers(1, &render_target);
@@ -332,6 +351,52 @@ void Renderer::cull_cluster_pass(Player& player) {
     cluster_cull.dispatch_and_wait(27, 1, 1);
 }
 
+void Renderer::render_indirect(Player& player) {
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+    glViewport(0, 0, scr_width, scr_height);
+
+    glClearColor(0.1f, 0.9f, 0.1f, 1.0f);
+    if (use_depth_prepass) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDepthFunc(GL_LEQUAL); // fragments at same depth pass
+        glDepthMask(GL_FALSE); // dont write depth
+    }
+    else {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_TRUE);
+    }
+
+    glEnable(GL_DEPTH_TEST);
+
+    Shader* shader = Shader_Manager::get_shader(indirect_shader);
+    shader->use();
+    glStencilMask(0x00);
+
+    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 view = player.get_view_matrix();
+    glm::mat4 viewproj = projection * view;
+    shader->set_mat4("vp", viewproj);
+
+    //cluster_ssbo.bind(1);
+    //light_ssbo.bind(2);
+
+
+    //GLint vbo_size = 0;
+    //glBindBuffer(GL_ARRAY_BUFFER, Model_Manager::get_vbo());
+    //glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vbo_size);
+    //printf("VBO size: %d bytes\n", vbo_size);
+
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
     // begin frame
@@ -357,7 +422,10 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     }
     {
         PROFILE_SCOPE_COLOR("scene", legit::Colors::clouds);
-        render_scene(player, scene, delta_time);
+        if (indirect_rendering)
+            render_indirect(player);
+        else
+            render_scene(player, scene, delta_time);
     }
     {
         PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
@@ -723,6 +791,7 @@ void Renderer::imgui_pass() {
     ImGui::Checkbox("shadows enabled", &shadows_enabled);
     ImGui::SliderInt("num_lights", &num_lights, 0, 1000);
     ImGui::Checkbox("forward+", &forward_plus);
+    ImGui::Checkbox("indirect_rendering", &indirect_rendering);
 
     ImGui::End();
 }
