@@ -41,6 +41,7 @@ set(SOURCES
     "src/asset/crosshair.cpp"
     "src/asset/mesh.cpp"
     "src/asset/model.cpp"
+    "src/asset/material_manager.cpp"
     "src/asset/model_indirect.cpp"
     "src/asset/model_manager.cpp"
     "src/asset/text.cpp"

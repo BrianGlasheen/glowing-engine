@@ -31,8 +31,14 @@ struct Draw_Elements_Indirect_Command {
     int       base_vertex;
     uint32_t  base_instance;
 };
-// todo draw cmd ssbo
-// todo uniform ssbo for model matricies, etc
+
+struct Per_Object_Data {
+    glm::mat4 model_matrix;
+    glm::mat4 normal_matrix;
+    glm::vec4 color;
+    uint64_t albedo;
+    uint64_t normal;
+};
 
 class Renderer {
 public:
@@ -43,7 +49,7 @@ public:
     bool setup_buffers();
 
     void Renderer::setup_indirect();
-    void Renderer::render_indirect(Player& player);
+    void Renderer::render_indirect(Player& player, float delta_time);
 
     void render_scene(Player& player, Scene& scene, float delta_time);
     void depth_prepass(Player& player, Scene& scene);
@@ -59,7 +65,6 @@ public:
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 
     void render_crosshair(const Crosshair& crosshair);
-
     void render_hud_text(const Text& text);
 
     //todo rm
@@ -67,7 +72,6 @@ public:
     void debug_sphere_at(glm::vec3 pos);
 
     void imgui_pass();
-
 
     void shutdown();
 
@@ -79,7 +83,7 @@ public:
 
     Light spotlight, directional_light, point_light;
     std::vector<GPU_Light> lights;
-    SSBO light_ssbo;
+    SSBO light_ssbo; // todo maybe remove ssbo class? raw code not bad
     SSBO cluster_ssbo;
     Compute_Shader cluster_build, cluster_cull;
     shader_handle slice_vis;
@@ -133,12 +137,12 @@ public:
     glm::vec3 velocity_random_bias = glm::vec3(0.0f);
     float velocity_mag = 0.0f;
 
-    float emission_rate = 500;
+    float emission_rate = 5;
     int max_particles = 10000;
 
-
-    uint32_t draw_command_buffer;
+    uint32_t draw_command_buffer, per_object_ssbo;
     std::vector<Draw_Elements_Indirect_Command> draw_commands;
+    std::vector<Per_Object_Data> per_object_data;
     shader_handle indirect_shader;
 
     uint32_t quadVAO;

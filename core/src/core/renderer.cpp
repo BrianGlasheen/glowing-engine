@@ -14,11 +14,15 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "asset/material_manager.h"
+
 #include "util/frustum.h"
 #include "util/colors.h"
 #include "util/profiler.h"
 
 const float FAR_PLANE = 240.0f;
+const uint32_t MAX_DRAW_COMMANDS = 4000;
+
 
 // point light shadow mapping
 struct camera_dir {
@@ -48,6 +52,9 @@ int Renderer::init() {
 
     // configure global opengl state
     glEnable(GL_DEPTH_TEST);
+    glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+    glClearDepth(0.0f);
+
     glEnable(GL_CULL_FACE);
 
     //glEnable(GL_STENCIL_TEST);
@@ -125,22 +132,29 @@ int Renderer::init() {
 void Renderer::setup_indirect() {
     indirect_shader = Shader_Manager::load_from_paths("indirect", "vertex_ind.glsl", "fragment.glsl");
     // indirect draw cmds buffer
-    Model_Indirect mind = Model_Manager::get_model_ind(0);
-    draw_commands.resize(mind.m_meshes.size());
-    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-        Draw_Elements_Indirect_Command draw_command;
-        draw_command.count = mind.m_meshes[i].index_count;
-        draw_command.instance_count = 1;
-        draw_command.first_index = mind.m_meshes[i].base_index;
-        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-        draw_command.base_instance = 0;
-        draw_commands[i] = draw_command;
-    }
+    //Model_Indirect mind = Model_Manager::get_model_ind(0);
+    //draw_commands.resize(mind.m_meshes.size());
+    //for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+    //    Draw_Elements_Indirect_Command draw_command;
+    //    draw_command.count = mind.m_meshes[i].index_count;
+    //    draw_command.instance_count = 1;
+    //    draw_command.first_index = mind.m_meshes[i].base_index;
+    //    draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+    //    draw_command.base_instance = 0;
+    //    draw_commands[i] = draw_command;
+    //}
+
+    //glCreateBuffers(1, &draw_command_buffer);
+    //glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * draw_commands.size(), (const void*)draw_commands.data(), 0);
+
+    draw_commands.reserve(MAX_DRAW_COMMANDS);
+    per_object_data.reserve(MAX_DRAW_COMMANDS);
 
     glCreateBuffers(1, &draw_command_buffer);
-    glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * draw_commands.size(), (const void*)draw_commands.data(), 0);
+    glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
-    printf("hello\n");
+    glCreateBuffers(1, &per_object_ssbo);
+    glNamedBufferStorage(per_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 bool Renderer::setup_buffers() {
@@ -157,8 +171,8 @@ bool Renderer::setup_buffers() {
     // Create depth renderbuffer
     glGenRenderbuffers(1, &render_depth_buffer);
     glBindRenderbuffer(GL_RENDERBUFFER, render_depth_buffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, scr_width, scr_height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, render_depth_buffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, scr_width, scr_height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, render_depth_buffer);
 
     // Specify which color attachments to use
     uint32_t attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
@@ -331,7 +345,8 @@ void Renderer::build_cluster_pass(Player& player) {
     
     cluster_build.set_float("zNear", 1.0f);
     cluster_build.set_float("zFar", FAR_PLANE);
-    glm::mat4 inv_proj = glm::inverse(glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE));
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    glm::mat4 inv_proj = glm::inverse(projection);
     cluster_build.set_mat4 ("inverseProjection", inv_proj);
     cluster_build.set_uvec3 ("gridSize", glm::uvec3(16, 9, 24));
     cluster_build.set_uvec2 ("screenDimensions", glm::uvec2(1600, 900));
@@ -351,11 +366,11 @@ void Renderer::cull_cluster_pass(Player& player) {
     cluster_cull.dispatch_and_wait(27, 1, 1);
 }
 
-void Renderer::render_indirect(Player& player) {
+void Renderer::render_indirect(Player& player, float delta_time) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
-    glClearColor(0.1f, 0.9f, 0.1f, 1.0f);
+    glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
     if (use_depth_prepass) {
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glDepthFunc(GL_LEQUAL); // fragments at same depth pass
@@ -363,9 +378,10 @@ void Renderer::render_indirect(Player& player) {
     }
     else {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glDepthFunc(GL_LESS);
+        glDepthFunc(GL_GREATER);
         glDepthMask(GL_TRUE);
     }
+    //glDepthFunc(GL_GREATER); // todo rmove when prepass works for MDI
 
     glEnable(GL_DEPTH_TEST);
 
@@ -373,22 +389,66 @@ void Renderer::render_indirect(Player& player) {
     shader->use();
     glStencilMask(0x00);
 
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+
     glm::mat4 view = player.get_view_matrix();
     glm::mat4 viewproj = projection * view;
     shader->set_mat4("vp", viewproj);
 
-    //cluster_ssbo.bind(1);
-    //light_ssbo.bind(2);
+    static float time = 0.0f;
+    time += delta_time;
 
+    draw_commands.clear();
+    per_object_data.clear();
+    uint32_t current_draw_count = 0;
 
-    //GLint vbo_size = 0;
-    //glBindBuffer(GL_ARRAY_BUFFER, Model_Manager::get_vbo());
-    //glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &vbo_size);
-    //printf("VBO size: %d bytes\n", vbo_size);
+    Model_Indirect mind = Model_Manager::get_model_ind(0);
+    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+        if (current_draw_count >= MAX_DRAW_COMMANDS) {
+            printf("Warning: Exceeded max draw commands!\n");
+            break;
+        }
+
+        Draw_Elements_Indirect_Command draw_command;
+        draw_command.count = mind.m_meshes[i].index_count;
+        draw_command.instance_count = 1;
+        draw_command.first_index = mind.m_meshes[i].base_index;
+        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+        draw_command.base_instance = current_draw_count;
+
+        draw_commands.push_back(draw_command);
+
+        Per_Object_Data obj_data;
+        //obj_data.model_matrix = glm::scale(glm::rotate(glm::mat4(1.0f), time / 2, glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.05f));
+        obj_data.model_matrix = glm::mat4(1.0f);
+        obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+        obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+        const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+        obj_data.albedo = mater.albedo;
+        obj_data.normal = mater.normal;
+
+        per_object_data.push_back(obj_data);
+
+        current_draw_count++;
+
+        debug_renderer.add_bbox(mind.m_meshes[i].aabb.min, mind.m_meshes[i].aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
+    }
+    debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
+
+    if (current_draw_count > 0) {
+        glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
+
+        glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
+    }
 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
+
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
@@ -423,7 +483,7 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     {
         PROFILE_SCOPE_COLOR("scene", legit::Colors::clouds);
         if (indirect_rendering)
-            render_indirect(player);
+            render_indirect(player, delta_time);
         else
             render_scene(player, scene, delta_time);
     }
@@ -448,11 +508,13 @@ void Renderer::depth_prepass(Player& player, Scene& scene) {
     glViewport(0, 0, scr_width, scr_height);
 
     glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    glDepthFunc(GL_GREATER);
     glDepthMask(GL_TRUE);
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+
     glm::mat4 view = player.get_view_matrix();
     glm::mat4 viewproj = projection * view;
 
@@ -492,13 +554,14 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     }
     else {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glDepthFunc(GL_LESS);
+        glDepthFunc(GL_GREATER);
         glDepthMask(GL_TRUE);
     }
 
     glEnable(GL_DEPTH_TEST);
 
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
     glm::mat4 view = player.get_view_matrix();
     glm::mat4 viewproj = projection * view;
 
@@ -639,7 +702,9 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
 
 void Renderer::render_debug(Player& player) {
     Shader* shader = Shader_Manager::get_shader(debug_shader);
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+
     shader->set_mat4("projection", projection);
     glm::mat4 view = player.get_view_matrix();
     shader->set_mat4("view", view);
@@ -674,7 +739,9 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
-    glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+
     Shader* shader = Shader_Manager::get_shader(particle_shader);
     shader->use();
     shader->set_mat4("view", player.get_view_matrix());
@@ -754,7 +821,7 @@ void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const 
 
     skybox.draw();
 
-    glDepthFunc(GL_LESS);
+    glDepthFunc(GL_GREATER);
 }
 
 void Renderer::render_crosshair(const Crosshair& crosshair) {

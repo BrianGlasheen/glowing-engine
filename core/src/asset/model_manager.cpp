@@ -6,6 +6,7 @@
 
 #include "model_manager.h"
 #include "asset/model.h"
+#include "asset/material_manager.h"
 
 #include "core/opengl.h"
 
@@ -142,7 +143,7 @@ namespace Model_Manager {
             return false;
         }
 
-        process_node(scene->mRootNode, scene, model_ind);
+        process_node(scene->mRootNode, scene, model_ind, path);
         model_ind.calculate_aabb();
         m_indirect_models.push_back(model_ind);
         num_models++;
@@ -150,22 +151,22 @@ namespace Model_Manager {
         printf("num idx after model %d\n", g_indices.size());
     }
 
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind) // todo add transform hierarchy
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path) // todo add transform hierarchy
     {
         // process all the node's meshes (if any)
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-            model_ind.add_mesh(process_mesh(mesh, scene));
+            model_ind.add_mesh(process_mesh(mesh, scene, path));
             num_meshes++;
         }
 
         // then do the same for each of its children
         for (uint32_t i = 0; i < node->mNumChildren; i++) {
-            process_node(node->mChildren[i], scene, model_ind);
+            process_node(node->mChildren[i], scene, model_ind, path);
         }
     }
 
-    Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene)
+    Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene, const std::string& path)
     {
         Mesh_Indirect mesh_ind;
         mesh_ind.name = std::string(mesh->mName.C_Str());
@@ -186,6 +187,7 @@ namespace Model_Manager {
             if (vertex.position.x < mesh_ind.aabb.min.x) mesh_ind.aabb.min.x = vertex.position.x;
             if (vertex.position.y < mesh_ind.aabb.min.y) mesh_ind.aabb.min.y = vertex.position.y;
             if (vertex.position.z < mesh_ind.aabb.min.z) mesh_ind.aabb.min.z = vertex.position.z;
+
             if (vertex.position.x > mesh_ind.aabb.max.x) mesh_ind.aabb.max.x = vertex.position.x;
             if (vertex.position.y > mesh_ind.aabb.max.y) mesh_ind.aabb.max.y = vertex.position.y;
             if (vertex.position.z > mesh_ind.aabb.max.z) mesh_ind.aabb.max.z = vertex.position.z;
@@ -224,9 +226,34 @@ namespace Model_Manager {
 
             num_idcs += face.mNumIndices;
         }
-
         mesh_ind.index_count = num_idcs;
 
+        // process material
+        Material_Indirect mesh_mat {0};
+        if (mesh->mMaterialIndex >= 0) {
+            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+            if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
+                aiString str;
+                material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
+                //albedo = Texture_Manager::load_from_path(path + str.C_Str());
+                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+            }
+
+            if (material->GetTextureCount(aiTextureType_NORMALS)) {
+                aiString str;
+                material->GetTexture(aiTextureType_NORMALS, 0, &str);
+                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+            }
+
+            // normal
+            // MR
+            // occlusion
+            // etc
+        }
+
+        mesh_ind.material_index = Material_Manager::add_material(mesh_mat);
+        
         return mesh_ind;
     }
 

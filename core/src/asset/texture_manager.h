@@ -18,5 +18,9 @@ namespace Texture_Manager {
     uint32_t get_ogl_id(texture_handle texture_id);
     size_t get_texture_count();
     std::string get_name(texture_handle texture_id);
+
+    bool bindless_loaded_already(const std::string& new_path, size_t& existing_idx);
+    uint64_t load_bindless_from_path(const std::string& file_path);
+
 }
 #endif

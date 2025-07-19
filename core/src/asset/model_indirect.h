@@ -3,6 +3,7 @@
 
 #include "glow.h"
 
+#include "asset/material_manager.h"
 #include "util/aabb.h"
 
 struct Mesh_Info {
@@ -19,6 +20,7 @@ struct Mesh_Indirect {
 	Util::AABB aabb;
 	std::string name;
 	
+	uint32_t material_index;
 	// parent? 
 	// glm::mat4 local_transform; relative to parent
 };
@@ -44,9 +46,9 @@ public:
 			if (mesh.aabb.min.y < m_aabb.min.y) m_aabb.min.y = mesh.aabb.min.y;
 			if (mesh.aabb.min.z < m_aabb.min.z) m_aabb.min.z = mesh.aabb.min.z;
 
-			if (mesh.aabb.max.x > m_aabb.min.x) m_aabb.max.x = mesh.aabb.max.x;			
-			if (mesh.aabb.max.y > m_aabb.min.y) m_aabb.max.y = mesh.aabb.max.y;
-			if (mesh.aabb.max.z > m_aabb.min.z) m_aabb.max.z = mesh.aabb.max.z;
+			if (mesh.aabb.max.x > m_aabb.max.x) m_aabb.max.x = mesh.aabb.max.x;			
+			if (mesh.aabb.max.y > m_aabb.max.y) m_aabb.max.y = mesh.aabb.max.y;
+			if (mesh.aabb.max.z > m_aabb.max.z) m_aabb.max.z = mesh.aabb.max.z;
 		}
 	}
 

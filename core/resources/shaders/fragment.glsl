@@ -1,4 +1,6 @@
 #version 460 core
+#extension GL_ARB_bindless_texture : require
+#extension GL_ARB_gpu_shader_int64 : enable
 
 struct GPU_Light {
     vec4 position_radius; // x, y ,z, radius
@@ -41,11 +43,15 @@ in vec2 TexCoord;
 in vec3 Tangentout;
 in vec3 Bitangentout;
 
+in flat uint64_t albedo_handle;
+in flat uint64_t normal_handle;
+in vec4 color;
+
 uniform bool use_alpha_clipping; 
 uniform float alpha_cutoff;
 uniform bool shadows_enabled;
 
-uniform float ambient_light;
+float ambient_light = .5;
 
 //uniform vec3 point_light_position;
 //uniform vec3 point_light_color;
@@ -297,10 +303,15 @@ vec3 CalculateSpotLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, fl
 
 void main() { 
 
-    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    return ;
+    //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
+    //FragColor = color;
+    //return ;
 
-    vec4 diffuseSample = texture(diffuse, TexCoord);
+    sampler2D albedo_texture = sampler2D(albedo_handle);
+    sampler2D normal_texture = sampler2D(normal_handle);
+    
+
+    vec4 diffuseSample = texture(albedo_texture, TexCoord);
     vec3 albedo = diffuseSample.rgb;
     float alpha = diffuseSample.a;
     
@@ -309,8 +320,8 @@ void main() {
     }
 
     vec3 N = normalize(Normal);
-    if (has_normal) {
-        vec3 normalMap = texture(normal, TexCoord).rgb;
+    //if (has_normal) {
+        vec3 normalMap = texture(normal_texture, TexCoord).rgb;
         normalMap = normalMap * 2.0 - 1.0;
         
         vec3 T = normalize(Tangentout);
@@ -318,7 +329,7 @@ void main() {
         vec3 Norm = normalize(Normal);
         mat3 TBN = mat3(T, B, Norm);
         N = normalize(TBN * normalMap);
-    }
+    //}
     
     float metallic = 0.0;
     float roughness = 0.5;

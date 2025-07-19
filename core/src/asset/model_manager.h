@@ -27,8 +27,8 @@ namespace Model_Manager {
     uint32_t get_num_meshes();
     uint32_t get_num_models();
     bool load_model_indirect(const std::string& path);
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind);
-    Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene);
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path);
+    Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene, const std::string& path);
 
     Model_Indirect get_model_ind(uint32_t idx);
 

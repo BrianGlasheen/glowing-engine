@@ -1,5 +1,7 @@
 #pragma once
 
+#define NEAR_PLANE 0.1f
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -37,6 +39,19 @@ public:
 
     glm::mat4 get_view_matrix() const {
         return glm::lookAt(position, position + front, up);
+    }
+
+    glm::mat4 get_projection(float aspect) {
+        float f = 1.0f / std::tan(glm::radians(zoom) * 0.5f);
+
+        glm::mat4 result(0.0f);
+        result[0][0] = f / aspect;
+        result[1][1] = f;
+        result[2][2] = 0.0f; // infinity
+        result[2][3] = -1.0f;
+        result[3][2] = NEAR_PLANE;
+
+        return result;
     }
     
     glm::mat4 get_view_rotation_only_matrix() {
