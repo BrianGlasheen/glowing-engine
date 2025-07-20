@@ -10,6 +10,8 @@
 typedef size_t model_handle;
 
 namespace Model_Manager {
+    glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat);
+
     void init(std::string path);
     void cleanup();
 
@@ -27,7 +29,7 @@ namespace Model_Manager {
     uint32_t get_num_meshes();
     uint32_t get_num_models();
     bool load_model_indirect(const std::string& path);
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path);
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path, const glm::mat4& parent_transform);
     Mesh_Indirect process_mesh(aiMesh* mesh, const aiScene* scene, const std::string& path);
 
     Model_Indirect get_model_ind(uint32_t idx);

@@ -22,7 +22,7 @@ struct Mesh_Indirect {
 	
 	uint32_t material_index;
 	// parent? 
-	// glm::mat4 local_transform; relative to parent
+	glm::mat4 transform; // relative to parent
 };
 
 class Model_Indirect {

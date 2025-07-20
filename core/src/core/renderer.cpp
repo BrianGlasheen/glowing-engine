@@ -67,16 +67,18 @@ int Renderer::init() {
     directional_light = Light::create_directional(glm::vec3(0.0f, -0.25f, 0.25f), glm::vec3(1.0f), 0.1f);
     point_light = Light::create_point(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(1.0f), 1.0f, 1024);
 
+    lights.reserve(1000);
     for (int i = 0; i < 1000; i++) {
-        float x = ((float)rand() / RAND_MAX * 100.0f - 50);
-        float y = ((float)rand() / RAND_MAX * 100.0f - 50);
+        float x = ((float)rand() / RAND_MAX * 500.0f - 250);
+        float y = ((float)rand() / RAND_MAX * 50 - 25);
+        float z = ((float)rand() / RAND_MAX * 500.0f - 250);
         float r = ((float)rand() / RAND_MAX);
         float g = ((float)rand() / RAND_MAX);
         float b = ((float)rand() / RAND_MAX);
 
         GPU_Light point_light2 = {
-            glm::vec4(x, 1.0f, y, 15.0f),          // position + radius (attenuation range)
-            glm::vec4(r, g, b, 15.0f),          // color (white) + intensity
+            glm::vec4(x, y, z, 105.0f),          // position + radius (attenuation range)
+            glm::vec4(r, g, b, 305.0f),          // color (white) + intensity
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
         };
@@ -130,7 +132,7 @@ int Renderer::init() {
 }
 
 void Renderer::setup_indirect() {
-    indirect_shader = Shader_Manager::load_from_paths("indirect", "vertex_ind.glsl", "fragment.glsl");
+    indirect_shader = Shader_Manager::load_from_paths("indirect", "vertex_ind_v.glsl", "fragment_ind_f.glsl");
     // indirect draw cmds buffer
     //Model_Indirect mind = Model_Manager::get_model_ind(0);
     //draw_commands.resize(mind.m_meshes.size());
@@ -347,9 +349,9 @@ void Renderer::build_cluster_pass(Player& player) {
     cluster_build.set_float("zFar", FAR_PLANE);
     glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
     glm::mat4 inv_proj = glm::inverse(projection);
-    cluster_build.set_mat4 ("inverseProjection", inv_proj);
-    cluster_build.set_uvec3 ("gridSize", glm::uvec3(16, 9, 24));
-    cluster_build.set_uvec2 ("screenDimensions", glm::uvec2(1600, 900));
+    cluster_build.set_mat4("inverseProjection", inv_proj);
+    cluster_build.set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+    cluster_build.set_uvec2("screenDimensions", glm::uvec2(1600, 900));
 
     cluster_build.dispatch_and_wait(16, 9, 24);
 }
@@ -396,6 +398,15 @@ void Renderer::render_indirect(Player& player, float delta_time) {
     glm::mat4 viewproj = projection * view;
     shader->set_mat4("vp", viewproj);
 
+    shader->set_vec3("view_pos", player.camera.position);
+    shader->set_int("num_lights", num_lights);
+    shader->set_bool("forward_plus", forward_plus);
+    shader->set_float("zNear", 1.0f);
+    shader->set_float("zFar", FAR_PLANE);
+    shader->set_mat4("viewMatrix", player.get_view_matrix());
+    shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+    shader->set_uvec2("screenDimensions", glm::uvec2(1600, 900));
+
     static float time = 0.0f;
     time += delta_time;
 
@@ -421,12 +432,19 @@ void Renderer::render_indirect(Player& player, float delta_time) {
 
         Per_Object_Data obj_data;
         //obj_data.model_matrix = glm::scale(glm::rotate(glm::mat4(1.0f), time / 2, glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.05f));
-        obj_data.model_matrix = glm::mat4(1.0f);
+        obj_data.model_matrix = mind.m_meshes[i].transform;
         obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
         obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
         const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
         obj_data.albedo = mater.albedo;
         obj_data.normal = mater.normal;
+        obj_data.met_rough = mater.met_rough;
+        obj_data.emissive = mater.emissive;
+        obj_data.amb_occ = mater.amb_occ;
+        obj_data.emissive_factor = mater.emissive_factor;
+        obj_data.metallic_factor = mater.metallic_factor; // 4
+        obj_data.roughness_factor = mater.roughness_factor; // 4
+        obj_data.base_color = mater.base_color;
 
         per_object_data.push_back(obj_data);
 
@@ -445,10 +463,11 @@ void Renderer::render_indirect(Player& player, float delta_time) {
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);

@@ -70,10 +70,20 @@ int main()
     
     Scene scene("star"); //.todo move lights here?
 
-    bool loaded = Model_Manager::load_model_indirect("../resources/models/sponza3/scene.gltf");
+    bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("bistro/Scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("emeraldsquare/Scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("plane.obj");
+    //bool loaded = Model_Manager::load_model_indirect("EmissiveStrengthTest/glTF/EmissiveStrengthTest.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("sword2/scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("astonmartin/scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+
     Model_Manager::setup_buffers();
     //Model_Manager::upload_data();
-    printf(loaded ? "good\n" : "bad\n");
+    //printf(loaded ? "good\n" : "bad\n");
 
     renderer.setup_indirect();
 
@@ -93,15 +103,15 @@ int main()
     //Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
     //scene.include(e232lamp3322);
 
-    for (int j = 0; j < 10; j++) {
-        Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
-        scene.include(dsadasdasdasda);
-    }
+    //for (int j = 0; j < 10; j++) {
+    //    Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
+    //    scene.include(dsadasdasdasda);
+    //}
 
     {
-        //pos = glm::vec3(0.0f);
-        //scale = glm::vec3(0.1f);
-        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "sponza3", false);
+        glm::vec3 pos = glm::vec3(0.0f);
+        //glm::vec3 scale = glm::vec3(1.0f);
+        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
         //scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);

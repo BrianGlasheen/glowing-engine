@@ -16,8 +16,16 @@ namespace Model_Manager {
     static std::vector<std::string> names;
     static std::string base_path;
 
-    static bool loaded_already(const std::string& new_model_name, size_t& existing_idx) 
-    {
+    glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat) {
+        return glm::mat4(
+            ai_mat.a1, ai_mat.b1, ai_mat.c1, ai_mat.d1,
+            ai_mat.a2, ai_mat.b2, ai_mat.c2, ai_mat.d2,
+            ai_mat.a3, ai_mat.b3, ai_mat.c3, ai_mat.d3,
+            ai_mat.a4, ai_mat.b4, ai_mat.c4, ai_mat.d4
+        );
+    }
+
+    static bool loaded_already(const std::string& new_model_name, size_t& existing_idx) {
         for (size_t i = 0; i < names.size(); i++) {
             if (new_model_name == names[i]) {
                 existing_idx = i;
@@ -27,21 +35,18 @@ namespace Model_Manager {
         return false;
     }
 
-    void init(std::string path) 
-    {
+    void init(std::string path) {
         base_path = path;
         model_handle mh = load_model("teapot.obj", 0);
     }
 
-    void cleanup() 
-    {
+    void cleanup() {
         // need to free resources that model owns, prob implement in destructor
         //models.clear();
         //names.clear();
     }
 
-    model_handle load_model(const std::string& model_name, int gltf) 
-    {
+    model_handle load_model(const std::string& model_name, int gltf) {
         size_t existing_idx;
         if (loaded_already(model_name, existing_idx)) {
             printf("[MODEL] Already loaded: %s\n", model_name.c_str());
@@ -49,9 +54,9 @@ namespace Model_Manager {
         }
 
         std::string full_path;
-        if (gltf)
-            full_path = base_path + model_name + "/scene.gltf";
-        else
+        //if (gltf)
+        //    full_path = base_path + model_name + "/scene.gltf";
+        //else
             full_path = base_path + model_name;
         
         printf("[MODEL] Loading: %s\n", full_path.c_str());
@@ -68,8 +73,7 @@ namespace Model_Manager {
         return new_idx;
     }
 
-    Model& get_model_by_name(const std::string& model_name) 
-    {
+    Model& get_model_by_name(const std::string& model_name) {
         for (size_t i = 0; i < names.size(); i++) {
             if (model_name == names[i]) {
                 return models[i];
@@ -79,13 +83,11 @@ namespace Model_Manager {
         assert(false);
     }
 
-    Model& get_model(const model_handle model_id) 
-    {
+    Model& get_model(const model_handle model_id) {
         return models[model_id];
     }
 
-    void draw(const Shader* shader, const model_handle model_id, bool shadow_pass) 
-    {
+    void draw(const Shader* shader, const model_handle model_id, bool shadow_pass) {
         models[model_id].draw(shader, shadow_pass);
     }
 
@@ -98,18 +100,15 @@ namespace Model_Manager {
     //    return models[index];
     //}
 
-    size_t get_model_count() 
-    {
+    size_t get_model_count() {
         return models.size();
     }
 
-    std::string get_name(const model_handle& model_id) 
-    {
+    std::string get_name(const model_handle& model_id) {
         return names[model_id];
     }
 
-    Util::AABB get_aabb(const model_handle& model_id) 
-    {
+    Util::AABB get_aabb(const model_handle& model_id) {
         return models[model_id].get_aabb();
     }
 
@@ -132,37 +131,50 @@ namespace Model_Manager {
     bool load_model_indirect(const std::string& path) {
         printf("num verts before model %d\n", g_vertices.size());
         printf("num idx before model %d\n", g_indices.size());
+
+
+        const std::string full_path = base_path + path;
         
         Model_Indirect model_ind;
 
         Assimp::Importer import;
-        const aiScene* scene = import.ReadFile(path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+        const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             printf("ERROR::ASSIMP::%s\n", import.GetErrorString());
             return false;
         }
 
-        process_node(scene->mRootNode, scene, model_ind, path);
+        const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
+
+        process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f));
         model_ind.calculate_aabb();
+
         m_indirect_models.push_back(model_ind);
         num_models++;
+
         printf("num verts after model %d\n", g_vertices.size());
         printf("num idx after model %d\n", g_indices.size());
     }
 
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path) // todo add transform hierarchy
-    {
-        // process all the node's meshes (if any)
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path, const glm::mat4& parent_transform) {
+        glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
+
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-            model_ind.add_mesh(process_mesh(mesh, scene, path));
+
+            Mesh_Indirect mesh_ind = process_mesh(mesh, scene, path);
+
+            mesh_ind.transform = current_transform;
+            mesh_ind.aabb.max = glm::vec3(current_transform * glm::vec4(mesh_ind.aabb.max, 1.0f));
+            mesh_ind.aabb.min = glm::vec3(current_transform * glm::vec4(mesh_ind.aabb.min, 1.0f));
+
+            model_ind.add_mesh(mesh_ind);
             num_meshes++;
         }
 
-        // then do the same for each of its children
         for (uint32_t i = 0; i < node->mNumChildren; i++) {
-            process_node(node->mChildren[i], scene, model_ind, path);
+            process_node(node->mChildren[i], scene, model_ind, path, current_transform);
         }
     }
 
@@ -172,12 +184,13 @@ namespace Model_Manager {
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading mesh %s\n", mesh_ind.name.c_str());
 
-        mesh_ind.aabb.max = glm::vec3(FLT_MIN);
         mesh_ind.aabb.min = glm::vec3(FLT_MAX);
+        mesh_ind.aabb.max = glm::vec3(FLT_MIN);
 
         mesh_ind.base_vertex = g_vertices.size();// 
         uint32_t vertex_count = mesh->mNumVertices;
 
+        g_vertices.reserve(mesh->mNumVertices);
         for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             
@@ -233,23 +246,74 @@ namespace Model_Manager {
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
+            //#define AI_MATKEY_BASE_COLOR "$clr.base", 0, 0
+
             if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
                 aiString str;
                 material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
                 //albedo = Texture_Manager::load_from_path(path + str.C_Str());
-                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
             }
 
             if (material->GetTextureCount(aiTextureType_NORMALS)) {
                 aiString str;
                 material->GetTexture(aiTextureType_NORMALS, 0, &str);
-                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
+            
+            // todo why metallic 1?
+            float metallic = 0.0f;
+            float roughness = 1.0f;
+            if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
+                aiString str;
+                material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &str);
+                // printf("MET ROUGHESNSENSENESNESNE %s\n", str.C_Str());
+                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            
+                aiReturn metallicResult = material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
+                aiReturn roughnessResult = material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
+            }
+            mesh_mat.metallic_factor = metallic;
+            mesh_mat.roughness_factor = roughness;
+
+            printf("MET: %f, ROG: %f\n", metallic, roughness);
+
+            // aiTextureType_EMISSIVE
+            if (material->GetTextureCount(aiTextureType_EMISSIVE)) {
+                aiString str;
+                material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
+                mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
             }
 
-            // normal
-            // MR
-            // occlusion
-            // etc
+            aiColor3D emissiveColor;
+            if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS) {
+                float strength = 1.0f;
+                aiReturn intensityResult = material->Get(AI_MATKEY_EMISSIVE_INTENSITY, strength);
+
+                mesh_mat.emissive_factor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
+
+                //printf("Emissive color: R=%.3f G=%.3f B=%.3f, w=%f\n", emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
+            }
+            else {
+                mesh_mat.emissive_factor = glm::vec4(1.0f);
+            }
+
+            aiColor4D pbrBaseColor(0.0f, 0.0f, 0.0f, 0.0f);
+            if (aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &pbrBaseColor) == AI_SUCCESS) {
+                // Use PBR base color
+                mesh_mat.base_color = glm::vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
+            }
+            else {
+                mesh_mat.base_color = glm::vec4(1.0f);
+            }
+
+            //  AO map
+            
+            if (material->GetTextureCount(aiTextureType_LIGHTMAP)) {
+                aiString str;
+                material->GetTexture(aiTextureType_LIGHTMAP, 0, &str);
+                mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
         }
 
         mesh_ind.material_index = Material_Manager::add_material(mesh_mat);

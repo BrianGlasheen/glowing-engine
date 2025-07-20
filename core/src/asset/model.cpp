@@ -45,15 +45,17 @@ Util::AABB Model::get_aabb()
 
 void Model::process_node(aiNode *node, const aiScene *scene, const std::string& path) 
 {
+    const std::string path_without_filename = path.substr(0, path.find_last_of("/") + 1);
+
     // process all the node's meshes (if any)
     for(uint32_t i = 0; i < node->mNumMeshes; i++) {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]]; 
-        meshes.push_back(process_mesh(mesh, scene, path));			
+        meshes.push_back(process_mesh(mesh, scene, path_without_filename));
     }
 
     // then do the same for each of its children
     for(uint32_t i = 0; i < node->mNumChildren; i++) {
-        process_node(node->mChildren[i], scene, path);
+        process_node(node->mChildren[i], scene, path_without_filename);
     }
 } 
 
@@ -103,13 +105,13 @@ Mesh Model::process_mesh(aiMesh *mesh, const aiScene *scene, const std::string& 
         if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
             aiString str;
             material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
-            albedo = Texture_Manager::load_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+            albedo = Texture_Manager::load_from_path(path + str.C_Str());
         }        
         
         if (material->GetTextureCount(aiTextureType_NORMALS)) {
             aiString str;
             material->GetTexture(aiTextureType_NORMALS, 0, &str);
-            normal = Texture_Manager::load_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+            normal = Texture_Manager::load_from_path(path + str.C_Str());
         }
 
         if (material->GetTextureCount(aiTextureType_UNKNOWN)) {
@@ -119,10 +121,8 @@ Mesh Model::process_mesh(aiMesh *mesh, const aiScene *scene, const std::string& 
                 material->GetTexture(aiTextureType_UNKNOWN, i, &str);
                 std::string texName = str.C_Str();
                 
-                if (texName.find("metallic") != std::string::npos ||
-                    texName.find("roughness") != std::string::npos ||
-                    texName.find("orm") != std::string::npos) { // ORM = Occlusion/Roughness/Metallic
-                    metrough = Texture_Manager::load_from_path(path.substr(0, path.size() - 10) + str.C_Str());
+                if (texName.find("metallic") != std::string::npos || texName.find("roughness") != std::string::npos || texName.find("orm") != std::string::npos) { // ORM = Occlusion/Roughness/Metallic
+                    metrough = Texture_Manager::load_from_path(path + str.C_Str());
                     break;
                 }
             }

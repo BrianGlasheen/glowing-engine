@@ -89,6 +89,7 @@ void Entity::check_moved()
             if (pos != prev_pos) {
                 prev_pos = pos;
                 is_dirty = true;
+                // update mesh AABB
                 return;
             }
 
@@ -96,6 +97,7 @@ void Entity::check_moved()
             if (rot != prev_rot) {
                 prev_rot = rot;
                 is_dirty = true;
+                // update mesh AABB
                 return;
             }
 

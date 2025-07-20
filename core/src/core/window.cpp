@@ -14,7 +14,7 @@ int Window::init(int w, int h, const char* title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_STENCIL_BITS, 8);
+    //glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
     window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (window == NULL) {
@@ -32,6 +32,8 @@ int Window::init(int w, int h, const char* title) {
 
     // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    glfwSwapInterval(1);
 
     return 0;
 }

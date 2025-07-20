@@ -2,10 +2,18 @@
 
 #include "glow.h"
 
+#include <glm/glm.hpp>
+
 struct Material_Indirect {
 	uint64_t albedo; // bindless handles
+	glm::vec4 base_color;
 	uint64_t normal;
-	//uint64_t metallic_roughness;
+	uint64_t met_rough;
+	uint64_t emissive;
+	uint64_t amb_occ;
+	glm::vec4 emissive_factor; // r g b strength
+	float metallic_factor;
+	float roughness_factor;
 };
 
 namespace Material_Manager {
