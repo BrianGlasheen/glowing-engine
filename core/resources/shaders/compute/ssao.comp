@@ -1,0 +1,129 @@
+#version 460 core
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) uniform sampler2D depth_texture;
+layout(binding = 1) uniform sampler2D noise_texture;
+
+//layout(binding = 2, r8) uniform writeonly image2D ssao_output;
+layout(binding = 2, rgba8) uniform writeonly image2D ssao_output;
+
+uniform mat4 projection;
+uniform mat4 inv_projection;
+uniform vec2 screen_size;
+
+uniform float radius;
+uniform float bias;
+uniform int sample_count;
+uniform vec3 samples[64];
+uniform float min_depth;
+
+vec3 reconstruct_world_pos(vec2 uv, float depth) {
+    vec3 ndc = vec3(uv * 2.0 - 1.0, depth);
+    vec4 world_pos = inv_projection * vec4(ndc, 1.0);
+    
+    return world_pos.xyz / world_pos.w;
+}
+
+vec3 reconstruct_normal(vec2 uv, float center_depth) {
+    vec2 texel_size = 1.0 / screen_size;
+    
+    float depth_left  = texture(depth_texture, uv + vec2(-texel_size.x, 0.0)).r;
+    float depth_right = texture(depth_texture, uv + vec2(texel_size.x, 0.0)).r;
+    float depth_up    = texture(depth_texture, uv + vec2(0.0, texel_size.y)).r;
+    float depth_down  = texture(depth_texture, uv + vec2(0.0, -texel_size.y)).r;
+    
+    vec3 pos_left  = reconstruct_world_pos(uv + vec2(-texel_size.x, 0.0), depth_left);
+    vec3 pos_right = reconstruct_world_pos(uv + vec2(texel_size.x, 0.0), depth_right);
+    vec3 pos_up    = reconstruct_world_pos(uv + vec2(0.0, texel_size.y), depth_up);
+    vec3 pos_down  = reconstruct_world_pos(uv + vec2(0.0, -texel_size.y), depth_down);
+    
+    // gradients
+    vec3 dx = pos_right - pos_left;
+    vec3 dy = pos_up - pos_down;
+    
+    vec3 normal = normalize(cross(dx, dy));
+    
+    return normal.z < 0.0 ? normal : -normal;
+    //return normal.z > 0.0 ? -normal : normal;
+}
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x >= int(screen_size.x) || coord.y >= int(screen_size.y)) {
+        return;
+    }
+    
+    vec2 uv = (vec2(coord) + 0.5) / screen_size;
+    
+    float center_depth = texture(depth_texture, uv).r;
+    
+    if (center_depth <= min_depth) {
+        imageStore(ssao_output, coord, vec4(1.0));
+        return;
+    }
+    
+    vec3 world_pos = reconstruct_world_pos(uv, center_depth);
+    vec3 normal = reconstruct_normal(uv, center_depth);
+
+    //imageStore(ssao_output, coord, vec4(1.0, 0.0, 0.0, 1.0));
+    //return ;
+
+    imageStore(ssao_output, coord, vec4(normal.xyz, 1.0));
+    return ;
+    
+    vec2 noise_scale = screen_size / 4.0; // Assuming 4x4 noise texture
+    vec3 random_vec = texture(noise_texture, uv * noise_scale).xyz;
+    
+    // TDN for sample kernel
+    vec3 tangent = normalize(random_vec - normal * dot(random_vec, normal));
+    vec3 bitangent = cross(normal, tangent);
+    mat3 tbn = mat3(tangent, bitangent, normal);
+    
+    float occlusion = 0.0;
+    int valid_samples = 0;
+    
+    for (int i = 0; i < sample_count; ++i) {
+        vec3 sample_pos = world_pos + tbn * samples[i] * radius;
+        
+        // sample to screen space
+        vec4 offset = projection * vec4(sample_pos, 1.0);
+        offset.xyz /= offset.w;
+        offset.xy = offset.xy * 0.5 + 0.5;
+        
+        if (offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0) {
+            continue;
+        }
+        
+        float sample_depth = texture(depth_texture, offset.xy).r;
+        
+        if (sample_depth <= 0.001) {
+            continue;
+        }
+        
+        vec3 sample_world_pos = reconstruct_world_pos(offset.xy, sample_depth);
+        float range_check = smoothstep(0.0, 1.0, radius / abs(world_pos.z - sample_world_pos.z));
+        
+        float depth_diff = sample_world_pos.z - sample_pos.z;
+        
+        if (depth_diff > bias) {
+            occlusion += range_check;
+        }
+
+        //if (depth_diff < bias) {  // Surface is behind sample point
+        //    occlusion += range_check;
+        //}
+        
+        valid_samples++;
+    }
+    
+    if (valid_samples > 0) {
+        occlusion = occlusion / float(valid_samples);
+    }
+    
+    float ao = 1.0 - occlusion;
+    
+    // todo make uniform
+    ao = pow(ao, 1.2);
+    
+    imageStore(ssao_output, coord, vec4(ao));
+}

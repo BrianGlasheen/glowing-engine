@@ -52,8 +52,14 @@ namespace Util {
             planes[3] = Plane(topNormal, -glm::dot(topNormal, cameraPos));
         }
 
-        bool intersectsAABB(const glm::vec3& min, const glm::vec3& max) const {
+        bool intersectsAABB(const Util::AABB& aabb, bool infinite_far = false) {
+            return intersectsAABB(aabb.min, aabb.max, infinite_far);
+        }
+
+        bool intersectsAABB(const glm::vec3& min, const glm::vec3& max, bool infinite_far = false) const {
             for (int i = 0; i < 6; i++) {
+                if (infinite_far && i == 5) continue;
+
                 // Get the positive vertex (farthest in plane normal direction)
                 glm::vec3 positiveVertex;
                 positiveVertex.x = (planes[i].normal.x >= 0) ? max.x : min.x;

@@ -27,6 +27,8 @@ layout(std430, binding = 2) restrict buffer lightSSBO {
     GPU_Light lights[];
 };
 
+layout(binding = 0) uniform sampler2D ssao;
+
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
@@ -46,6 +48,7 @@ in flat float roughness_factor;
 uniform bool use_alpha_clipping; 
 float alpha_cutoff = 0.5;
 uniform bool shadows_enabled;
+uniform bool ssao_enabled;
 
 uniform vec3 view_pos;
 uniform int num_lights;
@@ -154,7 +157,10 @@ void main() {
     //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
     //FragColor = color;
     //FragColor = vec4(metallic_factor, 0, 0, 1);
-    //return ;
+    vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+    vec4 ssaoValue = texture(ssao, screenUV);
+    FragColor = vec4(ssaoValue.rgb, 1);
+    return ;
 
     vec3 albedo;
     float alpha;
@@ -262,7 +268,13 @@ void main() {
         ao = texture(occlusion_texture, TexCoord).r; 
     }
 
-    vec3 ambient = vec3(ambient_light) * albedo * ao;
+    float ssao_val = 1.0;
+    if (ssao_enabled) {
+        vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+        ssao_val = texture(ssao, screenUV).r;
+    }
+
+    vec3 ambient = vec3(ambient_light) * albedo * ao * ssao_val;
     vec3 color = ambient + Lo;
     
     // HDR tonemapping and gamma correction

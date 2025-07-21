@@ -5,6 +5,7 @@
 #include <cfloat>
 #include <iostream>
 #include <algorithm>
+#include <random>
 
 // #include <glad/glad.h>
 // #include <GLFW/glfw3.h>
@@ -119,6 +120,7 @@ int Renderer::init() {
     particle_shader = Shader_Manager::load_from_name("particle");
 
     depth_prepass_shader = Shader_Manager::load_from_name("depth_prepass");
+    indirect_depth_prepass_shader = Shader_Manager::load_from_paths("MDI_depth_prepass", "vertex_ind_depth_v.glsl", "depth_prepass_f.glsl");
 
     cluster_build.init("../resources/shaders/compute/cluster.comp");
     cluster_cull.init("../resources/shaders/compute/cluster_cull.comp");
@@ -127,6 +129,8 @@ int Renderer::init() {
     //toon.init("../resources/shaders/vertex.glsl", "../resources/shaders/toon.glsl");
 
     debug_renderer.init();
+
+    setup_ssao();
 
     return 0;
 }
@@ -159,6 +163,48 @@ void Renderer::setup_indirect() {
     glNamedBufferStorage(per_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
+void Renderer::setup_ssao() {
+    std::vector<glm::vec3> samples;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+
+    int max_ssao_samples = 64;
+    for (int i = 0; i < max_ssao_samples; i++) {
+        glm::vec3 sample(
+            dis(gen) * 2.0f - 1.0f,
+            dis(gen) * 2.0f - 1.0f,
+            dis(gen) // pos z, hemisphere (reverse z)
+        );
+        sample = glm::normalize(sample);
+        sample *= dis(gen);
+
+        // bias to center
+        float scale = float(i) / float(max_ssao_samples);
+        scale = 0.1f + scale * scale * 0.9f;
+        sample *= scale;
+
+        samples.push_back(sample);
+    }
+    // bind shader upload samples
+    ssao.init("../resources/shaders/compute/ssao.comp");
+    ssao.use();
+    for (uint32_t i = 0; i < samples.size(); i++)
+        ssao.set_vec3("samples[" + std::to_string(i) + "]", samples[i]);
+
+
+    std::vector<float> noise;
+    for (int i = 0; i < 16; ++i) {
+        glm::vec3 vals = glm::normalize(glm::vec3(dis(gen) * 2.0f - 1.0f, dis(gen) * 2.0f - 1.0f, 0.0f));
+        noise.push_back(vals.x);
+        noise.push_back(vals.y);
+        noise.push_back(vals.z);
+    }
+
+    ssao_noise_texture = Texture_Manager::create_noise_texture(noise, 4, 4);
+    Texture_Manager::bind(ssao_noise_texture, 2);
+}
+
 bool Renderer::setup_buffers() {
     glGenFramebuffers(1, &render_target);
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
@@ -166,15 +212,19 @@ bool Renderer::setup_buffers() {
     //// Create two color textures - one for scene, one for bright areas
     scene_texture = Texture_Manager::create_render_texture(scr_width, scr_height, true);
     bright_texture = Texture_Manager::create_bloom_texture(scr_width, scr_height);
+    ssao_texture = Texture_Manager::create_ssao_texture(scr_width, scr_height);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(scene_texture), 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(bright_texture), 0);
 
     // Create depth renderbuffer
-    glGenRenderbuffers(1, &render_depth_buffer);
+    /*glGenRenderbuffers(1, &render_depth_buffer);
     glBindRenderbuffer(GL_RENDERBUFFER, render_depth_buffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, scr_width, scr_height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, render_depth_buffer);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, render_depth_buffer);*/
+
+    depth_texture = Texture_Manager::create_depth_texture(scr_width, scr_height);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
 
     // Specify which color attachments to use
     uint32_t attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
@@ -347,7 +397,7 @@ void Renderer::build_cluster_pass(Player& player) {
     
     cluster_build.set_float("zNear", 1.0f);
     cluster_build.set_float("zFar", FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
     glm::mat4 inv_proj = glm::inverse(projection);
     cluster_build.set_mat4("inverseProjection", inv_proj);
     cluster_build.set_uvec3("gridSize", glm::uvec3(16, 9, 24));
@@ -368,34 +418,141 @@ void Renderer::cull_cluster_pass(Player& player) {
     cluster_cull.dispatch_and_wait(27, 1, 1);
 }
 
-void Renderer::render_indirect(Player& player, float delta_time) {
+void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_time) {
+    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+
+    draw_commands.clear();
+    per_object_data.clear();
+    uint32_t current_draw_count = 0;
+
+    for (Entity& entity : scene.entities) {
+
+        Model_Indirect mind = Model_Manager::get_model_ind(entity.model_id);
+
+        Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
+        debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
+
+        // if culled
+        if (!frustum.intersectsAABB(model_aabb, true))
+            continue;
+
+        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+            if (current_draw_count >= MAX_DRAW_COMMANDS) {
+                printf("Warning: Exceeded max draw commands!\n");
+                break;
+            }
+            Per_Object_Data obj_data;
+
+            obj_data.model_matrix = entity.get_model_matrix() * mind.m_meshes[i].transform;
+            Util::AABB obj_aabb = Util::transform_aabb(mind.m_meshes[i].aabb, entity.get_model_matrix());
+
+            if (!frustum.intersectsAABB(obj_aabb, true)) {
+                debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
+                continue;
+            }
+            debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(0.0f, 1.0f, 0.0f));
+
+            // if culled
+            // continue
+
+            Draw_Elements_Indirect_Command draw_command;
+            draw_command.count = mind.m_meshes[i].index_count;
+            draw_command.instance_count = 1;
+            draw_command.first_index = mind.m_meshes[i].base_index;
+            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+            draw_command.base_instance = current_draw_count;
+
+            draw_commands.push_back(draw_command);
+
+            obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+            const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+            obj_data.albedo = mater.albedo;
+            obj_data.normal = mater.normal;
+            obj_data.met_rough = mater.met_rough;
+            obj_data.emissive = mater.emissive;
+            obj_data.amb_occ = mater.amb_occ;
+            obj_data.emissive_factor = mater.emissive_factor;
+            obj_data.metallic_factor = mater.metallic_factor; // 4
+            obj_data.roughness_factor = mater.roughness_factor; // 4
+            obj_data.base_color = mater.base_color;
+
+            per_object_data.push_back(obj_data);
+
+            current_draw_count++;
+        }
+    }
+
+    if (current_draw_count > 0) {
+        glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
+
+        glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
+    }
+
+    if (player.out_of_body) {
+        debug_renderer.add_sphere(player.camera.position, 2.0f, glm::vec3(1.0f));
+        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, 1000, Util::red);
+        printf("out\n");
+    }
+}
+
+void Renderer::indirect_depth_prepass(Player& player) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
+    glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
+
+    // pre pass state
+    glDepthFunc(GL_GREATER);
+    glDepthMask(GL_TRUE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
+    glm::mat4 view = player.get_view_matrix();
+    glm::mat4 viewproj = projection * view;
+
+    Shader* shader = Shader_Manager::get_shader(indirect_depth_prepass_shader);
+    shader->use();
+    shader->set_mat4("vp", viewproj);
+
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
+
+    // draw commands and transform
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+
+    glBindVertexArray(0);
+}
+
+void Renderer::render_indirect(Player& player) {
+    // DRAW
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+    glViewport(0, 0, scr_width, scr_height);
+    glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
 
     glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
     if (use_depth_prepass) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        glDepthFunc(GL_LEQUAL); // fragments at same depth pass
-        glDepthMask(GL_FALSE); // dont write depth
+        // after pre pass set this state
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDepthFunc(GL_GEQUAL); // fragments at same depth pass
+        glDepthMask(GL_FALSE); // dont write depth, unnecessary
     }
     else {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDepthFunc(GL_GREATER);
         glDepthMask(GL_TRUE);
     }
-    //glDepthFunc(GL_GREATER); // todo rmove when prepass works for MDI
 
-    glEnable(GL_DEPTH_TEST);
+    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
+    glm::mat4 view = player.get_view_matrix();
+    glm::mat4 viewproj = projection * view;
 
     Shader* shader = Shader_Manager::get_shader(indirect_shader);
     shader->use();
-    glStencilMask(0x00);
+    //glStencilMask(0x00);
 
-    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
-
-    glm::mat4 view = player.get_view_matrix();
-    glm::mat4 viewproj = projection * view;
     shader->set_mat4("vp", viewproj);
 
     shader->set_vec3("view_pos", player.camera.position);
@@ -407,82 +564,47 @@ void Renderer::render_indirect(Player& player, float delta_time) {
     shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
     shader->set_uvec2("screenDimensions", glm::uvec2(1600, 900));
 
-    static float time = 0.0f;
-    time += delta_time;
+    shader->set_bool("ssao_enabled", ssao_enabled);
 
-    draw_commands.clear();
-    per_object_data.clear();
-    uint32_t current_draw_count = 0;
 
-    Model_Indirect mind = Model_Manager::get_model_ind(0);
-    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-        if (current_draw_count >= MAX_DRAW_COMMANDS) {
-            printf("Warning: Exceeded max draw commands!\n");
-            break;
-        }
+    //static float time = 0.0f;
+    //time += delta_time;
 
-        Draw_Elements_Indirect_Command draw_command;
-        draw_command.count = mind.m_meshes[i].index_count;
-        draw_command.instance_count = 1;
-        draw_command.first_index = mind.m_meshes[i].base_index;
-        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-        draw_command.base_instance = current_draw_count;
-
-        draw_commands.push_back(draw_command);
-
-        Per_Object_Data obj_data;
-        //obj_data.model_matrix = glm::scale(glm::rotate(glm::mat4(1.0f), time / 2, glm::vec3(0.0f, 1.0f, 0.0f)), glm::vec3(0.05f));
-        obj_data.model_matrix = mind.m_meshes[i].transform;
-        obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-        obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-        const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
-        obj_data.albedo = mater.albedo;
-        obj_data.normal = mater.normal;
-        obj_data.met_rough = mater.met_rough;
-        obj_data.emissive = mater.emissive;
-        obj_data.amb_occ = mater.amb_occ;
-        obj_data.emissive_factor = mater.emissive_factor;
-        obj_data.metallic_factor = mater.metallic_factor; // 4
-        obj_data.roughness_factor = mater.roughness_factor; // 4
-        obj_data.base_color = mater.base_color;
-
-        per_object_data.push_back(obj_data);
-
-        current_draw_count++;
-
-        debug_renderer.add_bbox(mind.m_meshes[i].aabb.min, mind.m_meshes[i].aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
-    }
-    debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
-
-    if (current_draw_count > 0) {
-        glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
-
-        glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
-    }
+    // main pass
 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    // draw commands and transform
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
 
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
-
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+    Texture_Manager::bind(ssao_texture, 0);
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
 
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
     glBindVertexArray(0);
+    // unbind
+    //glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+    // unbind ssbos?
 }
-
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
     // begin frame
     {
+        PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
+        build_command_buffer(player, scene, delta_time);
+    }
+    {
         PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
-        if (use_depth_prepass)
-            depth_prepass(player, scene);
+        if (use_depth_prepass) {
+            if (indirect_rendering)
+                indirect_depth_prepass(player);
+            else
+                depth_prepass(player, scene);
+        }
     }
     {
         PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
@@ -495,14 +617,20 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
             cull_cluster_pass(player);
     }
     {
+        PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
+        if (ssao_enabled)
+            ssao_pass(player);
+    }
+    {
         PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
         if (shadows_enabled)
             shadow_pass(scene, player);
     }
     {
-        PROFILE_SCOPE_COLOR("scene", legit::Colors::clouds);
-        if (indirect_rendering)
-            render_indirect(player, delta_time);
+        PROFILE_SCOPE_COLOR("submit render commands", legit::Colors::clouds);
+        if (indirect_rendering) {
+            render_indirect(player);
+        }
         else
             render_scene(player, scene, delta_time);
     }
@@ -513,7 +641,8 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     // post process pass theoretically
     {
         PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
-        bloom_pass();
+        if (bloom_enabled)
+            bloom_pass();
     }
     {
         PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
@@ -532,7 +661,7 @@ void Renderer::depth_prepass(Player& player, Scene& scene) {
     glClear(GL_DEPTH_BUFFER_BIT);
 
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
 
     glm::mat4 view = player.get_view_matrix();
     glm::mat4 viewproj = projection * view;
@@ -580,7 +709,7 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
     glEnable(GL_DEPTH_TEST);
 
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
     glm::mat4 view = player.get_view_matrix();
     glm::mat4 viewproj = projection * view;
 
@@ -722,7 +851,8 @@ void Renderer::render_scene(Player& player, Scene& scene, float delta_time) {
 void Renderer::render_debug(Player& player) {
     Shader* shader = Shader_Manager::get_shader(debug_shader);
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    //glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
+    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height, player.get_camera_zoom());
 
     shader->set_mat4("projection", projection);
     glm::mat4 view = player.get_view_matrix();
@@ -759,7 +889,8 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    glm::mat4 projection = player.camera.get_projection(1600.0f / 900.0f);
+    //glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
+    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height, player.get_camera_zoom());
 
     Shader* shader = Shader_Manager::get_shader(particle_shader);
     shader->use();
@@ -810,6 +941,43 @@ void Renderer::bloom_pass() {
     }
 }
 
+void Renderer::ssao_pass(Player& player) {
+    ssao.use();
+
+    Texture_Manager::bind(depth_texture, 0); // todo maybe dont need to
+    Texture_Manager::bind(ssao_noise_texture, 1);
+    //Texture_Manager::bind(ssao_texture, 2);
+    //glBindImageTexture(2, Texture_Manager::get_ogl_id(ssao_texture), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R8);
+    glBindImageTexture(2, Texture_Manager::get_ogl_id(ssao_texture), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
+
+    //float fov = glm::radians(player.get_camera_zoom());
+    //float aspect = (float)scr_width / (float)scr_height;
+    //float near_plane = NEAR_PLANE;
+    //float far_plane = 1000.0f;
+
+    //glm::mat4 finite_projection(0.0f);
+    //float f = 1.0f / std::tan(fov * 0.5f);
+    //finite_projection[0][0] = f / aspect;
+    //finite_projection[1][1] = f;
+    //finite_projection[2][2] = near_plane / (far_plane - near_plane);     // Reverse-Z
+    //finite_projection[2][3] = -1.0f;
+    //finite_projection[3][2] = (near_plane * far_plane) / (far_plane - near_plane);
+
+    ssao.set_mat4("projection", projection);
+    ssao.set_mat4("inv_projection", glm::inverse(projection));
+    ssao.set_vec2("screen_size", glm::vec2(scr_width, scr_height));
+    ssao.set_float("radius", ssao_radius);
+    ssao.set_float("bias", ssao_bias);
+    ssao.set_int("sample_count", ssao_samples);
+    ssao.set_float("min_depth", min_depth);
+
+    ssao.dispatch_and_wait((scr_width + 15) / 16, (scr_height + 15) / 16, 1);
+    //glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+
 void Renderer::composite() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -822,7 +990,6 @@ void Renderer::composite() {
     Texture_Manager::bind(scene_texture, 0);
     shader->set_int("bright_color", 1);
     Texture_Manager::bind(bright_texture, 1);
-
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0); // unbind quad
@@ -873,11 +1040,18 @@ void Renderer::debug_sphere_at(glm::vec3 pos) {
 
 void Renderer::imgui_pass() {
     ImGui::Begin("Renderer Settings");
+
     ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
     ImGui::Checkbox("shadows enabled", &shadows_enabled);
     ImGui::SliderInt("num_lights", &num_lights, 0, 1000);
     ImGui::Checkbox("forward+", &forward_plus);
     ImGui::Checkbox("indirect_rendering", &indirect_rendering);
+    ImGui::Checkbox("bloom_enabled", &bloom_enabled);
+    ImGui::Checkbox("ssao_enabled", &ssao_enabled);
+    ImGui::SliderFloat("ssao_radius", &ssao_radius, 0, 5.0);
+    ImGui::SliderFloat("ssao_bias", &ssao_bias, 0, 1.0f);
+    ImGui::SliderInt("ssao_samples", &ssao_samples, 0, 64);
+    ImGui::SliderFloat("min_depth", &min_depth, -0.01, 0.2f);
 
     ImGui::End();
 }

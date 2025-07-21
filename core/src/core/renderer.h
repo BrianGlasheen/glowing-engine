@@ -55,10 +55,14 @@ public:
     int init();
     bool setup_buffers();
 
-    void Renderer::setup_indirect();
-    void Renderer::render_indirect(Player& player, float delta_time);
+    void setup_ssao();
 
-    void render_scene(Player& player, Scene& scene, float delta_time);
+    void Renderer::setup_indirect();
+    void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
+    void Renderer::indirect_depth_prepass(Player& player);
+    void Renderer::render_indirect(Player& player);
+
+    void render_scene(Player& player, Scene& scene, float delta_time); // todo scene maybe const
     void depth_prepass(Player& player, Scene& scene);
     void build_cluster_pass(Player& player);
     void cull_cluster_pass(Player& player);
@@ -66,6 +70,7 @@ public:
     void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
     void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
     void bloom_pass();
+    void ssao_pass(Player& player);
     void composite();
     void render_debug(Player& player);
 
@@ -113,10 +118,17 @@ public:
 
     bool use_alpha_clipping = true;
     bool shadows_enabled = false;
+    bool bloom_enabled = true;
     float alpha_cutoff = 0.5f;
     int num_lights = 50;
     bool forward_plus = true;
     bool indirect_rendering = true;
+    
+    bool ssao_enabled = true;
+    float ssao_radius = 0.5;
+    float ssao_bias = 0.025;
+    int ssao_samples = 64;
+    float min_depth = 0.005;
 
     bool use_depth_prepass = false;
     shader_handle depth_prepass_shader;
@@ -126,11 +138,14 @@ public:
     //uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
 
     uint32_t render_target, render_depth_buffer;
-    texture_handle scene_texture, bright_texture;
+    texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture;
     shader_handle quad_shader;
 
+    shader_handle indirect_depth_prepass_shader;
+
+
     // todo move particle stuff
-    Compute_Shader bloom_down, bloom_up, particle;
+    Compute_Shader bloom_down, bloom_up, particle, ssao;
     shader_handle particle_shader;
 
     glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);

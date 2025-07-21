@@ -118,6 +118,13 @@ public:
             return camera.zoom;
     }
 
+    //Camera& active_camera() {
+    //    if (out_of_body)
+    //        return debug_camera;
+    //    else
+    //        return camera;
+    //}
+
     glm::mat4 get_view_matrix() {
         if (out_of_body)
             return debug_camera.get_view_matrix();

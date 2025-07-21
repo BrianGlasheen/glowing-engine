@@ -119,21 +119,35 @@ namespace Model_Manager {
     static uint32_t big_buffer_vao, vbo, ebo;
 
     static std::vector<Model_Indirect> m_indirect_models(0);
+    static std::vector<std::string> m_indirect_model_names(0);
     static std::vector<Vertex> g_vertices(0);
     // mesh has a base vertex, and a num verticies
     static std::vector<uint32_t> g_indices(0);
     // mesh has a base index, num indices
     // ssbo for per mesh data (model, texture, etc)
 
-    uint32_t get_num_meshes() { return num_meshes;  }
-    uint32_t get_num_models() { return num_models; }
+    //uint32_t get_num_meshes() { return num_meshes;  }
+    //uint32_t get_num_models() { return num_models; }
 
-    bool load_model_indirect(const std::string& path) {
+    bool indirect_model_loaded(const std::string& full_path, model_handle& model_index) {
+        for (size_t i = 0; i < m_indirect_model_names.size(); i++) {
+            if (full_path == m_indirect_model_names[i]) {
+                model_index = i;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    model_handle load_model_indirect(const std::string& path) {
         printf("num verts before model %d\n", g_vertices.size());
         printf("num idx before model %d\n", g_indices.size());
 
-
         const std::string full_path = base_path + path;
+
+        model_handle model_index;
+        if (indirect_model_loaded(full_path, model_index))
+            return model_index;
         
         Model_Indirect model_ind;
 
@@ -150,11 +164,15 @@ namespace Model_Manager {
         process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f));
         model_ind.calculate_aabb();
 
+        model_index = m_indirect_models.size();
         m_indirect_models.push_back(model_ind);
         num_models++;
 
+        m_indirect_model_names.push_back(full_path);
+
         printf("num verts after model %d\n", g_vertices.size());
         printf("num idx after model %d\n", g_indices.size());
+        return model_index;
     }
 
     void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path, const glm::mat4& parent_transform) {
@@ -185,7 +203,7 @@ namespace Model_Manager {
         printf("loading mesh %s\n", mesh_ind.name.c_str());
 
         mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        mesh_ind.aabb.max = glm::vec3(FLT_MIN);
+        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
 
         mesh_ind.base_vertex = g_vertices.size();// 
         uint32_t vertex_count = mesh->mNumVertices;
@@ -196,16 +214,13 @@ namespace Model_Manager {
             
             vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
 
-            // not the prettiest
-            if (vertex.position.x < mesh_ind.aabb.min.x) mesh_ind.aabb.min.x = vertex.position.x;
-            if (vertex.position.y < mesh_ind.aabb.min.y) mesh_ind.aabb.min.y = vertex.position.y;
-            if (vertex.position.z < mesh_ind.aabb.min.z) mesh_ind.aabb.min.z = vertex.position.z;
+            mesh_ind.aabb.min = glm::min(vertex.position, mesh_ind.aabb.min);
+            mesh_ind.aabb.max = glm::max(vertex.position, mesh_ind.aabb.max);
 
-            if (vertex.position.x > mesh_ind.aabb.max.x) mesh_ind.aabb.max.x = vertex.position.x;
-            if (vertex.position.y > mesh_ind.aabb.max.y) mesh_ind.aabb.max.y = vertex.position.y;
-            if (vertex.position.z > mesh_ind.aabb.max.z) mesh_ind.aabb.max.z = vertex.position.z;
-
-            vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+            if (mesh->HasNormals())
+                vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+            else
+                vertex.normal = glm::vec3(0.0f);
 
             if (mesh->mTextureCoords[0]) {
                 glm::vec2 vec;
@@ -323,6 +338,10 @@ namespace Model_Manager {
 
     Model_Indirect get_model_ind(uint32_t idx) {
         return m_indirect_models[idx];
+    }
+
+    Util::AABB get_aabb_indirect(const model_handle& model_id) {
+        return m_indirect_models[model_id].get_aabb();
     }
 
     void setup_buffers() {

@@ -146,6 +146,24 @@ namespace Texture_Manager {
         }
     }
 
+    texture_handle create_depth_texture(int width, int height) {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        textures.push_back(texture_id);
+        paths.push_back("depth_texture");
+
+        std::cout << "[DEPTH TEXTURE] Created " << width << "x" << height << std::endl;
+        return textures.size() - 1;
+    }
 
     texture_handle create_render_texture(int width, int height, bool hdr) {
         uint32_t texture_id = 0;
@@ -199,6 +217,44 @@ namespace Texture_Manager {
         paths.push_back("bloom_texture_with_mips");
 
         std::cout << "[BLOOM TEXTURE] Created with " << mip_levels << " mip levels: " << width << "x" << height << std::endl;
+        return textures.size() - 1;
+    }
+
+    texture_handle create_ssao_texture(int width, int height) {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        //glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        textures.push_back(texture_id);
+        paths.push_back("ssao_texture");
+        return textures.size() - 1;
+    }
+
+    texture_handle create_noise_texture(const std::vector<float>& data, int width, int height) {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data.data());
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        textures.push_back(texture_id);
+        paths.push_back("noise_texture"); // todo maybe change if multiple of these
         return textures.size() - 1;
     }
 

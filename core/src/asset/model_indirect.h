@@ -39,7 +39,7 @@ public:
 	}
 
 	void calculate_aabb() {
-		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(FLT_MIN) };
+		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
 
 		for (const Mesh_Indirect& mesh : m_meshes) {
 			if (mesh.aabb.min.x < m_aabb.min.x) m_aabb.min.x = mesh.aabb.min.x;

@@ -70,26 +70,28 @@ int main()
     
     Scene scene("star"); //.todo move lights here?
 
-    bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
+   // bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("ABeautifulGame/glTF/ABeautifulGame.gltf");
     //bool loaded = Model_Manager::load_model_indirect("bistro/Scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("emeraldsquare/Scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
+    //bool loaded = Model_Manager::load_model_indirect("track/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("plane.obj");
-    //bool loaded = Model_Manager::load_model_indirect("EmissiveStrengthTest/glTF/EmissiveStrengthTest.gltf");
+    model_handle this_guy = Model_Manager::load_model_indirect("EmissiveStrengthTest/glTF/EmissiveStrengthTest.gltf");
+    glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    Entity e323232323232323(glm::vec3(0.0f), rot, glm::vec3(1.0f), this_guy, false);
+    scene.include(e323232323232323);
     //bool loaded = Model_Manager::load_model_indirect("sword2/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("astonmartin/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
     //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
 
-    Model_Manager::setup_buffers();
     //Model_Manager::upload_data();
     //printf(loaded ? "good\n" : "bad\n");
 
-    renderer.setup_indirect();
-
-    model_handle plane = Model_Manager::load_model("plane.obj", 0);
+    model_handle plane = Model_Manager::load_model_indirect("plane.obj");
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::vec3 scale = glm::vec3(50.0f, 1.0f, 50.0f);
     Entity e(pos, rot, scale, plane, false);
     scene.include(e);
@@ -103,16 +105,17 @@ int main()
     //Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
     //scene.include(e232lamp3322);
 
-    //for (int j = 0; j < 10; j++) {
-    //    Entity dsadasdasdasda(glm::vec3(0.0f, 1.05f + j, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.003f), "die", true);
-    //    scene.include(dsadasdasdasda);
-    //}
+    for (int j = 0; j < 10; j++) {
+        printf("%d\n", j);
+        Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
+        scene.include(dsadasdasdasda);
+    }
 
     {
         glm::vec3 pos = glm::vec3(0.0f);
-        //glm::vec3 scale = glm::vec3(1.0f);
-        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
-        //scene.include(e5555);
+        glm::vec3 scale = glm::vec3(10.0f);
+        Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
+        scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);
         scale = glm::vec3(1.0f);
@@ -124,9 +127,13 @@ int main()
         //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
         //scene.include(fdfsdfsdfsdfsdf);
 
-         // Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "bistro", false);
-         //scene.include(sadasd23232323232332323);
+          /*Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "bistro/Scene.gltf", false);
+         scene.include(sadasd23232323232332323);*/
     }
+
+    Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
+    renderer.setup_indirect();
+
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
