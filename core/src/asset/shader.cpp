@@ -69,6 +69,9 @@ void Shader::set_bool(const std::string& name, bool value) const {
 void Shader::set_int(const std::string& name, int value) const {
     glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
 }
+void Shader::set_uint(const std::string& name, unsigned int value) const {
+    glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
+}
 void Shader::set_float(const std::string& name, float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
@@ -90,6 +93,18 @@ void Shader::set_vec4(const std::string& name, const glm::vec4& value) const {
 void Shader::set_vec4(const std::string& name, float x, float y, float z, float w) const {
     glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
 }
+void Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
+    glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+void Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
+    glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
+}
+void Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
+    glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+void Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
+    glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
+}
 void Shader::set_mat2(const std::string& name, const glm::mat2& mat) const {
     glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
@@ -98,28 +113,6 @@ void Shader::set_mat3(const std::string& name, const glm::mat3& mat) const {
 }
 void Shader::set_mat4(const std::string& name, const glm::mat4& mat) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
-}
-
-void Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
-    glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
-}
-
-void Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
-    glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
-}
-
-// For uvec3 (3 unsigned integers)
-void Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
-    glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
-}
-
-void Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
-    glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
-}
-
-// For single unsigned int
-void Shader::set_uint(const std::string& name, unsigned int value) const {
-    glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
 }
 
 // utility function for checking shader compilation/linking errors.

@@ -100,6 +100,47 @@ namespace Texture_Manager {
         }
     }
 
+    void resize(const texture_handle handle, int width, int height, int mips) {
+        uint32_t texture_id = get_ogl_id(handle);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        GLint internal_format;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+
+        GLenum format, type;
+        switch (internal_format) {
+        case GL_RGBA16F:
+        case GL_RGBA32F:
+            format = GL_RGBA;
+            type = GL_FLOAT;
+            break;
+        case GL_DEPTH_COMPONENT32F:
+            format = GL_DEPTH_COMPONENT;
+            type = GL_FLOAT;
+            break;
+        case GL_R8:
+            format = GL_RED;
+            type = GL_UNSIGNED_BYTE;
+            break;
+        default:
+            format = GL_RGBA;
+            type = GL_UNSIGNED_BYTE;
+            break;
+        }
+
+        for (int level = 0; level < mips; level++) {
+            int mip_width = std::max(1, width >> level);
+            int mip_height = std::max(1, height >> level);
+
+            glTexImage2D(GL_TEXTURE_2D, level, internal_format, mip_width, mip_height, 0, format, type, nullptr);
+        }
+
+        if (mips > 1)
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+        printf("[TEXTURE] %s resized to width: %d, height: %d\n", paths[handle].c_str(), width, height);
+    }
+
     texture_handle load_msdf(const std::string& file_path) {
         size_t existing_texture_index;
         if (loaded_already(file_path, existing_texture_index)) {
@@ -171,11 +212,9 @@ namespace Texture_Manager {
         glBindTexture(GL_TEXTURE_2D, texture_id);
 
         if (hdr) {
-            // Use floating point format for HDR
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
         }
         else {
-            // Standard RGBA format
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         }
 
@@ -203,7 +242,8 @@ namespace Texture_Manager {
         int mip_levels = 6;
 
         // Allocate storage for all mip levels
-        glTexStorage2D(GL_TEXTURE_2D, mip_levels, GL_RGBA16F, width, height);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glGenerateMipmap(GL_TEXTURE_2D);
 
         // Set texture parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

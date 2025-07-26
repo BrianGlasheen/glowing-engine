@@ -1,15 +1,15 @@
 #version 460 core
 
 layout (location = 0) in vec3 aPos; 
-layout (location = 1) in vec3 aColor; // for lines
+layout (location = 1) in vec3 aColor;
 
 uniform mat4 projection;
 uniform mat4 view;
-uniform mat4 model;
+uniform mat4 mvp;
 
-out vec3 fragColor;
+out vec3 line_color;
 
 void main() {
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
-    fragColor   = aColor;
+    gl_Position = mvp * vec4(aPos, 1.0);
+    line_color = aColor;
 }

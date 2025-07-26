@@ -6,11 +6,11 @@
 
 #include <core/opengl.h>
 
-Compute_Shader::~Compute_Shader() {
-    if (ID != 0) {
-        glDeleteProgram(ID);
-    }
-}
+//Compute_Shader::~Compute_Shader() {
+//    if (ID != 0) {
+//        glDeleteProgram(ID);
+//    }
+//}
 
 bool Compute_Shader::init(const char* path) {
     std::string computeCode;
@@ -30,16 +30,10 @@ bool Compute_Shader::init(const char* path) {
     }
 
     bool status = compile_shader(computeCode);
-    if (status)
-        printf("[COMPUTE] LOADED %s\n", path);
-    else
+    if (!status)
         printf("[COMPUTE] FAILED LOADING %s\n", path);
     
     return status;
-}
-
-bool Compute_Shader::init_from_source(const std::string& src) {
-    return compile_shader(src);
 }
 
 bool Compute_Shader::compile_shader(const std::string& src) {
@@ -67,13 +61,13 @@ void Compute_Shader::dispatch(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t
     glDispatchCompute(numGroupsX, numGroupsY, numGroupsZ);
 }
 
-void Compute_Shader::wait() const {
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+void Compute_Shader::wait(GLbitfield barrier) const {
+    glMemoryBarrier(barrier);
 }
 
-void Compute_Shader::dispatch_and_wait(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t numGroupsZ) const {
+void Compute_Shader::dispatch_and_wait(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t numGroupsZ, GLbitfield barrier) const {
     dispatch(numGroupsX, numGroupsY, numGroupsZ);
-    wait();
+    wait(barrier);
 }
 
 void Compute_Shader::set_bool(const std::string& name, bool value) const {
@@ -127,6 +121,23 @@ void Compute_Shader::set_ivec3(const std::string& name, const glm::ivec3& value)
 void Compute_Shader::set_ivec4(const std::string& name, const glm::ivec4& value) const {
     glUniform4iv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
+
+void Compute_Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
+    glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+
+void Compute_Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
+    glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
+}
+
+void Compute_Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
+    glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
+}
+
+void Compute_Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
+    glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
+}
+
 
 void Compute_Shader::set_mat2(const std::string& name, const glm::mat2& mat) const {
     glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
@@ -183,23 +194,4 @@ void Compute_Shader::check_compile_errors(uint32_t shader, const std::string& ty
             std::cout << "ERROR::COMPUTE_PROGRAM_LINKING_ERROR of type: " << type << "\n" << infoLog << "\n -- --------------------------------------------------- -- " << std::endl;
         }
     }
-}
-
-
-
-void Compute_Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
-    glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
-}
-
-void Compute_Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
-    glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
-}
-
-// For uvec3 (3 unsigned integers)
-void Compute_Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
-    glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
-}
-
-void Compute_Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
-    glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
 }

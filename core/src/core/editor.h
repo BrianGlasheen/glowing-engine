@@ -213,7 +213,7 @@ public:
         editor_viewports.side.init_text("side-----");
         editor_viewports.scene.init_text("scene----");
 
-        editor_shader = Shader_Manager::load_from_name("editor");
+        Shader_Manager::load_from_name("editor");
 
         return 0;
     }

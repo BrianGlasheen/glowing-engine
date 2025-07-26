@@ -34,7 +34,8 @@ int Window::init(int w, int h, const char* title) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSwapInterval(1);
-
+    // glfwSwapInterval(0);
+    
     return 0;
 }
 
@@ -82,6 +83,7 @@ void Window::sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor) {
     glfwSetScrollCallback(window, Window::static_scroll_callback);
     glfwSetKeyCallback(window, Window::static_key_callback);
     glfwSetCharCallback(window, Window::static_char_callback);
+    //glfwSetWindowRefreshCallback(window, Window::window_refresh_callback);
 }
 
 //
@@ -89,6 +91,17 @@ void Window::sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor) {
 //
 void Window::framebuffer_size_callback(GLFWwindow* glfw_window, int width, int height) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
+
+    //this_window->renderer->resize(width, height);
+    //this_window->target_width = width;
+    //this_window->target_height = height;
+
+    this_window->width = width;
+    this_window->height = height;
+
+    printf("w: %d, h: %d\n", width, height);
+    this_window->renderer->resize(this_window->width, this_window->height);
+
     //glViewport(0, 0, width, height);
     //renderer->scr_width = width;
     //renderer->scr_height = height;
@@ -97,6 +110,12 @@ void Window::framebuffer_size_callback(GLFWwindow* glfw_window, int width, int h
 void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, int action, int mods) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
 
+    //if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE && (this_window->target_width != this_window->width || this_window->target_height != this_window->target_width)) {
+    //    this_window->width = this_window->target_width;
+    //    this_window->height = this_window->target_height;
+    //    this_window->renderer->resize(this_window->width, this_window->height);
+    //}
+// 
     //if (this_window->renderer->editor_mode) {
     //    // Handle editor mode mouse button input
     //    if (button == GLFW_MOUSE_BUTTON_MIDDLE ||
@@ -120,6 +139,17 @@ void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, i
     //    
     //}
 }
+
+//void Window::window_refresh_callback(GLFWwindow* glfw_window) {
+//    Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
+//
+//    if (this_window->target_width != this_window->width || this_window->target_height != this_window->height) {
+//
+//        this_window->width = this_window->target_width;
+//        this_window->height = this_window->target_height;
+//        this_window->renderer->resize(this_window->width, this_window->height);
+//    }
+//}
 
 void Window::static_mouse_callback(GLFWwindow* glfw_window, double xpos, double ypos) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));

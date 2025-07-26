@@ -10,6 +10,8 @@ namespace Texture_Manager {
     void cleanup();
 
     texture_handle load_from_path(const std::string& file_path);
+    void resize(const texture_handle handle, int width, int height, int mips = 1);
+
     texture_handle load_msdf(const std::string& file_path);
     texture_handle create_depth_texture(int width, int height);
     texture_handle create_render_texture(int width, int height, bool hdr = false);

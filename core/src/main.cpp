@@ -77,10 +77,6 @@ int main()
     //bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("track/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("plane.obj");
-    model_handle this_guy = Model_Manager::load_model_indirect("EmissiveStrengthTest/glTF/EmissiveStrengthTest.gltf");
-    glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    Entity e323232323232323(glm::vec3(0.0f), rot, glm::vec3(1.0f), this_guy, false);
-    scene.include(e323232323232323);
     //bool loaded = Model_Manager::load_model_indirect("sword2/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("astonmartin/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
@@ -91,10 +87,29 @@ int main()
 
     model_handle plane = Model_Manager::load_model_indirect("plane.obj");
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    glm::vec3 scale = glm::vec3(50.0f, 1.0f, 50.0f);
+    glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+    glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
     Entity e(pos, rot, scale, plane, false);
     scene.include(e);
+
+    pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
+    scale = glm::vec3(100.0, 1.0f, 100.0f);
+    Entity e3232(pos, rot, scale, plane, false);
+    scene.include(e3232);
+
+    pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    rot = glm::quat(0.707f, 0.0f, 0.0f, 0.707f);
+    scale = glm::vec3(100.0, 1.0f, 100.0f);
+    Entity e3233332(pos, rot, scale, plane, false);
+    scene.include(e3233332);
+
+    pos = glm::vec3(0.0f, 25.0f, 0.0f);
+    rot = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
+    scale = glm::vec3(500.0f, 1.0f, 500.0f);
+    Entity edddddd(pos, rot, scale, plane, false);
+    scene.include(edddddd);
+
 
     //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
     //scene.include(e233232332);
@@ -112,10 +127,10 @@ int main()
     }
 
     {
-        glm::vec3 pos = glm::vec3(0.0f);
-        glm::vec3 scale = glm::vec3(10.0f);
-        Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
-        scene.include(e5555);
+        //glm::vec3 pos = glm::vec3(0.0f);
+        //glm::vec3 scale = glm::vec3(10.0f);
+        //Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
+        //scene.include(e5555);
        /* model_handle car232323 = Model_Manager::load_model("911-2");
         pos = glm::vec3(-3.0f, 0.0f, -3.0f);
         scale = glm::vec3(1.0f);
@@ -192,20 +207,14 @@ int main()
         delta_time = currentFrame - last_frame;
         last_frame = currentFrame;
 
-        if (!(frame++ % 10)) {
-            fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
-            weapon_ammo_text.update_text(std::to_string(player.active_weapon->current_ammo));
-            reserve_ammo_text.update_text(std::to_string(player.active_weapon->reserve_ammo));
-           /* player_position.updateText("pos 1 00 1 00 1 00");
-            player_facing.updateText("dir 1 00 1 00 1 00");*/
-            player_holding.update_text("hand " + player.active_weapon->name);
-        }
-
-        // todo maybe refactor all into jolt controller hmmm
-        // controller step takes input
-        // updates physics according to active controller
-        // updates camera
-        // draws hud (weapon, etc)
+        //if (!(frame++ % 10)) {
+        //    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
+        //    weapon_ammo_text.update_text(std::to_string(player.active_weapon->current_ammo));
+        //    reserve_ammo_text.update_text(std::to_string(player.active_weapon->reserve_ammo));
+        //   /* player_position.updateText("pos 1 00 1 00 1 00");
+        //    player_facing.updateText("dir 1 00 1 00 1 00");*/
+        //    player_holding.update_text("hand " + player.active_weapon->name);
+        //}
 
         //if (!editor_mode) {
             player.controller_step(window.get_window(), delta_time, scene);
@@ -222,50 +231,24 @@ int main()
 
         {
             PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-            if (!player.key_toggles[(unsigned)'r'])
+            if (player.key_toggles[(unsigned)'r'])
                 renderer.render_debug(player);
         }
 
-        renderer.render_crosshair(crosshair);
-        renderer.render_hud_text(fpscounter);
-        renderer.render_hud_text(weapon_ammo_text);
-        renderer.render_hud_text(reserve_ammo_text);
+        //renderer.render_crosshair(crosshair);
+        //renderer.render_hud_text(fpscounter);
+        //renderer.render_hud_text(weapon_ammo_text);
+        //renderer.render_hud_text(reserve_ammo_text);
         //renderer.render_hud_text(player_position);
         //renderer.render_hud_text(player_facing);
-        renderer.render_hud_text(player_holding);
+        //renderer.render_hud_text(player_holding);
 
         // render scene deferred pipeline
         // renderer.render_scene_deferred(player, scene, delta_time);
-        // TODO: clustered forward 
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        {
-            ImGui::Begin("Light");
-            ImGui::SliderFloat3("pos", &renderer.spotlight.position.x, -10.0f, 10.0f);
-            ImGui::SliderFloat3("dir", &renderer.spotlight.direction.x, -1.0f, 1.0f);
-            ImGui::SliderFloat3("color", &renderer.spotlight.color.x, 0.0f, 1.0f); // 1.0f;     
-            ImGui::SliderFloat("itensity", &renderer.spotlight.intensity, 0.0f, 10000.0f); // 1.0f;  
-            ImGui::SliderFloat("FOV outer", &renderer.spotlight.outer_fov, 0.0f, 180.0f); // 1.0f;     
-            ImGui::SliderFloat("FOV inner", &renderer.spotlight.inner_fov, 0.0f, 180.0f); // 1.0f;        
-            ImGui::Dummy(ImVec2(0.0f, 20.0f));
-            ImGui::SliderFloat3("directional_light_direction", &renderer.directional_light.direction.x, -1.0f, 1.0f);
-            ImGui::SliderFloat3("directional_light_color", &renderer.directional_light.color.x, -1.0f, 1.0f);
-            ImGui::SliderFloat("directional_light_intensity", &renderer.directional_light.intensity, 0.0f, 2.0f);
-            ImGui::Dummy(ImVec2(0.0f, 20.0f));
-            ImGui::SliderFloat3("point_light_pos", &renderer.point_light.position.x, -15.0f, 15.0f);
-            ImGui::SliderFloat3("point_light_color", &renderer.point_light.color.x, 0.0f, 1.0f);
-            ImGui::SliderFloat("point_light_intensity", &renderer.point_light.intensity, 0.0f, 5000.0f);
-            ImGui::SliderFloat("point light close", &renderer.close_plane, 0.0f, 10.0f);
-            ImGui::SliderFloat("point light farplane", &renderer.penis, 0.0f, 50.0f);
-            ImGui::Dummy(ImVec2(0.0f, 20.0f));
-            ImGui::SliderFloat("amb light", &renderer.ambient_light, 0.0f, 1.0f);
-            ImGui::Dummy(ImVec2(0.0f, 20.0f));
-            ImGui::Checkbox("use alpha", &renderer.use_alpha_clipping);
-            ImGui::SliderFloat("alpha cutoff", &renderer.alpha_cutoff, 0.0, 1.0f);
-            ImGui::End();
-        }
 
         ImGui::Begin("particle");
         ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
@@ -281,13 +264,6 @@ int main()
         ImGui::End();
         
         renderer.imgui_pass();
-        //player.debug_hud();
-        //if (renderer.editor_mode) {
-            //renderer.render_gizmo(scene, player);
-        //}
-        //else {
-
-        //}
 
         legit::Profiler::Instance().EndFrame();
         auto& tasks = legit::Profiler::Instance().GetTasks();

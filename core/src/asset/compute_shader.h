@@ -9,15 +9,14 @@ public:
     uint32_t ID;
 
     Compute_Shader() = default;
-    ~Compute_Shader();
+    //~Compute_Shader();
 
     bool init(const char* path);
 
-    bool init_from_source(const std::string& src);
     void use() const;
     void dispatch(uint32_t numGroupsX, uint32_t numGroupsY = 1, uint32_t numGroupsZ = 1) const;
-    void wait() const;
-    void dispatch_and_wait(uint32_t numGroupsX, uint32_t numGroupsY = 1, uint32_t numGroupsZ = 1) const;
+    void wait(GLbitfield barrier) const;
+    void dispatch_and_wait(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t numGroupsZ, GLbitfield barrier) const;
     
     void set_bool(const std::string& name, bool value) const;
     void set_int(const std::string& name, int value) const;
@@ -32,14 +31,13 @@ public:
     void set_ivec2(const std::string& name, const glm::ivec2& value) const;
     void set_ivec3(const std::string& name, const glm::ivec3& value) const;
     void set_ivec4(const std::string& name, const glm::ivec4& value) const;
-    void set_mat2(const std::string& name, const glm::mat2& mat) const;
-    void set_mat3(const std::string& name, const glm::mat3& mat) const;
-    void set_mat4(const std::string& name, const glm::mat4& mat) const;
-
     void set_uvec2(const std::string& name, const glm::uvec2& value) const;
     void set_uvec2(const std::string& name, unsigned int x, unsigned int y) const;
     void set_uvec3(const std::string& name, const glm::uvec3& value) const;
     void set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const;
+    void set_mat2(const std::string& name, const glm::mat2& mat) const;
+    void set_mat3(const std::string& name, const glm::mat3& mat) const;
+    void set_mat4(const std::string& name, const glm::mat4& mat) const;
     
     void bind_image_texture(uint32_t unit, uint32_t texture, int32_t level, bool layered, int32_t layer, uint32_t access, uint32_t format) const;
     

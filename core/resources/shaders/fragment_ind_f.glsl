@@ -156,7 +156,8 @@ void main() {
 
     //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
     //FragColor = color;
-    //FragColor = vec4(metallic_factor, 0, 0, 1);
+    //FragColor = vec4(metallic_factor, 0, 0, 1);'
+
     vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
     vec4 ssaoValue = texture(ssao, screenUV);
     FragColor = vec4(ssaoValue.rgb, 1);
@@ -269,10 +270,10 @@ void main() {
     }
 
     float ssao_val = 1.0;
-    if (ssao_enabled) {
-        vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
-        ssao_val = texture(ssao, screenUV).r;
-    }
+    //if (ssao_enabled) {
+    //    vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+    //    ssao_val = texture(ssao, screenUV).r;
+    //}
 
     vec3 ambient = vec3(ambient_light) * albedo * ao * ssao_val;
     vec3 color = ambient + Lo;

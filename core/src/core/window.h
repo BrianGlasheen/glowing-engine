@@ -32,6 +32,7 @@ private:
 
     GLFWwindow* window;
     int width, height;
+    int target_width, target_height;
 
     Player* player;
     Renderer* renderer;
@@ -39,6 +40,7 @@ private:
     bool* editor_mode;
 
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+    //static void window_refresh_callback(GLFWwindow* window);
     static void static_mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
     static void static_mouse_callback(GLFWwindow* window, double xpos, double ypos);
     static void static_scroll_callback(GLFWwindow* window, double xoffset, double yoffset);

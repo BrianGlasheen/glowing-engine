@@ -56,6 +56,7 @@ namespace legit
         ScopeTimer(const std::string& name, uint32_t color = Colors::peterRiver)
             : taskName(name), taskColor(color)
         {
+            //printf("starting %s\n", taskName.c_str());
             startTime = GetCurrentTime();
         }
 
@@ -63,6 +64,7 @@ namespace legit
         {
             double endTime = GetCurrentTime();
             Profiler::Instance().AddTask(taskName, startTime, endTime, taskColor);
+            //printf("done %s\n", taskName.c_str());
         }
 
     private:
