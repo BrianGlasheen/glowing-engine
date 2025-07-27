@@ -109,12 +109,6 @@ void Entity::check_moved()
     is_dirty = false;
 }
 
-void Entity::draw(const Shader* shader, bool shadow_pass) const 
-{
-    //printf("model drawn with id, %s", Model_Manager::get_name(model_id).c_str());
-    Model_Manager::draw(shader, model_id, shadow_pass);
-}
-
 glm::vec3 Entity::get_physics_position() const {
     return Physics::get_body_position(physics_id);
 }

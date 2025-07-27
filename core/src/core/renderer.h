@@ -137,13 +137,14 @@ public:
     int max_particles = 10000;
     ////////
 
-
-
-
     uint32_t draw_command_buffer, per_object_ssbo;
     std::vector<Draw_Elements_Indirect_Command> draw_commands;
     std::vector<Per_Object_Data> per_object_data;
-    shader_handle indirect_shader;
+
+    uint32_t draw_command_buffer_skinned, per_object_ssbo_skinned;
+    std::vector<Draw_Elements_Indirect_Command> draw_commands_skinned;
+    std::vector<Per_Object_Data> per_object_data_skinned;
+    uint32_t bone = 0;
 
     uint32_t quadVAO;
 };

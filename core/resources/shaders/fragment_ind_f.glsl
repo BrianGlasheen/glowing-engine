@@ -158,10 +158,10 @@ void main() {
     //FragColor = color;
     //FragColor = vec4(metallic_factor, 0, 0, 1);'
 
-    vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
-    vec4 ssaoValue = texture(ssao, screenUV);
-    FragColor = vec4(ssaoValue.rgb, 1);
-    return ;
+    //vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+    //vec4 ssaoValue = texture(ssao, screenUV);
+    //FragColor = vec4(ssaoValue.rgb, 1);
+    //return ;
 
     vec3 albedo;
     float alpha;

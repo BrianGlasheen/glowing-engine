@@ -92,23 +92,23 @@ int main()
     Entity e(pos, rot, scale, plane, false);
     scene.include(e);
 
-    pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
-    scale = glm::vec3(100.0, 1.0f, 100.0f);
-    Entity e3232(pos, rot, scale, plane, false);
-    scene.include(e3232);
+    //pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    //rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
+    //scale = glm::vec3(100.0, 1.0f, 100.0f);
+    //Entity e3232(pos, rot, scale, plane, false);
+    //scene.include(e3232);
 
-    pos = glm::vec3(0.0f, 0.0f, 0.0f);
-    rot = glm::quat(0.707f, 0.0f, 0.0f, 0.707f);
-    scale = glm::vec3(100.0, 1.0f, 100.0f);
-    Entity e3233332(pos, rot, scale, plane, false);
-    scene.include(e3233332);
+    //pos = glm::vec3(0.0f, 0.0f, 0.0f);
+    //rot = glm::quat(0.707f, 0.0f, 0.0f, 0.707f);
+    //scale = glm::vec3(100.0, 1.0f, 100.0f);
+    //Entity e3233332(pos, rot, scale, plane, false);
+    //scene.include(e3233332);
 
-    pos = glm::vec3(0.0f, 25.0f, 0.0f);
-    rot = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
-    scale = glm::vec3(500.0f, 1.0f, 500.0f);
-    Entity edddddd(pos, rot, scale, plane, false);
-    scene.include(edddddd);
+    //pos = glm::vec3(0.0f, 25.0f, 0.0f);
+    //rot = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
+    //scale = glm::vec3(500.0f, 1.0f, 500.0f);
+    //Entity edddddd(pos, rot, scale, plane, false);
+    //scene.include(edddddd);
 
 
     //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
@@ -125,6 +125,10 @@ int main()
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
     }
+
+    model_handle raccoon = Model_Manager::load_rigged_model("tiger/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("clown/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("whale/scene.gltf");
 
     {
         //glm::vec3 pos = glm::vec3(0.0f);

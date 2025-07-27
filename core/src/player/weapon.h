@@ -6,7 +6,6 @@
 
 #include <core/audio.h>
 #include <core/physics.h>
-#include <asset/model.h>
 
 enum class Weapon_Id {
     M4A1,
@@ -19,8 +18,6 @@ enum class Weapon_Id {
 
 class Weapon {
 public:
-    Model model;
-
     // Visual properties
     glm::vec3 wep_pos;      // Current position
     glm::vec3 min_pos;      // Hip fire position

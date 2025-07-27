@@ -155,6 +155,17 @@ void Renderer::setup_indirect() {
 
     glCreateBuffers(1, &per_object_ssbo);
     glNamedBufferStorage(per_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+
+    Shader_Manager::load_from_name("skinned");
+    draw_commands_skinned.reserve(MAX_DRAW_COMMANDS);
+    per_object_data_skinned.reserve(MAX_DRAW_COMMANDS);
+
+    glCreateBuffers(1, &draw_command_buffer_skinned);
+    glNamedBufferStorage(draw_command_buffer_skinned, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    glCreateBuffers(1, &per_object_ssbo_skinned);
+    glNamedBufferStorage(per_object_ssbo_skinned, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 void Renderer::setup_ssao() {
@@ -355,6 +366,57 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
         debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE, Util::red);
         printf("out\n");
     }
+
+    //
+    // skinned commands
+    //
+
+
+    draw_commands_skinned.clear();
+    per_object_data_skinned.clear();
+    current_draw_count = 0;
+
+    Model_Indirect mind = Model_Manager::get_skinned_model(0);
+    debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
+
+    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+        Per_Object_Data obj_data = { 0 };
+
+        obj_data.model_matrix = mind.m_meshes[i].transform;
+
+        Draw_Elements_Indirect_Command draw_command;
+        draw_command.count = mind.m_meshes[i].index_count;
+        draw_command.instance_count = 1;
+        draw_command.first_index = mind.m_meshes[i].base_index;
+        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+        draw_command.base_instance = current_draw_count;
+
+        draw_commands_skinned.push_back(draw_command);
+
+        //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+        //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+        //const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+        //obj_data.albedo = mater.albedo;
+        //obj_data.normal = mater.normal;
+        //obj_data.met_rough = mater.met_rough;
+        //obj_data.emissive = mater.emissive;
+        //obj_data.amb_occ = mater.amb_occ;
+        //obj_data.emissive_factor = mater.emissive_factor;
+        //obj_data.metallic_factor = mater.metallic_factor; // 4
+        //obj_data.roughness_factor = mater.roughness_factor; // 4
+        //obj_data.base_color = mater.base_color;
+
+        per_object_data_skinned.push_back(obj_data);
+
+        current_draw_count++;
+    }
+
+    if (current_draw_count > 0) {
+        glNamedBufferSubData(draw_command_buffer_skinned, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands_skinned.data());
+
+        glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data_skinned.data());
+    }
+
 }
 
 void Renderer::indirect_depth_prepass(Player& player) {
@@ -450,6 +512,26 @@ void Renderer::render_indirect(Player& player) {
     // unbind
     //glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
     // unbind ssbos?
+
+    //
+    // skinned
+    //
+    shader = Shader_Manager::get_shader("skinned");
+    shader->use();
+    shader->set_mat4("vp", viewproj);
+    shader->set_uint("bone", bone);
+    //printf("bone: %d\n", bone);
+
+    vao = Model_Manager::get_rigged_vao();
+    glBindVertexArray(vao);
+
+    // draw commands and transform
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
+
+    glBindVertexArray(0);
 }
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {

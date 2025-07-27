@@ -115,6 +115,11 @@ void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, i
     //    this_window->height = this_window->target_height;
     //    this_window->renderer->resize(this_window->width, this_window->height);
     //}
+    // 
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+        this_window->renderer->bone++;
+    if (button == GLFW_MOUSE_BUTTON_RIGHT)
+        this_window->renderer->bone--;
 // 
     //if (this_window->renderer->editor_mode) {
     //    // Handle editor mode mouse button input

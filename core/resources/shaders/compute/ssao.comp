@@ -19,15 +19,15 @@ uniform float min_depth;
 uniform float power;
 
 vec3 reconstruct_view_pos(vec2 uv, float depth) {
-    float z_view = projection[3][2] / depth;
-    vec2 ndc_xy = uv * 2.0 - 1.0;
-    float x_view = ndc_xy.x * (-z_view) / projection[0][0];
-    float y_view = ndc_xy.y * (-z_view) / projection[1][1];
-    return vec3(x_view, y_view, z_view);
-
+    //float z_view = projection[3][2] / depth;
     //vec2 ndc_xy = uv * 2.0 - 1.0;
-    //vec4 view_pos = inverse_projection * vec4(ndc_xy, depth, 1.0);
-    //return view_pos.xyz / view_pos.w;
+    //float x_view = ndc_xy.x * (z_view) / projection[0][0];
+    //float y_view = ndc_xy.y * (z_view) / projection[1][1];
+    //return vec3(x_view, y_view, -z_view); 
+
+    vec2 ndc_xy = uv * 2.0 - 1.0;
+    vec4 view_pos_h = inverse_projection * vec4(ndc_xy, depth, 1.0);
+    return view_pos_h.xyz / view_pos_h.w;
 }
 
 vec3 reconstruct_normal(vec2 uv) {
@@ -40,7 +40,7 @@ vec3 reconstruct_normal(vec2 uv) {
     vec3 dx = pos_right - pos_center;
     vec3 dy = pos_up - pos_center;
     
-    vec3 normal = -normalize(cross(dy, dx));
+    vec3 normal = normalize(cross(dx, dy)); 
     return normal;
 }
 
@@ -53,9 +53,9 @@ void main() {
     vec2 uv = (vec2(coord) + 0.5) / screen_size;
     
     float center_depth = texture(depth_texture, uv).r;
-    //imageStore(ssao_output, coord, vec4(vec3(center_depth), 1.0));
+    imageStore(ssao_output, coord, vec4(vec3(center_depth), 1.0));
     //imageStore(ssao_output, coord, vec4(vec3(1.0, 0.0, 0.0), 1.0));
-    //return;
+    return;
     
     if (center_depth <= min_depth) {
         imageStore(ssao_output, coord, vec4(1.0));

@@ -3,13 +3,15 @@
 
 #include "glow.h"
 
+#include <glm/glm.hpp>
+
 #include "asset/material_manager.h"
 #include "util/aabb.h"
 
-struct Mesh_Info {
-	std::string mesh_name;
-	size_t index;
-};
+//struct Mesh_Info {
+//	std::string mesh_name;
+//	size_t index;
+//};
 
 struct Mesh_Indirect {
 	uint32_t base_vertex;
@@ -23,6 +25,8 @@ struct Mesh_Indirect {
 	uint32_t material_index;
 	// parent? 
 	glm::mat4 transform; // relative to parent
+
+	bool rigged;
 };
 
 class Model_Indirect {

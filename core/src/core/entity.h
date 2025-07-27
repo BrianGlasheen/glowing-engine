@@ -45,8 +45,6 @@ public:
     void check_moved();
     //Util::AABB get_aabb() const; // return model or physics, or mesh?
 
-    void draw(const Shader* shader, bool shadow_pass = false) const;
-
 // private:
     glm::vec3 position;
     glm::quat rotation;
