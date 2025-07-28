@@ -18,15 +18,12 @@ struct Mesh_Indirect {
 	uint32_t vertex_count;
 	uint32_t base_index;
 	uint32_t index_count;
-	// material info? idx to material buffer?
 	Util::AABB aabb;
 	std::string name;
 	
 	uint32_t material_index;
 	// parent? 
 	glm::mat4 transform; // relative to parent
-
-	bool rigged;
 };
 
 class Model_Indirect {
@@ -66,5 +63,4 @@ public:
 	// todo maybe huge buffer of all meshes or something
 	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;
-
 };

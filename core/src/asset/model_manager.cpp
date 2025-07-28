@@ -1,9 +1,10 @@
-#include <vector>
 #include <string>
 #include <cassert>
+#include <algorithm>
+#include <set>
 
 #include <stb_image.h>
-#include <algorithm>
+#include <glm/gtc/quaternion.hpp>
 
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
@@ -29,15 +30,31 @@ struct Rigged_Vertex {
     glm::vec4 bone_weights;
 };
 
-struct Bone {
+struct Bone { // cpu bone
     std::string name;
     uint32_t parent_bone; // idx into bone array of parent
     glm::mat4 inverse_bind;
 };
 
+struct GPU_Bone { // combine this bone with animation data to get skinned bone
+    uint32_t parent_bone;
+    glm::mat4 inverse_bind;
+};
+
+struct GPU_Bone_Skinned { // all a bone needs is a transform once it has been skinned
+    glm::mat4 transform;  // this will be gpu ssbo that vertices index into
+};
+
 struct Temp_Bone { // struct that will be allocated to map vertices to bones, then nuked
     uint32_t bone_index; // index into global bones
     float bone_weight;
+};
+
+struct Animation {
+    std::string name;
+    std::vector<Bone_Animation> bone_animations;
+    float duration;
+    bool loop;
 };
 
 // todo skeleton
@@ -82,11 +99,13 @@ namespace Model_Manager {
     static std::vector<Model_Indirect> m_rigged_models(0);
     static std::vector<std::string> m_rigged_model_names(0);
 
+    static std::vector<Animation> g_animations(0);
+    static std::vector<std::string> g_animation_names(0);
+
     //uint32_t get_num_meshes() { return num_meshes;  }
 
     bool indirect_model_loaded(const std::string& full_path, model_handle& model_index) {
         for (size_t i = 0; i < m_indirect_model_names.size(); i++) {
-            printf("%d %s\n", i, m_indirect_model_names[i].c_str());
             if (full_path == m_indirect_model_names[i]) {
                 model_index = i;
                 return true;
@@ -133,6 +152,13 @@ namespace Model_Manager {
         process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f), rigged, base_bone);
 
         model_ind.calculate_aabb();
+
+        if (rigged && scene->mNumAnimations > 0) {
+            printf("LOADING ANIMATIONS\n");
+            load_animations_from_scene(scene, base_bone);
+            for (Animation a : g_animations)
+                printf("%s, %d\n", a.name.c_str(), a.duration);
+        }
         
         if (rigged) {
             model_index = m_rigged_models.size();
@@ -143,6 +169,7 @@ namespace Model_Manager {
             printf("num rigged verts after model %d\n", g_rigged_vertices.size());
             printf("num rigged idx after model %d\n", g_rigged_indices.size());
             printf("num bones after model %d\n", g_bones.size());
+            printf("num animations loaded %d\n", g_animations.size());
         }
         else {
             model_index = m_indirect_models.size();
@@ -251,7 +278,7 @@ namespace Model_Manager {
         Mesh_Indirect mesh_ind = { 0 };
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading RIGGED mesh %s\n", mesh_ind.name.c_str());
-        mesh_ind.rigged = true;
+        //mesh_ind.rigged = true;
 
         mesh_ind.aabb.min = glm::vec3(FLT_MAX);
         mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
@@ -445,6 +472,173 @@ namespace Model_Manager {
 
         g_bones.push_back(new_bone);
         return g_bones.size() - 1;
+    }
+
+    void load_animations_from_scene(const aiScene* scene, uint32_t base_bone) {
+        for (uint32_t anim_idx = 0; anim_idx < scene->mNumAnimations; ++anim_idx) {
+            aiAnimation* ai_anim = scene->mAnimations[anim_idx];
+
+            Animation animation;
+            animation.name = ai_anim->mName.C_Str();
+            animation.duration = static_cast<float>(ai_anim->mDuration / ai_anim->mTicksPerSecond);
+
+            printf("Loading animation: %s, duration: %.2f seconds\n", animation.name.c_str(), animation.duration);
+
+            for (uint32_t channel_idx = 0; channel_idx < ai_anim->mNumChannels; ++channel_idx) {
+                aiNodeAnim* ai_channel = ai_anim->mChannels[channel_idx];
+
+                uint32_t bone_index = find_bone_index(ai_channel->mNodeName.C_Str(), base_bone);
+
+                Bone_Animation bone_anim;
+                bone_anim.bone_index = bone_index;
+
+                load_keyframes_from_channel(ai_channel, bone_anim, ai_anim->mTicksPerSecond);
+
+                animation.bone_animations.push_back(bone_anim);
+            }
+
+            g_animations.push_back(animation);
+            g_animation_names.push_back(animation.name);
+        }
+    }
+
+    void load_keyframes_from_channel(aiNodeAnim* channel, Bone_Animation& bone_anim, double ticks_per_second) {
+        uint32_t max_keys = std::max({ channel->mNumPositionKeys, channel->mNumRotationKeys, channel->mNumScalingKeys });
+
+        std::set<double> time_points;
+        for (uint32_t i = 0; i < channel->mNumPositionKeys; ++i)
+            time_points.insert(channel->mPositionKeys[i].mTime);
+
+        for (uint32_t i = 0; i < channel->mNumRotationKeys; ++i)
+            time_points.insert(channel->mRotationKeys[i].mTime);
+
+        for (uint32_t i = 0; i < channel->mNumScalingKeys; ++i)
+            time_points.insert(channel->mScalingKeys[i].mTime);
+
+
+        // Create keyframes for each unique time point
+        for (double time : time_points) {
+            Keyframe keyframe;
+            keyframe.time = static_cast<float>(time / ticks_per_second);
+
+            glm::vec3 position = interpolate_position(channel, time);
+            glm::quat rotation = interpolate_rotation(channel, time);
+            glm::vec3 scale = interpolate_scale(channel, time);
+
+            glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), position);
+            glm::mat4 rotation_matrix = glm::mat4_cast(rotation);
+            glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), scale);
+
+            keyframe.transform = translation_matrix * rotation_matrix * scale_matrix;
+
+            bone_anim.keyframes.push_back(keyframe);
+        }
+    }
+
+    glm::vec3 interpolate_position(aiNodeAnim* channel, double time) {
+        if (channel->mNumPositionKeys == 1) {
+            aiVector3D pos = channel->mPositionKeys[0].mValue;
+            return glm::vec3(pos.x, pos.y, pos.z);
+        }
+
+        uint32_t pos_index = 0;
+        for (uint32_t i = 0; i < channel->mNumPositionKeys - 1; ++i) {
+            if (time < channel->mPositionKeys[i + 1].mTime) {
+                pos_index = i;
+                break;
+            }
+        }
+
+        uint32_t next_pos_index = pos_index + 1;
+        if (next_pos_index >= channel->mNumPositionKeys) {
+            aiVector3D pos = channel->mPositionKeys[pos_index].mValue;
+            return glm::vec3(pos.x, pos.y, pos.z);
+        }
+
+        double delta_time = channel->mPositionKeys[next_pos_index].mTime - channel->mPositionKeys[pos_index].mTime;
+        float factor = static_cast<float>((time - channel->mPositionKeys[pos_index].mTime) / delta_time);
+
+        aiVector3D start = channel->mPositionKeys[pos_index].mValue;
+        aiVector3D end = channel->mPositionKeys[next_pos_index].mValue;
+
+        glm::vec3 start_pos(start.x, start.y, start.z);
+        glm::vec3 end_pos(end.x, end.y, end.z);
+
+        return glm::mix(start_pos, end_pos, factor);
+    }
+
+    glm::quat interpolate_rotation(aiNodeAnim* channel, double time) {
+        if (channel->mNumRotationKeys == 1) {
+            aiQuaternion rot = channel->mRotationKeys[0].mValue;
+            return glm::quat(rot.w, rot.x, rot.y, rot.z);
+        }
+
+        uint32_t rot_index = 0;
+        for (uint32_t i = 0; i < channel->mNumRotationKeys - 1; ++i) {
+            if (time < channel->mRotationKeys[i + 1].mTime) {
+                rot_index = i;
+                break;
+            }
+        }
+
+        uint32_t next_rot_index = rot_index + 1;
+        if (next_rot_index >= channel->mNumRotationKeys) {
+            aiQuaternion rot = channel->mRotationKeys[rot_index].mValue;
+            return glm::quat(rot.w, rot.x, rot.y, rot.z);
+        }
+
+        double delta_time = channel->mRotationKeys[next_rot_index].mTime - channel->mRotationKeys[rot_index].mTime;
+        float factor = static_cast<float>((time - channel->mRotationKeys[rot_index].mTime) / delta_time);
+
+        aiQuaternion start = channel->mRotationKeys[rot_index].mValue;
+        aiQuaternion end = channel->mRotationKeys[next_rot_index].mValue;
+
+        glm::quat start_quat(start.w, start.x, start.y, start.z);
+        glm::quat end_quat(end.w, end.x, end.y, end.z);
+
+        return glm::normalize(glm::slerp(start_quat, end_quat, factor)); // todo maybe use mix
+    }
+
+    glm::vec3 interpolate_scale(aiNodeAnim* channel, double time) {
+        if (channel->mNumScalingKeys == 1) {
+            aiVector3D scale = channel->mScalingKeys[0].mValue;
+            return glm::vec3(scale.x, scale.y, scale.z);
+        }
+
+        uint32_t scale_index = 0;
+        for (uint32_t i = 0; i < channel->mNumScalingKeys - 1; ++i) {
+            if (time < channel->mScalingKeys[i + 1].mTime) {
+                scale_index = i;
+                break;
+            }
+        }
+
+        uint32_t next_scale_index = scale_index + 1;
+        if (next_scale_index >= channel->mNumScalingKeys) {
+            aiVector3D scale = channel->mScalingKeys[scale_index].mValue;
+            return glm::vec3(scale.x, scale.y, scale.z);
+        }
+
+        double delta_time = channel->mScalingKeys[next_scale_index].mTime - channel->mScalingKeys[scale_index].mTime;
+        float factor = static_cast<float>((time - channel->mScalingKeys[scale_index].mTime) / delta_time);
+
+        aiVector3D start = channel->mScalingKeys[scale_index].mValue;
+        aiVector3D end = channel->mScalingKeys[next_scale_index].mValue;
+
+        glm::vec3 start_scale(start.x, start.y, start.z);
+        glm::vec3 end_scale(end.x, end.y, end.z);
+
+        return glm::mix(start_scale, end_scale, factor);
+    }
+
+    uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone) {
+        for (uint32_t i = base_bone; i < g_bones.size(); ++i) {
+            if (g_bones[i].name == bone_name) {
+                return i;
+            }
+        }
+        printf("bone %s not found\n", bone_name.c_str());
+        assert(false);
     }
 
     Model_Indirect get_model_ind(uint32_t idx) {

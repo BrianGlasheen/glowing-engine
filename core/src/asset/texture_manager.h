@@ -2,6 +2,7 @@
 #define TEXTURE_MANAGER_H
 
 #include <string>
+#include <vector>
 
 typedef size_t texture_handle;
 

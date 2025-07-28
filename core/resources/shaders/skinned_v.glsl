@@ -24,8 +24,16 @@ struct Per_Object_Data {
     vec4 base_color;
 };
 
+struct GPU_Bone_Skinned {
+    mat4 transform;
+};
+
 layout(std430, binding = 0) readonly buffer per_object_ssbo {
     Per_Object_Data per_object_data[];
+};
+
+layout(std430, binding = 1) readonly buffer bones_ssbo {
+    GPU_Bone_Skinned bones[];
 };
 
 out vec3 FragPos;
@@ -63,7 +71,8 @@ void main() {
     
     mat4 model = obj_data.model_matrix;
 
-    FragPos = vec3(model * vec4(aPos, 1.0));
+    FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones
+
     //Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
     //TexCoord = aTexCoord;
     //Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
@@ -75,5 +84,5 @@ void main() {
 
     //gl_Position = vp * vec4(0.0, 5.0, 0.0, 1.0); // Should appear at origin
 
-    gl_Position = vp * model * vec4(aPos, 1.0);
+    gl_Position = vp * model * vec4(aPos, 1.0); // todo change this to use bones
 }
