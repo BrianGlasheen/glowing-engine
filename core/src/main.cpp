@@ -125,10 +125,12 @@ int main()
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
     }
-
     model_handle raccoon = Model_Manager::load_rigged_model("tiger/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("clown/scene.gltf");
-    //model_handle raccoon = Model_Manager::load_rigged_model("whale/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("raccoon/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("dragon/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
 
     {
         //glm::vec3 pos = glm::vec3(0.0f);
@@ -200,16 +202,17 @@ int main()
     particle_ssbo.init();
     particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
     ///////////////////////////////////////////////////////////
+    Model_Manager::setup_bone_ssbo();
 
     // render loop
     uint32_t frame = 0;
     printf("RENDERING\n");
     while (window.open()) {
         legit::Profiler::Instance().BeginFrame();
-        float currentFrame = window.get_time();
+        float current_time = window.get_time();
 
-        delta_time = currentFrame - last_frame;
-        last_frame = currentFrame;
+        delta_time = current_time - last_frame;
+        last_frame = current_time;
 
         //if (!(frame++ % 10)) {
         //    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
@@ -219,6 +222,8 @@ int main()
         //    player_facing.updateText("dir 1 00 1 00 1 00");*/
         //    player_holding.update_text("hand " + player.active_weapon->name);
         //}
+        Model_Manager::update_bones_from_animation(0, current_time);
+        //printf("ct: %f\n", current_time);
 
         //if (!editor_mode) {
             player.controller_step(window.get_window(), delta_time, scene);

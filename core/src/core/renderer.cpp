@@ -395,16 +395,16 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
         //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
         //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-        //const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
-        //obj_data.albedo = mater.albedo;
-        //obj_data.normal = mater.normal;
-        //obj_data.met_rough = mater.met_rough;
-        //obj_data.emissive = mater.emissive;
-        //obj_data.amb_occ = mater.amb_occ;
-        //obj_data.emissive_factor = mater.emissive_factor;
-        //obj_data.metallic_factor = mater.metallic_factor; // 4
-        //obj_data.roughness_factor = mater.roughness_factor; // 4
-        //obj_data.base_color = mater.base_color;
+        const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+        obj_data.albedo = mater.albedo;
+        obj_data.normal = mater.normal;
+        obj_data.met_rough = mater.met_rough;
+        obj_data.emissive = mater.emissive;
+        obj_data.amb_occ = mater.amb_occ;
+        obj_data.emissive_factor = mater.emissive_factor;
+        obj_data.metallic_factor = mater.metallic_factor; // 4
+        obj_data.roughness_factor = mater.roughness_factor; // 4
+        obj_data.base_color = mater.base_color;
 
         per_object_data_skinned.push_back(obj_data);
 
@@ -528,6 +528,7 @@ void Renderer::render_indirect(Player& player) {
     // draw commands and transform
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_bone_ssbo());
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
 

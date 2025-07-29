@@ -32,16 +32,17 @@ layout(std430, binding = 0) readonly buffer per_object_ssbo {
     Per_Object_Data per_object_data[];
 };
 
+
 layout(std430, binding = 1) readonly buffer bones_ssbo {
     GPU_Bone_Skinned bones[];
 };
 
-out vec3 FragPos;
-out vec3 Normal;
+out vec3 FragPos;  // position in world space
+out vec3 Normal;   // normal in world space
 out vec2 TexCoord;
 out vec3 Tangentout;
 out vec3 Bitangentout;
-out flat uvec4 BonesOut;
+out uvec4 BonesOut;
 out vec4 BoneWeightsOut;
 
 out flat vec4 base_color_factor;
@@ -59,30 +60,34 @@ uniform mat4 vp;
 void main() {
     Per_Object_Data obj_data = per_object_data[gl_DrawID];
 
-    //base_color_factor = obj_data.base_color;
-    //albedo_handle = obj_data.albedo;
-    //normal_handle = obj_data.normal;
-    //met_rough_handle = obj_data.met_rough;
-    //emissive_handle = obj_data.emissive;
-    //emissive = obj_data.emissive_factor;
-    //metallic_factor = obj_data.metallic_factor;
-    //roughness_factor = obj_data.roughness_factor;
-    //amb_occ_handle = obj_data.amb_occ;
-    
+    base_color_factor = obj_data.base_color;
+    albedo_handle = obj_data.albedo;
+    normal_handle = obj_data.normal;
+    met_rough_handle = obj_data.met_rough;
+    emissive_handle = obj_data.emissive;
+    emissive = obj_data.emissive_factor;
+    metallic_factor = obj_data.metallic_factor;
+    roughness_factor = obj_data.roughness_factor;
+    amb_occ_handle = obj_data.amb_occ;
+
     mat4 model = obj_data.model_matrix;
 
-    FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones
+    mat4 bone_transform = bones[BoneIds[0]].transform * BoneWeights[0];
+    bone_transform += bones[BoneIds[1]].transform * BoneWeights[1];
+    bone_transform += bones[BoneIds[2]].transform * BoneWeights[2];
+    bone_transform += bones[BoneIds[3]].transform * BoneWeights[3];
+    vec4 skinned_pos = bone_transform * vec4(aPos, 1.0);
+    
+    //FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones
+    FragPos = vec3(model * skinned_pos);
 
-    //Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
-    //TexCoord = aTexCoord;
-    //Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
-    //Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
-    //Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
-    //Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
+    TexCoord = aTexCoord;
+    Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
+    Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
     BonesOut = BoneIds;
     BoneWeightsOut = BoneWeights;
 
-    //gl_Position = vp * vec4(0.0, 5.0, 0.0, 1.0); // Should appear at origin
-
-    gl_Position = vp * model * vec4(aPos, 1.0); // todo change this to use bones
+    gl_Position = vp * model * skinned_pos;
 }

@@ -1,13 +1,13 @@
+#include "asset/model_manager.h"
+
 #include <string>
 #include <cassert>
 #include <algorithm>
 #include <set>
 
 #include <stb_image.h>
-#include <glm/gtc/quaternion.hpp>
 
 #include "asset/texture_manager.h"
-#include "asset/model_manager.h"
 #include "asset/material_manager.h"
 
 #include "core/opengl.h"
@@ -36,10 +36,10 @@ struct Bone { // cpu bone
     glm::mat4 inverse_bind;
 };
 
-struct GPU_Bone { // combine this bone with animation data to get skinned bone
-    uint32_t parent_bone;
-    glm::mat4 inverse_bind;
-};
+//struct GPU_Bone { // combine this bone with animation data to get skinned bone
+//    uint32_t parent_bone;
+//    glm::mat4 inverse_bind;
+//};
 
 struct GPU_Bone_Skinned { // all a bone needs is a transform once it has been skinned
     glm::mat4 transform;  // this will be gpu ssbo that vertices index into
@@ -96,6 +96,7 @@ namespace Model_Manager {
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
     static std::vector<uint32_t> g_rigged_indices(0);
     static std::vector<Bone> g_bones(0);
+    static std::vector<GPU_Bone_Skinned> g_skinned_bones(0); // todo compute
     static std::vector<Model_Indirect> m_rigged_models(0);
     static std::vector<std::string> m_rigged_model_names(0);
 
@@ -153,7 +154,10 @@ namespace Model_Manager {
 
         model_ind.calculate_aabb();
 
+
         if (rigged && scene->mNumAnimations > 0) {
+            update_bone_parents(scene, base_bone, g_bones.size());
+
             printf("LOADING ANIMATIONS\n");
             load_animations_from_scene(scene, base_bone);
             for (Animation a : g_animations)
@@ -348,6 +352,7 @@ namespace Model_Manager {
             }
 
             uint32_t num_bones = vertex_bones.size() > 4 ? 4 : vertex_bones.size();
+            std::sort(vertex_bones.begin(), vertex_bones.end(), [](Temp_Bone f1, Temp_Bone f2){ return f1.bone_weight > f2.bone_weight; });
             for (uint32_t i = 0; i < num_bones; i++) {
                 vertex.bone_ids[i] = vertex_bones[i].bone_index;
                 vertex.bone_weights[i] = vertex_bones[i].bone_weight;
@@ -468,7 +473,7 @@ namespace Model_Manager {
         Bone new_bone;
         new_bone.name = bone_name;
         new_bone.inverse_bind = assimp_to_glm(bone->mOffsetMatrix);
-        //new_bone.parent_bone = find_parent_bone_index(bone_name, scene); todo
+        new_bone.parent_bone = UINT32_MAX;
 
         g_bones.push_back(new_bone);
         return g_bones.size() - 1;
@@ -503,132 +508,29 @@ namespace Model_Manager {
     }
 
     void load_keyframes_from_channel(aiNodeAnim* channel, Bone_Animation& bone_anim, double ticks_per_second) {
-        uint32_t max_keys = std::max({ channel->mNumPositionKeys, channel->mNumRotationKeys, channel->mNumScalingKeys });
-
-        std::set<double> time_points;
-        for (uint32_t i = 0; i < channel->mNumPositionKeys; ++i)
-            time_points.insert(channel->mPositionKeys[i].mTime);
-
-        for (uint32_t i = 0; i < channel->mNumRotationKeys; ++i)
-            time_points.insert(channel->mRotationKeys[i].mTime);
-
-        for (uint32_t i = 0; i < channel->mNumScalingKeys; ++i)
-            time_points.insert(channel->mScalingKeys[i].mTime);
-
-
-        // Create keyframes for each unique time point
-        for (double time : time_points) {
-            Keyframe keyframe;
-            keyframe.time = static_cast<float>(time / ticks_per_second);
-
-            glm::vec3 position = interpolate_position(channel, time);
-            glm::quat rotation = interpolate_rotation(channel, time);
-            glm::vec3 scale = interpolate_scale(channel, time);
-
-            glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), position);
-            glm::mat4 rotation_matrix = glm::mat4_cast(rotation);
-            glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), scale);
-
-            keyframe.transform = translation_matrix * rotation_matrix * scale_matrix;
-
-            bone_anim.keyframes.push_back(keyframe);
-        }
-    }
-
-    glm::vec3 interpolate_position(aiNodeAnim* channel, double time) {
-        if (channel->mNumPositionKeys == 1) {
-            aiVector3D pos = channel->mPositionKeys[0].mValue;
-            return glm::vec3(pos.x, pos.y, pos.z);
+        for (uint32_t i = 0; i < channel->mNumPositionKeys; ++i) {
+            Position_Keyframe keyframe;
+            aiVector3D pos = channel->mPositionKeys[i].mValue;
+            keyframe.position = glm::vec3(pos.x, pos.y, pos.z);
+            keyframe.time = static_cast<float>(channel->mPositionKeys[i].mTime / ticks_per_second);
+            bone_anim.position_keyframes.push_back(keyframe);
         }
 
-        uint32_t pos_index = 0;
-        for (uint32_t i = 0; i < channel->mNumPositionKeys - 1; ++i) {
-            if (time < channel->mPositionKeys[i + 1].mTime) {
-                pos_index = i;
-                break;
-            }
+        for (uint32_t i = 0; i < channel->mNumRotationKeys; ++i) {
+            Rotation_Keyframe keyframe;
+            aiQuaternion rot = channel->mRotationKeys[i].mValue;
+            keyframe.rotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
+            keyframe.time = static_cast<float>(channel->mRotationKeys[i].mTime / ticks_per_second);
+            bone_anim.rotation_keyframes.push_back(keyframe);
         }
 
-        uint32_t next_pos_index = pos_index + 1;
-        if (next_pos_index >= channel->mNumPositionKeys) {
-            aiVector3D pos = channel->mPositionKeys[pos_index].mValue;
-            return glm::vec3(pos.x, pos.y, pos.z);
+        for (uint32_t i = 0; i < channel->mNumScalingKeys; ++i) {
+            Scale_Keyframe keyframe;
+            aiVector3D scale = channel->mScalingKeys[i].mValue;
+            keyframe.scale = glm::vec3(scale.x, scale.y, scale.z);
+            keyframe.time = static_cast<float>(channel->mScalingKeys[i].mTime / ticks_per_second);
+            bone_anim.scale_keyframes.push_back(keyframe);
         }
-
-        double delta_time = channel->mPositionKeys[next_pos_index].mTime - channel->mPositionKeys[pos_index].mTime;
-        float factor = static_cast<float>((time - channel->mPositionKeys[pos_index].mTime) / delta_time);
-
-        aiVector3D start = channel->mPositionKeys[pos_index].mValue;
-        aiVector3D end = channel->mPositionKeys[next_pos_index].mValue;
-
-        glm::vec3 start_pos(start.x, start.y, start.z);
-        glm::vec3 end_pos(end.x, end.y, end.z);
-
-        return glm::mix(start_pos, end_pos, factor);
-    }
-
-    glm::quat interpolate_rotation(aiNodeAnim* channel, double time) {
-        if (channel->mNumRotationKeys == 1) {
-            aiQuaternion rot = channel->mRotationKeys[0].mValue;
-            return glm::quat(rot.w, rot.x, rot.y, rot.z);
-        }
-
-        uint32_t rot_index = 0;
-        for (uint32_t i = 0; i < channel->mNumRotationKeys - 1; ++i) {
-            if (time < channel->mRotationKeys[i + 1].mTime) {
-                rot_index = i;
-                break;
-            }
-        }
-
-        uint32_t next_rot_index = rot_index + 1;
-        if (next_rot_index >= channel->mNumRotationKeys) {
-            aiQuaternion rot = channel->mRotationKeys[rot_index].mValue;
-            return glm::quat(rot.w, rot.x, rot.y, rot.z);
-        }
-
-        double delta_time = channel->mRotationKeys[next_rot_index].mTime - channel->mRotationKeys[rot_index].mTime;
-        float factor = static_cast<float>((time - channel->mRotationKeys[rot_index].mTime) / delta_time);
-
-        aiQuaternion start = channel->mRotationKeys[rot_index].mValue;
-        aiQuaternion end = channel->mRotationKeys[next_rot_index].mValue;
-
-        glm::quat start_quat(start.w, start.x, start.y, start.z);
-        glm::quat end_quat(end.w, end.x, end.y, end.z);
-
-        return glm::normalize(glm::slerp(start_quat, end_quat, factor)); // todo maybe use mix
-    }
-
-    glm::vec3 interpolate_scale(aiNodeAnim* channel, double time) {
-        if (channel->mNumScalingKeys == 1) {
-            aiVector3D scale = channel->mScalingKeys[0].mValue;
-            return glm::vec3(scale.x, scale.y, scale.z);
-        }
-
-        uint32_t scale_index = 0;
-        for (uint32_t i = 0; i < channel->mNumScalingKeys - 1; ++i) {
-            if (time < channel->mScalingKeys[i + 1].mTime) {
-                scale_index = i;
-                break;
-            }
-        }
-
-        uint32_t next_scale_index = scale_index + 1;
-        if (next_scale_index >= channel->mNumScalingKeys) {
-            aiVector3D scale = channel->mScalingKeys[scale_index].mValue;
-            return glm::vec3(scale.x, scale.y, scale.z);
-        }
-
-        double delta_time = channel->mScalingKeys[next_scale_index].mTime - channel->mScalingKeys[scale_index].mTime;
-        float factor = static_cast<float>((time - channel->mScalingKeys[scale_index].mTime) / delta_time);
-
-        aiVector3D start = channel->mScalingKeys[scale_index].mValue;
-        aiVector3D end = channel->mScalingKeys[next_scale_index].mValue;
-
-        glm::vec3 start_scale(start.x, start.y, start.z);
-        glm::vec3 end_scale(end.x, end.y, end.z);
-
-        return glm::mix(start_scale, end_scale, factor);
     }
 
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone) {
@@ -741,6 +643,203 @@ namespace Model_Manager {
     //    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     //}
 
+    bool is_bone_name(const std::string& name, uint32_t base_bone) {
+        for (uint32_t i = base_bone; i < g_bones.size(); i++) {
+            if (g_bones[i].name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    aiNode* find_node_by_name(aiNode* node, const std::string& name) {
+        if (node->mName.C_Str() == name) {
+            return node;
+        }
+
+        for (uint32_t i = 0; i < node->mNumChildren; i++) {
+            aiNode* found = find_node_by_name(node->mChildren[i], name);
+            if (found) return found;
+        }
+
+        return nullptr;
+    }
+
+    uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene* scene, uint32_t base_bone) {
+        aiNode* bone_node = find_node_by_name(scene->mRootNode, bone_name);
+        if (!bone_node || !bone_node->mParent) {
+            return UINT32_MAX; // No parent or root node
+        }
+
+        aiNode* current_parent = bone_node->mParent;
+        while (current_parent) {
+            std::string parent_name(current_parent->mName.C_Str());
+
+            if (is_bone_name(parent_name, base_bone)) {
+                for (uint32_t i = base_bone; i < g_bones.size(); i++) {
+                    if (g_bones[i].name == parent_name) {
+                        return i;
+                    }
+                }
+            }
+
+            current_parent = current_parent->mParent;
+        }
+
+        return UINT32_MAX; // bone is parent
+    }
+
+    void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone) {
+        printf("[BONE] Fixing parent relationships for bones %d to %d\n", base_bone, end_bone - 1);
+
+        for (uint32_t i = base_bone; i < end_bone; i++) {
+            uint32_t parent_idx = find_parent_bone_index(g_bones[i].name, scene, base_bone);
+            g_bones[i].parent_bone = parent_idx;
+
+            if (parent_idx != UINT32_MAX) {
+                printf("[BONE] %s parent is %s (index %d)\n",
+                    g_bones[i].name.c_str(),
+                    g_bones[parent_idx].name.c_str(),
+                    parent_idx);
+            }
+            else {
+                printf("[BONE] %s is a root bone\n", g_bones[i].name.c_str());
+            }
+        }
+    }
+
+    uint32_t bone_ssbo;
+
+    void setup_bone_ssbo() {
+        g_skinned_bones.resize(g_bones.size());
+
+        for (size_t i = 0; i < g_skinned_bones.size(); i++) {
+            g_skinned_bones[i].transform = glm::mat4(1.0f);
+        }
+
+        glGenBuffers(1, &bone_ssbo);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, bone_ssbo);
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+            g_skinned_bones.size() * sizeof(GPU_Bone_Skinned),
+            g_skinned_bones.data(),
+            GL_DYNAMIC_DRAW);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_ssbo);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+        printf("Created bone SSBO with %zu bones\n", g_skinned_bones.size());
+    }
+    
+    //
+    //
+
+    glm::mat4 get_bone_local_transform_from_animation(uint32_t bone_index, uint32_t animation_index, float time) {
+        if (animation_index >= g_animations.size()) {
+            return glm::mat4(1.0f);
+        }
+        const Animation& anim = g_animations[animation_index];
+
+        glm::vec3 position(0.0f);
+        glm::quat rotation(1.0f, 0.0f, 0.0f, 0.0f);
+        glm::vec3 scale(1.0f);
+
+        for (const Bone_Animation& bone_anim : anim.bone_animations) {
+            if (bone_anim.bone_index == bone_index) {
+                position = sample_position_keyframes(bone_anim.position_keyframes, time);
+                rotation = sample_rotation_keyframes(bone_anim.rotation_keyframes, time);
+                scale = sample_scale_keyframes(bone_anim.scale_keyframes, time);
+                break;
+            }
+        }
+
+        glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+        glm::mat4 rotation_mat = glm::mat4_cast(rotation);
+        glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
+
+        return translation * rotation_mat * scale_mat;
+    }
+
+    glm::mat4 get_bone_world_transform_naive(uint32_t bone_index, uint32_t animation_index, float time) {
+        if (bone_index >= g_bones.size()) {
+            return glm::mat4(1.0f);
+        }
+
+        glm::mat4 local_transform = get_bone_local_transform_from_animation(bone_index, animation_index, time);
+
+        uint32_t parent_index = g_bones[bone_index].parent_bone;
+        if (parent_index != UINT32_MAX && parent_index < g_bones.size()) {
+            glm::mat4 parent_world = get_bone_world_transform_naive(parent_index, animation_index, time);
+            return parent_world * local_transform;
+        }
+
+        return local_transform;
+    }
+
+    void update_bones_from_animation(uint32_t animation_index, float time) {
+        if (animation_index < g_animations.size()) {
+            const Animation& anim = g_animations[animation_index];
+            if (anim.loop && time > anim.duration)
+                time = fmod(time, anim.duration);
+            else if (time > anim.duration)
+                time = anim.duration;
+        }
+
+        for (size_t i = 0; i < g_bones.size(); i++)
+            g_skinned_bones[i].transform = get_bone_world_transform_naive(i, animation_index, time) * g_bones[i].inverse_bind;
+
+        // printf("%f\n", time);
+        // const glm::mat4& m = g_skinned_bones[10].transform;
+        // printf("  [%.3f %.3f %.3f %.3f]\n", m[0][0], m[1][0], m[2][0], m[3][0]);
+        // printf("  [%.3f %.3f %.3f %.3f]\n", m[0][1], m[1][1], m[2][1], m[3][1]);
+        // printf("  [%.3f %.3f %.3f %.3f]\n", m[0][2], m[1][2], m[2][2], m[3][2]);
+        // printf("  [%.3f %.3f %.3f %.3f]\n", m[0][3], m[1][3], m[2][3], m[3][3]);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, bone_ssbo);
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, g_skinned_bones.size() * sizeof(glm::mat4), g_skinned_bones.data());
+    }
+
+
+
+    glm::vec3 sample_position_keyframes(const std::vector<Position_Keyframe>& keyframes, float time) {
+        if (keyframes.empty()) return glm::vec3(0.0f);
+        if (keyframes.size() == 1) return keyframes[0].position;
+
+        for (size_t i = 0; i < keyframes.size() - 1; i++) {
+            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
+                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
+                return glm::mix(keyframes[i].position, keyframes[i + 1].position, t);
+            }
+        }
+        return keyframes.back().position;
+    }
+
+    glm::quat sample_rotation_keyframes(const std::vector<Rotation_Keyframe>& keyframes, float time) {
+        if (keyframes.empty()) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        if (keyframes.size() == 1) return keyframes[0].rotation;
+
+        for (size_t i = 0; i < keyframes.size() - 1; i++) {
+            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
+                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
+                return glm::normalize(glm::slerp(keyframes[i].rotation, keyframes[i + 1].rotation, t));
+            }
+        }
+        return keyframes.back().rotation;
+    }
+
+    glm::vec3 sample_scale_keyframes(const std::vector<Scale_Keyframe>& keyframes, float time) {
+        if (keyframes.empty()) return glm::vec3(1.0f);
+        if (keyframes.size() == 1) return keyframes[0].scale;
+
+        for (size_t i = 0; i < keyframes.size() - 1; i++) {
+            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
+                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
+                return glm::mix(keyframes[i].scale, keyframes[i + 1].scale, t);
+            }
+        }
+        return keyframes.back().scale;
+    }
+
+    uint32_t get_bone_ssbo() { return bone_ssbo; }
     uint32_t get_big_vao() { return big_buffer_vao; }
     uint32_t get_rigged_vao() { return rigged_vao; }
 }
