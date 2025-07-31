@@ -202,7 +202,7 @@ int main()
     particle_ssbo.init();
     particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
     ///////////////////////////////////////////////////////////
-    Model_Manager::setup_bone_ssbo();
+    Model_Manager::setup_ssbos();
 
     // render loop
     uint32_t frame = 0;
@@ -222,7 +222,13 @@ int main()
         //    player_facing.updateText("dir 1 00 1 00 1 00");*/
         //    player_holding.update_text("hand " + player.active_weapon->name);
         //}
-        Model_Manager::update_bones_from_animation(0, current_time);
+        {
+            PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
+            if (player.key_toggles[(unsigned)'c'])
+                Model_Manager::update_bones_from_animation(0, current_time);
+            else
+                Model_Manager::update_bones_from_animation_compute(0, current_time);
+        }
         //printf("ct: %f\n", current_time);
 
         //if (!editor_mode) {

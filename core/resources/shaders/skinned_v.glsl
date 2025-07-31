@@ -81,7 +81,7 @@ void main() {
     //FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones
     FragPos = vec3(model * skinned_pos);
 
-    FragPos = vec3(model * vec4(aPos, 1.0));
+    //FragPos = vec3(model * vec4(aPos, 1.0));
     Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
     TexCoord = aTexCoord;
     Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);

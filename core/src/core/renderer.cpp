@@ -528,7 +528,7 @@ void Renderer::render_indirect(Player& player) {
     // draw commands and transform
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_bone_ssbo());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
 
@@ -580,7 +580,8 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         if (bloom_enabled)
             bloom_pass();
     }
-    draw_light_quads(player);
+    if (do_draw_light_quads)
+        draw_light_quads(player);
     {
         PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
         composite();
@@ -798,7 +799,8 @@ void Renderer::imgui_pass() {
     ImGui::SliderInt("ssao_samples", &ssao_samples, 0, 64);
     ImGui::SliderFloat("min_depth", &min_depth, -0.01, 0.2f);
     ImGui::SliderFloat("power", &power, -2, 4);
-    
+    ImGui::Checkbox("light quads", &do_draw_light_quads);
+
     ImGui::End();
 }
 

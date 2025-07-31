@@ -113,6 +113,7 @@ public:
     float power = 1.2;
 
     bool use_depth_prepass = false;
+    bool do_draw_light_quads = false;
 
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;

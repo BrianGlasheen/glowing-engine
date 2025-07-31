@@ -1,27 +1,18 @@
+particle class
+
 world representation
     spline geom
     heightmap
     walls
     floors
 
-skeletal animation
-
-make ssimp good (bones)
-
 weapon / holdable class
     animate weapons (same system, blending, IK)
 
-framebuffer class
-
 shadow atlas
 
-clustered forward rendering / deferred
+post processing (ssao + more maybe)
 
-multidraw + single mesh buffer
-
-post processing
-
-GI!!!!!
 
 controllers
     physics (jolt?)
@@ -31,8 +22,8 @@ controllers
     interaction
     player (use)
 
-particle class
 
-move compute into shader manager
+weather atmosphere rendering
 
-weather rendering
+deferred
+GI!!!!!

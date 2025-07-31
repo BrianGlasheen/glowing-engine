@@ -21,6 +21,7 @@ struct Position_Keyframe {
 struct Rotation_Keyframe {
     glm::quat rotation;
     float time;
+    uint32_t padding[3];
 };
 struct Scale_Keyframe{
     glm::vec3 scale;
@@ -33,6 +34,17 @@ struct Bone_Animation {
     std::vector<Position_Keyframe> position_keyframes;
     std::vector<Rotation_Keyframe> rotation_keyframes;
     std::vector<Scale_Keyframe> scale_keyframes;
+};
+
+struct GPU_Bone_Animation {
+    uint32_t bone_index;
+    uint32_t base_position_keyframe;
+    uint32_t position_keyframe_count;
+    uint32_t base_rotation_keyframe;
+    uint32_t rotation_keyframe_count;
+    uint32_t base_scale_keyframe;
+    uint32_t scale_keyframe_count;
+    uint32_t padding;
 };
 
 namespace Model_Manager {
@@ -69,11 +81,12 @@ namespace Model_Manager {
     void setup_buffers();
     //void upload_data();
 
-    void setup_bone_ssbo(); // todo rm everything below
+    void setup_ssbos(); // todo rm everything below
     bool is_bone_name(const std::string& name, uint32_t base_bone);
     aiNode* find_node_by_name(aiNode* node, const std::string& name);
     uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene * scene, uint32_t base_bone);
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
+    void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
 
     glm::vec3 sample_position_keyframes(const std::vector<Position_Keyframe>& keyframes, float time);
     glm::quat sample_rotation_keyframes(const std::vector<Rotation_Keyframe>& keyframes, float time);
@@ -82,8 +95,11 @@ namespace Model_Manager {
     glm::mat4 get_bone_local_transform_from_animation(uint32_t bone_index, uint32_t animation_index, float time);
     glm::mat4 get_bone_world_transform_naive(uint32_t bone_index, uint32_t animation_index, float time);
     void update_bones_from_animation(uint32_t animation_index, float time);
+    void update_bones_from_animation_compute(uint32_t animation_index, float time);
 
     uint32_t get_bone_ssbo();
+    uint32_t get_skinned_bone_ssbo();
+
     uint32_t get_big_vao();
     uint32_t get_rigged_vao();
 }

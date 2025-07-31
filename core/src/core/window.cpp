@@ -34,7 +34,7 @@ int Window::init(int w, int h, const char* title) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwSwapInterval(1);
-    // glfwSwapInterval(0);
+    //glfwSwapInterval(0);
     
     return 0;
 }

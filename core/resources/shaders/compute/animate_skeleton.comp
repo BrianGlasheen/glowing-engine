@@ -1,0 +1,351 @@
+#version 460 core
+layout(local_size_x = 64) in;
+
+struct GPU_Bone {
+    mat4 inverse_bind;
+    uint parent_bone;
+    uint padding[3];
+};
+
+struct GPU_Bone_Skinned {
+    mat4 transform;
+};
+
+struct Position_Keyframe {
+    vec3 position;
+    float time;
+};
+
+struct quat {
+    float x, y, z, w;
+};
+
+struct Rotation_Keyframe {
+    quat rotation;
+    float time;
+    uint padding[3];
+};
+
+struct Scale_Keyframe{
+    vec3 scale;
+    float time;
+};
+
+struct GPU_Bone_Animation {
+    uint bone_index;
+    uint base_position_keyframe;
+    uint position_keyframe_count;
+    uint base_rotation_keyframe;
+    uint rotation_keyframe_count;
+    uint base_scale_keyframe;
+    uint scale_keyframe_count;
+    uint padding;
+};
+
+layout(std430, binding = 1) buffer Leaf_Bones {
+    uint leaf_bones[];
+};
+
+layout(std430, binding = 2) buffer GPU_Bones {
+    GPU_Bone gpu_bones[];
+};
+
+layout(std430, binding = 3) buffer GPU_Bones_Skinned {
+    GPU_Bone_Skinned gpu_bones_skinned[];
+};
+
+layout(std430, binding = 4) buffer Absolute_Bone_Transform {
+    mat4 absolute_bone_transforms[];
+};
+
+layout(std430, binding = 5) buffer Transform_Times {
+    float transform_times[];
+};
+
+layout(std430, binding = 6) buffer GPU_Bone_Animations {
+    GPU_Bone_Animation gpu_bone_animations[];
+};
+
+layout(std430, binding = 7) buffer Position_Keyframes {
+    Position_Keyframe position_keyframes[];
+};
+
+layout(std430, binding = 8) buffer Rotation_Keyframes {
+    Rotation_Keyframe rotation_keyframes[];
+};
+
+layout(std430, binding = 9) buffer Scale_Keyframes {
+    Scale_Keyframe scale_keyframes[];
+};
+
+// todo add animation buffer
+
+uniform float dispatch_time;
+
+uniform uint max_leaf; // todo pack into animate cmd + base leaf + base animation + animation_count + output offset
+uniform uint animation_count;
+
+int find_bone_animation(uint bone_idx) { // todo dont do for each keyframe, just once
+    for (uint i = 0; i < animation_count; i++) {
+        if (gpu_bone_animations[i].bone_index == bone_idx) {
+            return int(i);
+        }
+    }
+    return -1;
+}
+
+vec3 interpolate_position(uint bone_idx, float time) {
+    int anim_idx = find_bone_animation(bone_idx);
+    if (anim_idx == -1) {
+        return vec3(0.0);
+    }
+    
+    GPU_Bone_Animation anim = gpu_bone_animations[anim_idx];
+    
+    if (anim.position_keyframe_count == 0) {
+        return vec3(0.0);
+    }
+    
+    if (anim.position_keyframe_count == 1) {
+        return position_keyframes[anim.base_position_keyframe].position;
+    }
+    
+    for (uint i = 0; i < anim.position_keyframe_count - 1; i++) {
+        uint idx1 = anim.base_position_keyframe + i;
+        uint idx2 = anim.base_position_keyframe + i + 1;
+        
+        float time1 = position_keyframes[idx1].time;
+        float time2 = position_keyframes[idx2].time;
+        
+        if (time >= time1 && time <= time2) {
+            float t = (time - time1) / (time2 - time1);
+            return mix(position_keyframes[idx1].position, position_keyframes[idx2].position, t);
+        }
+    }
+    
+    return position_keyframes[anim.base_position_keyframe + anim.position_keyframe_count - 1].position;
+}
+
+quat slerp(quat a, quat b, float t) {
+    float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    
+    if (dot < 0.0) {
+        b.x = -b.x;
+        b.y = -b.y;
+        b.z = -b.z;
+        b.w = -b.w;
+        dot = -dot;
+    }
+    
+    if (dot > 0.9995) {
+        quat result;
+        result.x = a.x + t * (b.x - a.x);
+        result.y = a.y + t * (b.y - a.y);
+        result.z = a.z + t * (b.z - a.z);
+        result.w = a.w + t * (b.w - a.w);
+        
+        float len = sqrt(result.x * result.x + result.y * result.y + result.z * result.z + result.w * result.w);
+        result.x /= len;
+        result.y /= len;
+        result.z /= len;
+        result.w /= len;
+        
+        return result;
+    }
+    
+    float theta_0 = acos(dot);
+    float theta = theta_0 * t;
+    float sin_theta = sin(theta);
+    float sin_theta_0 = sin(theta_0);
+    
+    float s0 = cos(theta) - dot * sin_theta / sin_theta_0;
+    float s1 = sin_theta / sin_theta_0;
+    
+    quat result;
+    result.x = s0 * a.x + s1 * b.x;
+    result.y = s0 * a.y + s1 * b.y;
+    result.z = s0 * a.z + s1 * b.z;
+    result.w = s0 * a.w + s1 * b.w;
+    
+    return result;
+}
+
+quat interpolate_rotation(uint bone_idx, float time) {
+    int anim_idx = find_bone_animation(bone_idx);
+    if (anim_idx == -1) {
+        quat identity;
+        identity.x = 0.0;
+        identity.y = 0.0;
+        identity.z = 0.0;
+        identity.w = 1.0;
+        return identity;
+    }
+    
+    GPU_Bone_Animation anim = gpu_bone_animations[anim_idx];
+    
+    if (anim.rotation_keyframe_count == 0) {
+        quat identity;
+        identity.x = 0.0;
+        identity.y = 0.0;
+        identity.z = 0.0;
+        identity.w = 1.0;
+        return identity;
+    }
+    
+    if (anim.rotation_keyframe_count == 1) {
+        return rotation_keyframes[anim.base_rotation_keyframe].rotation;
+    }
+    
+    for (uint i = 0; i < anim.rotation_keyframe_count - 1; i++) {
+        uint idx1 = anim.base_rotation_keyframe + i;
+        uint idx2 = anim.base_rotation_keyframe + i + 1;
+        
+        float time1 = rotation_keyframes[idx1].time;
+        float time2 = rotation_keyframes[idx2].time;
+        
+        if (time >= time1 && time <= time2) {
+            float t = (time - time1) / (time2 - time1);
+            return slerp(rotation_keyframes[idx1].rotation, rotation_keyframes[idx2].rotation, t);
+        }
+    }
+    
+    return rotation_keyframes[anim.base_rotation_keyframe + anim.rotation_keyframe_count - 1].rotation;
+}
+
+vec3 interpolate_scale(uint bone_idx, float time) {
+    int anim_idx = find_bone_animation(bone_idx);
+    if (anim_idx == -1) {
+        return vec3(1.0);
+    }
+    
+    GPU_Bone_Animation anim = gpu_bone_animations[anim_idx];
+    
+    if (anim.scale_keyframe_count == 0) {
+        return vec3(1.0);
+    }
+    
+    if (anim.scale_keyframe_count == 1) {
+        return scale_keyframes[anim.base_scale_keyframe].scale;
+    }
+    
+    for (uint i = 0; i < anim.scale_keyframe_count - 1; i++) {
+        uint idx1 = anim.base_scale_keyframe + i;
+        uint idx2 = anim.base_scale_keyframe + i + 1;
+        
+        float time1 = scale_keyframes[idx1].time;
+        float time2 = scale_keyframes[idx2].time;
+        
+        if (time >= time1 && time <= time2) {
+            float t = (time - time1) / (time2 - time1);
+            return mix(scale_keyframes[idx1].scale, scale_keyframes[idx2].scale, t);
+        }
+    }
+    
+    return scale_keyframes[anim.base_scale_keyframe + anim.scale_keyframe_count - 1].scale;
+}
+
+mat4 quat_to_matrix(quat q) {
+    float x2 = q.x + q.x;
+    float y2 = q.y + q.y;
+    float z2 = q.z + q.z;
+    float xx = q.x * x2;
+    float xy = q.x * y2;
+    float xz = q.x * z2;
+    float yy = q.y * y2;
+    float yz = q.y * z2;
+    float zz = q.z * z2;
+    float wx = q.w * x2;
+    float wy = q.w * y2;
+    float wz = q.w * z2;
+    
+    mat4 result;
+    result[0][0] = 1.0 - (yy + zz);
+    result[0][1] = xy + wz;
+    result[0][2] = xz - wy;
+    result[0][3] = 0.0;
+    
+    result[1][0] = xy - wz;
+    result[1][1] = 1.0 - (xx + zz);
+    result[1][2] = yz + wx;
+    result[1][3] = 0.0;
+    
+    result[2][0] = xz + wy;
+    result[2][1] = yz - wx;
+    result[2][2] = 1.0 - (xx + yy);
+    result[2][3] = 0.0;
+    
+    result[3][0] = 0.0;
+    result[3][1] = 0.0;
+    result[3][2] = 0.0;
+    result[3][3] = 1.0;
+    
+    return result;
+}
+
+mat4 create_transform_matrix(vec3 position, quat rotation, vec3 scale) {
+    mat4 translation = mat4(1.0);
+    translation[3][0] = position.x;
+    translation[3][1] = position.y;
+    translation[3][2] = position.z;
+    
+    mat4 rotation_mat = quat_to_matrix(rotation);
+    
+    mat4 scale_mat = mat4(1.0);
+    scale_mat[0][0] = scale.x;
+    scale_mat[1][1] = scale.y;
+    scale_mat[2][2] = scale.z;
+    
+    return translation * rotation_mat * scale_mat;
+}
+
+void main() {
+    uint dispatch = gl_GlobalInvocationID.x;
+
+    if (dispatch >= max_leaf) {
+        return;
+    }
+
+    uint current_bone_idx = leaf_bones[dispatch];
+
+    uint bone_stack[32];
+    uint rsp = 0;
+    // add bone to stack
+    bone_stack[rsp] = current_bone_idx;
+    rsp++;
+    
+    // if bone !root && bone_parent_last_update < dispatch_time
+    bool parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone] < dispatch_time;
+    while (parent_needs_update) {
+        // add parent to stack
+        current_bone_idx = gpu_bones[current_bone_idx].parent_bone;
+        bone_stack[rsp] = current_bone_idx;
+        rsp++;
+        
+        // new bone = parent
+        parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone] < dispatch_time;
+    }
+    
+    // unwind the stack
+    for (int i = int(rsp) - 1; i >= 0; i--) {
+        uint bone_idx = bone_stack[i];
+
+        float animation_time = mod(dispatch_time, 5.0f);
+        vec3 position = interpolate_position(bone_idx, animation_time);
+        quat rotation = interpolate_rotation(bone_idx, animation_time);
+        vec3 scale = interpolate_scale(bone_idx, animation_time);
+        
+        mat4 local_transform = create_transform_matrix(position, rotation, scale);
+        
+        mat4 absolute_transform;
+        if (gpu_bones[bone_idx].parent_bone == 0xFFFFFFFF)
+            absolute_transform = local_transform;
+        else
+            absolute_transform = absolute_bone_transforms[gpu_bones[bone_idx].parent_bone] * local_transform;
+        
+        absolute_bone_transforms[bone_idx] = absolute_transform;
+        transform_times[bone_idx] = dispatch_time;
+        
+        // output current skinned bone (* IB)
+        gpu_bones_skinned[bone_idx].transform = absolute_transform * gpu_bones[bone_idx].inverse_bind;
+    }
+}
