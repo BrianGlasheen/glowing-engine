@@ -54,7 +54,7 @@ struct Temp_Bone { // struct that will be allocated to map vertices to bones, th
 
 struct Animation {
     std::string name;
-    std::vector<Bone_Animation> bone_animations;
+    std::vector<GPU_Bone_Animation> bone_animations;
     float duration;
     bool loop;
 };
@@ -64,6 +64,22 @@ struct GPU_Animation {
     uint32_t bone_animation_count;
     float duration;
     bool loop;
+};
+
+struct Animation_Command {
+    uint32_t base_bone;
+    uint32_t bone_count;
+    uint32_t bone_offset;
+    uint32_t base_leaf;
+
+    uint32_t leaf_count;
+    uint32_t base_bone_animation; // first bone animation, fill from g_animations
+    uint32_t bone_animation_count; // num of bone animations
+    float duration;
+
+    uint32_t leaf_thread_offset;
+    bool loop;
+    uint32_t padding[2];
 };
 
 // todo skeleton
@@ -83,7 +99,7 @@ namespace Model_Manager {
 
     void init(std::string path) {
         base_path = path;
-        model_handle mh = load_model_indirect("teapot.obj");
+        model_handle mh = load_model("teapot.obj");
     }
 
     void cleanup() {
@@ -100,9 +116,8 @@ namespace Model_Manager {
     static std::vector<Model_Indirect> m_indirect_models(0);
     static std::vector<std::string> m_indirect_model_names(0);
 
-
     // animated stuff
-    static uint32_t num_rigged_meshes = 0;
+    static uint32_t num_animated_meshes = 0;
     static uint32_t rigged_vao, r_vbo, r_ebo;
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
     static std::vector<Vertex> g_skinned_vertices(0); // rigged verts get written here
@@ -110,13 +125,18 @@ namespace Model_Manager {
 
     static std::vector<Bone> g_rigged_bones(0); // one set of bones can produce many sets of skinned
     static std::vector<uint32_t> g_leaf_bones(0);
-    static std::vector<GPU_Bone_Skinned> g_skinned_bones(0);
+    //static std::vector<GPU_Bone_Skinned> g_skinned_bones(0); // todo change to just number for gpu animation
+    static uint32_t num_skinned_bones = 0;
 
-    static std::vector<Model_Indirect> m_rigged_models(0);
-    static std::vector<std::string> m_rigged_model_names(0); // todo think about how to store names
+    static std::vector<Animated_Model> m_animated_models(0);
+    static std::vector<std::string> m_animated_model_names(0); // todo think about how to store names
 
     static std::vector<Animation> g_animations(0);
     static std::vector<std::string> g_animation_names(0);
+    
+    static std::vector<Position_Keyframe> position_keyframes(0);
+    static std::vector<Rotation_Keyframe> rotation_keyframes(0);
+    static std::vector<Scale_Keyframe> scale_keyframes(0);
 
     //uint32_t get_num_meshes() { return num_meshes;  }
 
@@ -130,30 +150,26 @@ namespace Model_Manager {
         return false;
     }
 
-    model_handle load_rigged_model(const std::string& path) {
-        return load_model_indirect(path, true);
+
+    bool animated_model_loaded(const std::string& full_path, model_handle& model_index) {
+        for (int i = m_animated_model_names.size() - 1; i >= 0 ; i--) { // search back to front to get most recently added for correct offset and stuff
+            if (full_path == m_animated_model_names[i]) {
+                model_index = i;
+                return true;
+            }
+        }
+        return false;
     }
 
-    model_handle load_model_indirect(const std::string& path, bool rigged) {
-        if (rigged) {
-            printf("num rigged verts before model %d\n", g_rigged_vertices.size());
-            printf("num rigged idx before model %d\n", g_animated_indices.size());
-            printf("num bones before model %d\n", g_rigged_bones.size());
-        }
-        else {
-            printf("num verts before model %d\n", g_vertices.size());
-            printf("num idx before model %d\n", g_indices.size());
-
-        }
+    model_handle load_model(const std::string& path) {
+        printf("num verts before model %d\n", g_vertices.size());
+        printf("num idx before model %d\n", g_indices.size());
 
         const std::string full_path = base_path + path;
 
         model_handle model_index;
         if (indirect_model_loaded(full_path, model_index))
             return model_index;
-        
-        Model_Indirect model_ind;
-        model_ind.m_name = path;
 
         Assimp::Importer import;
         const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
@@ -164,67 +180,165 @@ namespace Model_Manager {
         }
 
         const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
-        uint32_t base_bone = g_rigged_bones.size();
-        process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f), rigged, base_bone);
+
+        Model_Indirect model_ind;
+        model_ind.m_name = path;
+        process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f));
 
         model_ind.calculate_aabb();
-
-
-        if (rigged && scene->mNumAnimations > 0) {
-            update_bone_parents(scene, base_bone, g_rigged_bones.size());
-            add_leaf_bones(base_bone, g_rigged_bones.size());
-
-            printf("LOADING ANIMATIONS\n");
-            load_animations_from_scene(scene, base_bone);
-            for (Animation a : g_animations)
-                printf("%s, %d\n", a.name.c_str(), a.duration);
-        }
         
-        if (rigged) {
-            model_index = m_rigged_models.size();
+        model_index = m_indirect_models.size();
 
-            m_rigged_models.push_back(model_ind);
-            m_rigged_model_names.push_back(full_path);
+        m_indirect_models.push_back(model_ind);
+        m_indirect_model_names.push_back(full_path);
 
-            printf("num rigged verts after model %d\n", g_rigged_vertices.size());
-            printf("num rigged idx after model %d\n", g_animated_indices.size());
-            printf("num bones after model %d\n", g_rigged_bones.size());
-            printf("num animations loaded %d\n", g_animations.size());
-        }
-        else {
-            model_index = m_indirect_models.size();
-
-            m_indirect_models.push_back(model_ind);
-            m_indirect_model_names.push_back(full_path);
-
-            printf("num verts after model %d\n", g_vertices.size());
-            printf("num idx after model %d\n", g_indices.size());
-        }
+        printf("num verts after model %d\n", g_vertices.size());
+        printf("num idx after model %d\n", g_indices.size());
 
         return model_index;
     }
 
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path, const glm::mat4& parent_transform, bool rigged, uint32_t base_bone) {
+    model_handle load_animated_model(const std::string& path) {
+        printf("num rigged verts before model %d\n", g_rigged_vertices.size());
+        printf("num rigged idx before model %d\n", g_animated_indices.size());
+        printf("num bones before model %d\n", g_rigged_bones.size());
+
+        const std::string full_path = base_path + path;
+
+        model_handle model_index;
+        if (animated_model_loaded(full_path, model_index)) {
+            printf("OYYOYOYOYOYOYOOY\n\n\n\n\nYOOO");
+            Animated_Model loaded = m_animated_models[model_index];
+            //num_skinned_bones += model.bone_count;
+
+            Animated_Model copy;
+
+            copy.m_meshes = loaded.m_meshes; // todo change when duplicating verts
+            copy.m_aabb = loaded.m_aabb;
+            copy.base_bone = loaded.base_bone;
+            copy.bone_count = loaded.bone_count;
+            copy.bone_offset = num_skinned_bones - loaded.base_bone; assert(copy.bone_offset >= 0);
+            num_skinned_bones += copy.bone_count;
+            copy.base_leaf = loaded.base_leaf;
+            copy.leaf_count = loaded.leaf_count;
+            copy.base_animation = loaded.base_animation;
+            copy.animation_count = loaded.animation_count;
+
+            model_index = m_animated_models.size();
+            m_animated_models.push_back(copy);
+            m_animated_model_names.push_back(full_path);
+
+            //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
+            printf("num rigged verts after model %d\n", g_rigged_vertices.size());
+            printf("num rigged idx after model %d\n", g_animated_indices.size());
+            printf("num bones after model %d\n", g_rigged_bones.size());
+            // leaf bones
+            // maybe kf's
+            printf("num animations loaded %d\n", g_animations.size());
+
+            return model_index;
+        }
+         
+
+        Assimp::Importer import;
+        const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+
+        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+            printf("ERROR::ASSIMP::%s\n", import.GetErrorString());
+            return false;
+        }
+
+        const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
+
+        Animated_Model model;
+        model.m_name = path;
+
+        uint32_t base_bone = g_rigged_bones.size();
+        process_animated_node(scene->mRootNode, scene, model, path_without_filename, glm::mat4(1.0f), base_bone);
+
+        model.base_bone = base_bone;
+        model.bone_count = g_rigged_bones.size() - base_bone;
+        model.bone_offset = num_skinned_bones - model.base_bone; assert(model.bone_offset >= 0);
+        num_skinned_bones += model.bone_count;
+
+        if (scene->mNumAnimations > 0) {
+            update_bone_parents(scene, base_bone, g_rigged_bones.size());
+
+            model.base_leaf = g_leaf_bones.size();
+            add_leaf_bones(base_bone, g_rigged_bones.size());
+            model.leaf_count = g_leaf_bones.size();
+
+            printf("LOADING ANIMATIONS\n");
+
+            model.base_animation = g_animations.size();
+            load_animations_from_scene(scene, base_bone);
+            model.animation_count = g_animations.size();
+
+            for (Animation a : g_animations)
+                printf("%s, %d\n", a.name.c_str(), a.duration);
+
+
+            printf("base bone %d\n", model.base_bone);
+            printf("bone count%d\n", model.bone_count);
+            printf("bone offset%d\n", model.bone_offset);
+            printf("base leaf%d\n", model.base_leaf);
+            printf("leaf count %d\n", model.leaf_count);
+            printf("base animation %d\n", model.base_animation);
+            printf("animation count %d\n", model.base_animation);
+        }
+
+        model_index = m_animated_models.size();
+
+        m_animated_models.push_back(model);
+        m_animated_model_names.push_back(full_path);
+
+        printf("num rigged verts after model %d\n", g_rigged_vertices.size());
+        printf("num rigged idx after model %d\n", g_animated_indices.size());
+        printf("num bones after model %d\n", g_rigged_bones.size());
+        // leaf bones
+        // maybe kf's
+        printf("num animations loaded %d\n", g_animations.size());
+    }
+
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform) {
         glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
 
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-            aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+            aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
 
-            Mesh_Indirect mesh_ind = rigged ? process_rigged_mesh(mesh, scene, path, base_bone) : process_mesh(mesh, scene, path);
+            Mesh_Indirect mesh = process_mesh(ai_mesh, scene, path);
 
-            mesh_ind.transform = current_transform;
-            mesh_ind.aabb.max = glm::vec3(current_transform * glm::vec4(mesh_ind.aabb.max, 1.0f));
-            mesh_ind.aabb.min = glm::vec3(current_transform * glm::vec4(mesh_ind.aabb.min, 1.0f));
+            mesh.transform = current_transform;
+            mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
+            mesh.aabb.min = glm::vec3(current_transform * glm::vec4(mesh.aabb.min, 1.0f));
 
-            model_ind.add_mesh(mesh_ind);
-            if (rigged)
-                num_rigged_meshes++;
-            else
-                num_meshes++;
+            model.add_mesh(mesh);
+            num_meshes++;
         }
 
         for (uint32_t i = 0; i < node->mNumChildren; i++) {
-            process_node(node->mChildren[i], scene, model_ind, path, current_transform, rigged, base_bone);
+            process_node(node->mChildren[i], scene, model, path, current_transform);
+        }
+    }
+
+    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const glm::mat4& parent_transform, uint32_t base_bone) {
+        glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
+
+        for (uint32_t i = 0; i < node->mNumMeshes; i++) {
+            aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
+
+            Animated_Mesh mesh = process_animated_mesh(ai_mesh, scene, path, base_bone);
+
+            mesh.transform = current_transform;
+            mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
+            mesh.aabb.min = glm::vec3(current_transform * glm::vec4(mesh.aabb.min, 1.0f));
+
+            model.add_mesh(mesh);
+            num_animated_meshes++;
+        }
+
+        for (uint32_t i = 0; i < node->mNumChildren; i++) {
+            process_animated_node(node->mChildren[i], scene, model, path, current_transform, base_bone);
         }
     }
 
@@ -294,85 +408,8 @@ namespace Model_Manager {
         return mesh_ind;
     }
 
-    Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
-        Material_Indirect mesh_mat{ 0 };
-
-        if (mesh->mMaterialIndex >= 0) {
-            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-
-            //#define AI_MATKEY_BASE_COLOR "$clr.base", 0, 0
-
-            if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
-                aiString str;
-                material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
-                //albedo = Texture_Manager::load_from_path(path + str.C_Str());
-                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-            }
-
-            if (material->GetTextureCount(aiTextureType_NORMALS)) {
-                aiString str;
-                material->GetTexture(aiTextureType_NORMALS, 0, &str);
-                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-            }
-
-            // todo why metallic 1?
-            float metallic = 0.0f;
-            float roughness = 1.0f;
-            if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
-                aiString str;
-                material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &str);
-                // printf("MET ROUGHESNSENSENESNESNE %s\n", str.C_Str());
-                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-
-                aiReturn metallicResult = material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
-                aiReturn roughnessResult = material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
-            }
-            mesh_mat.metallic_factor = metallic;
-            mesh_mat.roughness_factor = roughness;
-
-            printf("MET: %f, ROG: %f\n", metallic, roughness);
-
-            // aiTextureType_EMISSIVE
-            if (material->GetTextureCount(aiTextureType_EMISSIVE)) {
-                aiString str;
-                material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
-                mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-            }
-
-            aiColor3D emissiveColor;
-            if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS) {
-                float strength = 1.0f;
-                aiReturn intensityResult = material->Get(AI_MATKEY_EMISSIVE_INTENSITY, strength);
-
-                mesh_mat.emissive_factor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
-                //printf("Emissive color: R=%.3f G=%.3f B=%.3f, w=%f\n", emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
-            }
-            else {
-                mesh_mat.emissive_factor = glm::vec4(1.0f);
-            }
-
-            aiColor4D pbrBaseColor(0.0f, 0.0f, 0.0f, 0.0f);
-            if (aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &pbrBaseColor) == AI_SUCCESS) {
-                // Use PBR base color
-                mesh_mat.base_color = glm::vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
-            }
-            else {
-                mesh_mat.base_color = glm::vec4(1.0f);
-            }
-
-            //  AO map
-            if (material->GetTextureCount(aiTextureType_LIGHTMAP)) {
-                aiString str;
-                material->GetTexture(aiTextureType_LIGHTMAP, 0, &str);
-                mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-            }
-        }
-
-        return mesh_mat;
-    }
-
-    Mesh_Indirect process_rigged_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone) {
-        Mesh_Indirect mesh_ind = { 0 };
+    Animated_Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone) {
+        Animated_Mesh mesh_ind = { 0 };
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading RIGGED mesh %s\n", mesh_ind.name.c_str());
         //mesh_ind.rigged = true;
@@ -382,7 +419,7 @@ namespace Model_Manager {
 
         uint32_t num_vertices = mesh->mNumVertices;
 
-        // process bones
+        //// process bones
         // create mapping from verticies to bones
         // [v0 -> [b1, b2, b3, ...], v1 -> [b1, b2], v2 -> [b1]]
         std::vector<std::vector<Temp_Bone>> vertex_bone_influences(num_vertices);
@@ -455,7 +492,7 @@ namespace Model_Manager {
             g_rigged_vertices.push_back(vertex);
         }
 
-        // process indices
+        //// process indices
         mesh_ind.base_index = g_animated_indices.size();
 
         uint32_t num_idcs = 0;
@@ -468,11 +505,87 @@ namespace Model_Manager {
         }
         mesh_ind.index_count = num_idcs;
 
-        // process material
+        //// process material
         Material_Indirect material = load_material(mesh, scene, path);
         mesh_ind.material_index = Material_Manager::add_material(material);
 
         return mesh_ind;
+    }
+
+    Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
+        Material_Indirect mesh_mat{ 0 };
+
+        if (mesh->mMaterialIndex >= 0) {
+            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+
+            //#define AI_MATKEY_BASE_COLOR "$clr.base", 0, 0
+
+            if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
+                aiString str;
+                material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
+                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
+
+            if (material->GetTextureCount(aiTextureType_NORMALS)) {
+                aiString str;
+                material->GetTexture(aiTextureType_NORMALS, 0, &str);
+                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
+
+            // todo why metallic 1?
+            float metallic = 0.0f;
+            float roughness = 1.0f;
+            if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
+                aiString str;
+                material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &str);
+                // printf("MET ROUGHESNSENSENESNESNE %s\n", str.C_Str());
+                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+
+                aiReturn metallicResult = material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
+                aiReturn roughnessResult = material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
+            }
+            mesh_mat.metallic_factor = metallic;
+            mesh_mat.roughness_factor = roughness;
+
+            printf("MET: %f, ROG: %f\n", metallic, roughness);
+
+            // aiTextureType_EMISSIVE
+            if (material->GetTextureCount(aiTextureType_EMISSIVE)) {
+                aiString str;
+                material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
+                mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
+
+            aiColor3D emissiveColor;
+            if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissiveColor) == AI_SUCCESS) {
+                float strength = 1.0f;
+                aiReturn intensityResult = material->Get(AI_MATKEY_EMISSIVE_INTENSITY, strength);
+
+                mesh_mat.emissive_factor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
+                //printf("Emissive color: R=%.3f G=%.3f B=%.3f, w=%f\n", emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
+            }
+            else {
+                mesh_mat.emissive_factor = glm::vec4(1.0f);
+            }
+
+            aiColor4D pbrBaseColor(0.0f, 0.0f, 0.0f, 0.0f);
+            if (aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &pbrBaseColor) == AI_SUCCESS) {
+                // Use PBR base color
+                mesh_mat.base_color = glm::vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
+            }
+            else {
+                mesh_mat.base_color = glm::vec4(1.0f);
+            }
+
+            //  AO map
+            if (material->GetTextureCount(aiTextureType_LIGHTMAP)) {
+                aiString str;
+                material->GetTexture(aiTextureType_LIGHTMAP, 0, &str);
+                mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+            }
+        }
+
+        return mesh_mat;
     }
 
     uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone) {
@@ -510,10 +623,17 @@ namespace Model_Manager {
 
                 uint32_t bone_index = find_bone_index(ai_channel->mNodeName.C_Str(), base_bone);
 
-                Bone_Animation bone_anim;
+                GPU_Bone_Animation bone_anim;
                 bone_anim.bone_index = bone_index;
+                bone_anim.base_position_keyframe = position_keyframes.size();
+                bone_anim.base_rotation_keyframe = rotation_keyframes.size();
+                bone_anim.base_scale_keyframe = scale_keyframes.size();
 
-                load_keyframes_from_channel(ai_channel, bone_anim, ai_anim->mTicksPerSecond);
+                load_keyframes_from_channel(ai_channel, ai_anim->mTicksPerSecond);
+
+                bone_anim.position_keyframe_count = position_keyframes.size() - bone_anim.base_position_keyframe;
+                bone_anim.rotation_keyframe_count = rotation_keyframes.size() - bone_anim.base_rotation_keyframe;
+                bone_anim.scale_keyframe_count = scale_keyframes.size() - bone_anim.base_scale_keyframe;
 
                 animation.bone_animations.push_back(bone_anim);
             }
@@ -523,13 +643,13 @@ namespace Model_Manager {
         }
     }
 
-    void load_keyframes_from_channel(aiNodeAnim* channel, Bone_Animation& bone_anim, double ticks_per_second) {
+    void load_keyframes_from_channel(aiNodeAnim* channel, double ticks_per_second) {
         for (uint32_t i = 0; i < channel->mNumPositionKeys; ++i) {
             Position_Keyframe keyframe;
             aiVector3D pos = channel->mPositionKeys[i].mValue;
             keyframe.position = glm::vec3(pos.x, pos.y, pos.z);
             keyframe.time = static_cast<float>(channel->mPositionKeys[i].mTime / ticks_per_second);
-            bone_anim.position_keyframes.push_back(keyframe);
+            position_keyframes.push_back(keyframe);
         }
 
         for (uint32_t i = 0; i < channel->mNumRotationKeys; ++i) {
@@ -537,7 +657,7 @@ namespace Model_Manager {
             aiQuaternion rot = channel->mRotationKeys[i].mValue;
             keyframe.rotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
             keyframe.time = static_cast<float>(channel->mRotationKeys[i].mTime / ticks_per_second);
-            bone_anim.rotation_keyframes.push_back(keyframe);
+            rotation_keyframes.push_back(keyframe);
         }
 
         for (uint32_t i = 0; i < channel->mNumScalingKeys; ++i) {
@@ -545,7 +665,7 @@ namespace Model_Manager {
             aiVector3D scale = channel->mScalingKeys[i].mValue;
             keyframe.scale = glm::vec3(scale.x, scale.y, scale.z);
             keyframe.time = static_cast<float>(channel->mScalingKeys[i].mTime / ticks_per_second);
-            bone_anim.scale_keyframes.push_back(keyframe);
+            scale_keyframes.push_back(keyframe);
         }
     }
 
@@ -563,8 +683,8 @@ namespace Model_Manager {
         return m_indirect_models[idx];
     }
     
-    Model_Indirect get_skinned_model(uint32_t idx) {
-        return m_rigged_models[idx];
+    Animated_Model get_skinned_model(uint32_t idx) {
+        return m_animated_models[idx];
     }
 
     Util::AABB get_aabb_indirect(const model_handle& model_id) {
@@ -743,47 +863,29 @@ namespace Model_Manager {
     }
 
 
-    uint32_t bone_ssbo, skinned_bone_ssbo, pos_keys_ssbo, rot_keys_ssbo, scale_keys_ssbo, bone_animation_ssbo, leaf_bones_ssbo, absolute_bone_transform_ssbo, transform_time_ssbo;
+    uint32_t animation_commands, bone_ssbo, skinned_bone_ssbo, pos_keys_ssbo, rot_keys_ssbo, scale_keys_ssbo, bone_animation_ssbo, leaf_bones_ssbo, absolute_bone_transform_ssbo, transform_time_ssbo;
 
     void setup_ssbos() {
-        //g_skinned_bones.resize(g_bones.size());
-
-        //for (size_t i = 0; i < g_skinned_bones.size(); i++) {
-        //    g_skinned_bones[i].transform = glm::mat4(1.0f);
-        //}
-
-        //glGenBuffers(1, &bone_ssbo);
-        //glBindBuffer(GL_SHADER_STORAGE_BUFFER, bone_ssbo);
-        //glBufferData(GL_SHADER_STORAGE_BUFFER,
-        //    g_skinned_bones.size() * sizeof(GPU_Bone_Skinned),
-        //    g_skinned_bones.data(),
-        //    GL_DYNAMIC_DRAW);
-
-        //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_ssbo);
-        //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-        //printf("Created bone SSBO with %zu bones\n", g_skinned_bones.size());
         Shader_Manager::load_compute("animate_skeleton");
-
 
         // setup rigged bones
         // setup skinned bones
-        g_skinned_bones.resize(g_rigged_bones.size());
-        std::vector<glm::mat4> absolute_transforms(g_rigged_bones.size());
-        std::vector<float> absolute_transform_times(g_rigged_bones.size());
+        //g_skinned_bones.reserve(g_rigged_bones.size());
+        std::vector<glm::mat4> absolute_transforms(num_skinned_bones);
+        std::vector<float> absolute_transform_times(num_skinned_bones);
 
-        for (size_t i = 0; i < g_skinned_bones.size(); i++) {
-            g_skinned_bones[i].transform = glm::mat4(1.0f);
+        for (size_t i = 0; i < num_skinned_bones; i++) {
+            //g_skinned_bones[i].transform = glm::mat4(1.0f);
             absolute_transforms[i] = glm::mat4(1.0f);
             absolute_transform_times[i] = 0.0f;
         }
 
         glGenBuffers(1, &skinned_bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, g_skinned_bones.size() * sizeof(GPU_Bone_Skinned), g_skinned_bones.data(), GL_DYNAMIC_DRAW);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, num_skinned_bones * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-        printf("Created bone SSBO with %zu bones\n", g_skinned_bones.size());
+        //printf("Created bone SSBO with %zu bytes\n", num_skinned_bones * sizeof(glm::mat4));
 
         glGenBuffers(1, &absolute_bone_transform_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, absolute_bone_transform_ssbo);
@@ -791,14 +893,12 @@ namespace Model_Manager {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, absolute_bone_transform_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-        
         glGenBuffers(1, &transform_time_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, transform_time_ssbo);
         glBufferData(GL_SHADER_STORAGE_BUFFER, absolute_transform_times.size() * sizeof(float), absolute_transform_times.data(), GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, transform_time_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         
-
         //bone_ssbo
         std::vector<GPU_Bone> rigged_bones_temp;
         rigged_bones_temp.reserve(g_rigged_bones.size());
@@ -812,32 +912,17 @@ namespace Model_Manager {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
         std::vector<GPU_Bone_Animation> gpu_bone_anims;
-        std::vector<Position_Keyframe> position_keyframes;
-        std::vector<Rotation_Keyframe> rotation_keyframes;
-        std::vector<Scale_Keyframe> scale_keyframes;
-        //bone_animation_ssbo, pos_keys_ssbo, rot_keys_ssbo, scale_keys_ssbo, bone_animation_ssbo
-        for (Bone_Animation ba : g_animations[0].bone_animations) {
-            GPU_Bone_Animation gpu_ba;
-            gpu_ba.bone_index = ba.bone_index;
-            gpu_ba.base_position_keyframe = position_keyframes.size();
-            gpu_ba.position_keyframe_count = ba.position_keyframes.size();
-            gpu_ba.base_rotation_keyframe = rotation_keyframes.size();
-            gpu_ba.rotation_keyframe_count = ba.rotation_keyframes.size();
-            gpu_ba.base_scale_keyframe = scale_keyframes.size();
-            gpu_ba.scale_keyframe_count = ba.scale_keyframes.size();
-            //gpu_ba.padding = 0;
-
-            for (Position_Keyframe pkf : ba.position_keyframes)
-                position_keyframes.push_back(pkf);
-        
-            for (Rotation_Keyframe rkf : ba.rotation_keyframes)
-                rotation_keyframes.push_back(rkf);
-
-            for (Scale_Keyframe skf : ba.scale_keyframes)
-                scale_keyframes.push_back(skf);
-
-            gpu_bone_anims.push_back(gpu_ba);
+        for (Animation animiation : g_animations) {
+            for (GPU_Bone_Animation ba : animiation.bone_animations) {
+                gpu_bone_anims.push_back(ba);
+            }
         }
+        
+        glGenBuffers(1, &animation_commands);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, animation_commands);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, m_animated_models.size() * sizeof(Animation_Command), nullptr, GL_DYNAMIC_DRAW);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_animation_ssbo);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
         //bone_animation_ssbo
         glGenBuffers(1, &bone_animation_ssbo);
@@ -898,34 +983,32 @@ namespace Model_Manager {
             printf("Position keyframe time range: %.3f to %.3f\n", min_time, max_time);
         }
     }
-    
-    //
-    //
 
     glm::mat4 get_bone_local_transform_from_animation(uint32_t bone_index, uint32_t animation_index, float time) {
-        if (animation_index >= g_animations.size()) {
-            return glm::mat4(1.0f);
-        }
-        const Animation& anim = g_animations[animation_index];
+    //    if (animation_index >= g_animations.size()) {
+    //        return glm::mat4(1.0f);
+    //    }
+    //    const Animation& anim = g_animations[animation_index];
 
-        glm::vec3 position(0.0f);
-        glm::quat rotation(1.0f, 0.0f, 0.0f, 0.0f);
-        glm::vec3 scale(1.0f);
+    //    glm::vec3 position(0.0f);
+    //    glm::quat rotation(1.0f, 0.0f, 0.0f, 0.0f);
+    //    glm::vec3 scale(1.0f);
 
-        for (const Bone_Animation& bone_anim : anim.bone_animations) {
-            if (bone_anim.bone_index == bone_index) {
-                position = sample_position_keyframes(bone_anim.position_keyframes, time);
-                rotation = sample_rotation_keyframes(bone_anim.rotation_keyframes, time);
-                scale = sample_scale_keyframes(bone_anim.scale_keyframes, time);
-                break;
-            }
-        }
+    //    for (const Bone_Animation& bone_anim : anim.bone_animations) {
+    //        if (bone_anim.bone_index == bone_index) {
+    //            position = sample_position_keyframes(bone_anim.position_keyframes, time);
+    //            rotation = sample_rotation_keyframes(bone_anim.rotation_keyframes, time);
+    //            scale = sample_scale_keyframes(bone_anim.scale_keyframes, time);
+    //            break;
+    //        }
+    //    }
 
-        glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-        glm::mat4 rotation_mat = glm::mat4_cast(rotation);
-        glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
+    //    glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
+    //    glm::mat4 rotation_mat = glm::mat4_cast(rotation);
+    //    glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
 
-        return translation * rotation_mat * scale_mat;
+    //    return translation * rotation_mat * scale_mat;
+        return glm::mat4(0);
     }
 
     glm::mat4 get_bone_world_transform_naive(uint32_t bone_index, uint32_t animation_index, float time) {
@@ -945,35 +1028,57 @@ namespace Model_Manager {
     }
 
     void update_bones_from_animation(uint32_t animation_index, float time) {
-        if (animation_index < g_animations.size()) {
-            const Animation& anim = g_animations[animation_index];
-            if (anim.loop && time > anim.duration)
-                time = fmod(time, anim.duration);
-            else if (time > anim.duration)
-                time = anim.duration;
-        }
+    //    if (animation_index < g_animations.size()) {
+    //        const Animation& anim = g_animations[animation_index];
+    //        if (anim.loop && time > anim.duration)
+    //            time = fmod(time, anim.duration);
+    //        else if (time > anim.duration)
+    //            time = anim.duration;
+    //    }
 
-        for (size_t i = 0; i < g_rigged_bones.size(); i++)
-            g_skinned_bones[i].transform = get_bone_world_transform_naive(i, animation_index, time) * g_rigged_bones[i].inverse_bind;
+    //    for (size_t i = 0; i < g_rigged_bones.size(); i++)
+    //        g_skinned_bones[i].transform = get_bone_world_transform_naive(i, animation_index, time) * g_rigged_bones[i].inverse_bind;
 
-         printf("%f\n", time);
-         const glm::mat4& m = g_skinned_bones[10].transform;
-         printf("  [%.3f %.3f %.3f %.3f]\n", m[0][0], m[1][0], m[2][0], m[3][0]);
-         printf("  [%.3f %.3f %.3f %.3f]\n", m[0][1], m[1][1], m[2][1], m[3][1]);
-         printf("  [%.3f %.3f %.3f %.3f]\n", m[0][2], m[1][2], m[2][2], m[3][2]);
-         printf("  [%.3f %.3f %.3f %.3f]\n", m[0][3], m[1][3], m[2][3], m[3][3]);
+    //     printf("%f\n", time);
+    //     const glm::mat4& m = g_skinned_bones[10].transform;
+    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][0], m[1][0], m[2][0], m[3][0]);
+    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][1], m[1][1], m[2][1], m[3][1]);
+    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][2], m[1][2], m[2][2], m[3][2]);
+    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][3], m[1][3], m[2][3], m[3][3]);
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, g_skinned_bones.size() * sizeof(glm::mat4), g_skinned_bones.data());
+    //    glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
+    //    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, g_skinned_bones.size() * sizeof(glm::mat4), g_skinned_bones.data());
     }
+    static bool once = true;
+    uint32_t num_leafs = 0;
+    uint32_t n_cmds = 0;
 
     void update_bones_from_animation_compute(uint32_t animation_index, float time) {
         //const Animation& anim = g_animations[animation_index];
-        
+
+        if (once) {
+            once = false;
+            std::vector<Animation_Command> cmds(0);
+
+            for (uint32_t i = 0; i < Model_Manager::get_num_animated_models(); i++) {
+                Animated_Model m = m_animated_models[i];
+                
+                Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, 0, g_animations[0].bone_animations.size(), ((float)(i % 40)), num_leafs };
+                cmds.push_back(cmd);
+
+                num_leafs += m.leaf_count;
+
+                // todo accumalte number of leafd nodes for dispatch
+                // thread leaf offset = accumulated - base_leaf base
+                n_cmds++;
+            }
+            glNamedBufferData(animation_commands, cmds.size() * sizeof(Animation_Command), cmds.data(), GL_DYNAMIC_DRAW);
+        }
+
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();
 
-        //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, animation_commands);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, animation_commands);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, leaf_bones_ssbo);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bone_ssbo);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, skinned_bone_ssbo);
@@ -987,10 +1092,11 @@ namespace Model_Manager {
          //printf("Dispatching animation at time: %.3f\n", time);
 
         skeleton->set_float("dispatch_time", time);
-        skeleton->set_uint("max_leaf", (uint32_t)g_leaf_bones.size());
-        skeleton->set_uint("animation_count", (uint32_t)g_animations[0].bone_animations.size());
+        skeleton->set_uint("num_animation_cmds", n_cmds);
+        //skeleton->set_uint("max_leaf", (uint32_t)g_leaf_bones.size());
+        //skeleton->set_uint("animation_count", (uint32_t)g_animations[0].bone_animations.size());
 
-        skeleton->dispatch_and_wait((g_leaf_bones.size() + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+        skeleton->dispatch_and_wait((num_leafs + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
     }
 
     glm::vec3 sample_position_keyframes(const std::vector<Position_Keyframe>& keyframes, float time) {
@@ -1034,6 +1140,8 @@ namespace Model_Manager {
 
     uint32_t get_bone_ssbo() { return bone_ssbo; }
     uint32_t get_skinned_bone_ssbo() { return skinned_bone_ssbo; }
+    uint32_t get_num_animated_models() { return m_animated_models.size(); }
+    uint32_t get_animation_command_ssbo() { return animation_commands; }
 
     uint32_t get_big_vao() { return big_buffer_vao; }
     uint32_t get_rigged_vao() { return rigged_vao; }

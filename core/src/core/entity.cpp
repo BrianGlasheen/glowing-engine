@@ -63,7 +63,7 @@ Entity::Entity(glm::vec3 position,
           fade(fade), ttl(ttl), max_ttl(max_ttl), 
           is_dirty(true), prev_pos(position), prev_rot(rotation)
 {
-    model_id = Model_Manager::load_model_indirect(model_name);
+    model_id = Model_Manager::load_model(model_name);
     Util::AABB aabb = Model_Manager::get_aabb_indirect(model_id);
     Util::print_AABB(aabb);
     if (physics_enabled)

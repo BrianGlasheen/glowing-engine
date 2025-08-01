@@ -35,7 +35,10 @@ struct Draw_Elements_Indirect_Command {
 struct Per_Object_Data {
     glm::mat4 model_matrix; // 64
     glm::mat4 normal_matrix; // 64
-    glm::vec4 color; // 16 // todo remove
+    uint32_t bone_offset;
+    uint32_t padding1;
+    uint32_t padding2;
+    uint32_t padding3;
     uint64_t albedo; // 8
     uint64_t normal; // 8    
     uint64_t met_rough; // 8

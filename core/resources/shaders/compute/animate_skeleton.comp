@@ -1,6 +1,22 @@
 #version 460 core
 layout(local_size_x = 64) in;
 
+struct Animation_Command {
+    uint base_bone;
+    uint bone_count;
+    uint bone_offset;
+    uint base_leaf;
+
+    uint leaf_count;
+    uint base_bone_animation; // first bone animation, fill from g_animations
+    uint bone_animation_count; // num of bone animations
+    float duration;
+
+    uint leaf_thread_offset; // explain
+    bool loop;
+    uint padding[2];
+};
+
 struct GPU_Bone {
     mat4 inverse_bind;
     uint parent_bone;
@@ -42,6 +58,10 @@ struct GPU_Bone_Animation {
     uint padding;
 };
 
+layout(std430, binding = 0) buffer Animation_Commands {
+    Animation_Command animation_commands[];
+};
+
 layout(std430, binding = 1) buffer Leaf_Bones {
     uint leaf_bones[];
 };
@@ -81,12 +101,14 @@ layout(std430, binding = 9) buffer Scale_Keyframes {
 // todo add animation buffer
 
 uniform float dispatch_time;
+uniform uint num_animation_cmds;
 
-uniform uint max_leaf; // todo pack into animate cmd + base leaf + base animation + animation_count + output offset
-uniform uint animation_count;
+//uniform uint max_leaf; // todo pack into animate cmd + base leaf + base animation + animation_count + output offset
+//uniform uint animation_count;
 
-int find_bone_animation(uint bone_idx) { // todo dont do for each keyframe, just once
-    for (uint i = 0; i < animation_count; i++) {
+
+int find_bone_animation(uint bone_idx, uint base_bone_animation, uint bone_animation_count) { // todo dont do for each keyframe, just once
+    for (uint i = base_bone_animation; i < bone_animation_count; i++) {
         if (gpu_bone_animations[i].bone_index == bone_idx) {
             return int(i);
         }
@@ -94,8 +116,8 @@ int find_bone_animation(uint bone_idx) { // todo dont do for each keyframe, just
     return -1;
 }
 
-vec3 interpolate_position(uint bone_idx, float time) {
-    int anim_idx = find_bone_animation(bone_idx);
+vec3 interpolate_position(uint anim_idx, float time) {
+    //int anim_idx = find_bone_animation(bone_idx);
     if (anim_idx == -1) {
         return vec3(0.0);
     }
@@ -170,8 +192,8 @@ quat slerp(quat a, quat b, float t) {
     return result;
 }
 
-quat interpolate_rotation(uint bone_idx, float time) {
-    int anim_idx = find_bone_animation(bone_idx);
+quat interpolate_rotation(uint anim_idx, float time) {
+    //int anim_idx = find_bone_animation(bone_idx);
     if (anim_idx == -1) {
         quat identity;
         identity.x = 0.0;
@@ -212,8 +234,8 @@ quat interpolate_rotation(uint bone_idx, float time) {
     return rotation_keyframes[anim.base_rotation_keyframe + anim.rotation_keyframe_count - 1].rotation;
 }
 
-vec3 interpolate_scale(uint bone_idx, float time) {
-    int anim_idx = find_bone_animation(bone_idx);
+vec3 interpolate_scale(uint anim_idx, float time) {
+    //int anim_idx = find_bone_animation(bone_idx);
     if (anim_idx == -1) {
         return vec3(1.0);
     }
@@ -301,11 +323,27 @@ mat4 create_transform_matrix(vec3 position, quat rotation, vec3 scale) {
 void main() {
     uint dispatch = gl_GlobalInvocationID.x;
 
-    if (dispatch >= max_leaf) {
-        return;
+    //if (dispatch >= max_leaf) {
+    //    return;
+    //}
+
+    Animation_Command command; // command that this dispatch belongs to
+    bool found = false;
+
+    for (uint i = 0; i < num_animation_cmds; i++) { // could maybe binary search cus commands /in /order
+        command = animation_commands[i];
+        if (dispatch >= (command.base_leaf + command.leaf_thread_offset) && dispatch < (command.base_leaf + command.leaf_count + command.leaf_thread_offset)) {
+            found = true;
+            break;
+        }
     }
 
-    uint current_bone_idx = leaf_bones[dispatch];
+    if (!found)
+        return ;
+
+    uint local_leaf_idx = dispatch - command.leaf_thread_offset;
+    uint current_bone_idx = leaf_bones[command.base_leaf + local_leaf_idx];
+    //uint current_bone_idx = leaf_bones[dispatch - command.leaf_thread_offset];
 
     uint bone_stack[32];
     uint rsp = 0;
@@ -314,7 +352,7 @@ void main() {
     rsp++;
     
     // if bone !root && bone_parent_last_update < dispatch_time
-    bool parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone] < dispatch_time;
+    bool parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone + command.bone_offset] < dispatch_time;
     while (parent_needs_update) {
         // add parent to stack
         current_bone_idx = gpu_bones[current_bone_idx].parent_bone;
@@ -322,17 +360,19 @@ void main() {
         rsp++;
         
         // new bone = parent
-        parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone] < dispatch_time;
+        parent_needs_update = gpu_bones[current_bone_idx].parent_bone != 0xFFFFFFFF && transform_times[gpu_bones[current_bone_idx].parent_bone + command.bone_offset] < dispatch_time;
     }
     
     // unwind the stack
     for (int i = int(rsp) - 1; i >= 0; i--) {
         uint bone_idx = bone_stack[i];
 
-        float animation_time = mod(dispatch_time, 5.0f);
-        vec3 position = interpolate_position(bone_idx, animation_time);
-        quat rotation = interpolate_rotation(bone_idx, animation_time);
-        vec3 scale = interpolate_scale(bone_idx, animation_time);
+        float animation_time = mod(dispatch_time, command.duration);
+        
+        int anim_idx = find_bone_animation(bone_idx, command.base_bone_animation, command.bone_animation_count);
+        vec3 position = interpolate_position(anim_idx, animation_time);
+        quat rotation = interpolate_rotation(anim_idx, animation_time);
+        vec3 scale = interpolate_scale(anim_idx, animation_time);
         
         mat4 local_transform = create_transform_matrix(position, rotation, scale);
         
@@ -340,12 +380,12 @@ void main() {
         if (gpu_bones[bone_idx].parent_bone == 0xFFFFFFFF)
             absolute_transform = local_transform;
         else
-            absolute_transform = absolute_bone_transforms[gpu_bones[bone_idx].parent_bone] * local_transform;
+            absolute_transform = absolute_bone_transforms[gpu_bones[bone_idx].parent_bone + command.bone_offset] * local_transform;
         
-        absolute_bone_transforms[bone_idx] = absolute_transform;
-        transform_times[bone_idx] = dispatch_time;
+        absolute_bone_transforms[bone_idx + command.bone_offset] = absolute_transform;
+        transform_times[bone_idx + command.bone_offset] = dispatch_time;
         
         // output current skinned bone (* IB)
-        gpu_bones_skinned[bone_idx].transform = absolute_transform * gpu_bones[bone_idx].inverse_bind;
+        gpu_bones_skinned[bone_idx + command.bone_offset].transform = absolute_transform * gpu_bones[bone_idx].inverse_bind;
     }
 }

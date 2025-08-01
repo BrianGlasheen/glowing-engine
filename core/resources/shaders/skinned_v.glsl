@@ -12,7 +12,10 @@ layout (location = 6) in vec4 BoneWeights;
 struct Per_Object_Data {
     mat4 model_matrix;
     mat4 normal_matrix;
-    vec4 color; // todo remove
+    uint bone_offset;
+    uint padding1;
+    uint padding2;
+    uint padding3;
     uint64_t albedo;
     uint64_t normal;
     uint64_t met_rough;
@@ -31,7 +34,6 @@ struct GPU_Bone_Skinned {
 layout(std430, binding = 0) readonly buffer per_object_ssbo {
     Per_Object_Data per_object_data[];
 };
-
 
 layout(std430, binding = 1) readonly buffer bones_ssbo {
     GPU_Bone_Skinned bones[];
@@ -72,10 +74,12 @@ void main() {
 
     mat4 model = obj_data.model_matrix;
 
-    mat4 bone_transform = bones[BoneIds[0]].transform * BoneWeights[0];
-    bone_transform += bones[BoneIds[1]].transform * BoneWeights[1];
-    bone_transform += bones[BoneIds[2]].transform * BoneWeights[2];
-    bone_transform += bones[BoneIds[3]].transform * BoneWeights[3];
+    uint bone_offset = obj_data.bone_offset;
+
+    mat4 bone_transform = bones[BoneIds[0] + bone_offset].transform * BoneWeights[0]; // add offset
+    bone_transform += bones[BoneIds[1] + bone_offset].transform * BoneWeights[1];
+    bone_transform += bones[BoneIds[2] + bone_offset].transform * BoneWeights[2];
+    bone_transform += bones[BoneIds[3] + bone_offset].transform * BoneWeights[3];
     vec4 skinned_pos = bone_transform * vec4(aPos, 1.0);
     
     //FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones

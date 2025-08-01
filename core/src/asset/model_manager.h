@@ -10,7 +10,8 @@
 
 #include "shader.h"
 #include "util/aabb.h"
-#include "asset/model_indirect.h"
+#include "asset/model_indirect.h" // todo could maybe combine still
+#include "asset/animated_model.h"
 
 typedef uint32_t model_handle;
 
@@ -28,13 +29,13 @@ struct Scale_Keyframe{
     float time;
 };
 
-struct Bone_Animation {
-    uint32_t bone_index; // bone this animation is for, maybe dont need if stored in flat array with bones
-    float duration; // todo maybe rm
-    std::vector<Position_Keyframe> position_keyframes;
-    std::vector<Rotation_Keyframe> rotation_keyframes;
-    std::vector<Scale_Keyframe> scale_keyframes;
-};
+//struct Bone_Animation {
+//    uint32_t bone_index; // bone this animation is for, maybe dont need if stored in flat array with bones
+//    float duration; // todo maybe rm
+//    std::vector<Position_Keyframe> position_keyframes;
+//    std::vector<Rotation_Keyframe> rotation_keyframes;
+//    std::vector<Scale_Keyframe> scale_keyframes;
+//};
 
 struct GPU_Bone_Animation {
     uint32_t bone_index;
@@ -57,25 +58,29 @@ namespace Model_Manager {
     //uint32_t get_num_models();
 
     bool indirect_model_loaded(const std::string& full_path, model_handle& model_index);
+    bool animated_model_loaded(const std::string& full_path, model_handle& model_index);
 
-    model_handle load_rigged_model(const std::string& path);
-    model_handle load_model_indirect(const std::string& path, bool rigged = false);
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model_ind, const std::string& path, const glm::mat4& parent_transform, bool rigged, uint32_t base_bone);
+    model_handle load_model(const std::string& path);
+    model_handle load_animated_model(const std::string& path);
+
+    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform);
+    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const glm::mat4& parent_transform, uint32_t base_bone);
+
     Mesh_Indirect process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path);
-    Mesh_Indirect process_rigged_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone);
+    Animated_Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone);
 
     Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path);
     uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone);
 
     void load_animations_from_scene(const aiScene* scene, uint32_t base_bone);
-    void load_keyframes_from_channel(aiNodeAnim* channel, Bone_Animation& bone_anim, double ticks_per_second);
+    void load_keyframes_from_channel(aiNodeAnim* channel, double ticks_per_second);
     glm::vec3 interpolate_position(aiNodeAnim* channel, double time);
     glm::quat interpolate_rotation(aiNodeAnim* channel, double time);
     glm::vec3 interpolate_scale(aiNodeAnim* channel, double time);
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
     Model_Indirect get_model_ind(uint32_t idx);
-    Model_Indirect get_skinned_model(uint32_t idx);
+    Animated_Model get_skinned_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
 
     void setup_buffers();
@@ -99,6 +104,8 @@ namespace Model_Manager {
 
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();
+    uint32_t get_num_animated_models();
+    uint32_t get_animation_command_ssbo();
 
     uint32_t get_big_vao();
     uint32_t get_rigged_vao();

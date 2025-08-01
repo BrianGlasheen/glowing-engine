@@ -85,7 +85,7 @@ int main()
     //Model_Manager::upload_data();
     //printf(loaded ? "good\n" : "bad\n");
 
-    model_handle plane = Model_Manager::load_model_indirect("plane.obj");
+    model_handle plane = Model_Manager::load_model("plane.obj");
     glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
@@ -125,11 +125,19 @@ int main()
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
     }
-    model_handle raccoon = Model_Manager::load_rigged_model("tiger/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
+    //model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
+
+    for (uint32_t i = 0; i < 500; i++) {
+        //model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
+        model_handle raccoon = Model_Manager::load_animated_model("goku/scene.gltf");
+    }
     //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("clown/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("raccoon/scene.gltf");
-    //model_handle raccoon = Model_Manager::load_rigged_model("dragon/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_animated_model("dragon/scene.gltf");
+    //model_handle raccoon2 = Model_Manager::load_animated_model("dragon/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
 
     {

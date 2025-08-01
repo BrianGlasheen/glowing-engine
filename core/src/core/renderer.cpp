@@ -16,6 +16,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "asset/material_manager.h"
+#include "asset/model_manager.h"
 
 #include "util/frustum.h"
 #include "util/colors.h"
@@ -375,40 +376,48 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
     draw_commands_skinned.clear();
     per_object_data_skinned.clear();
     current_draw_count = 0;
+    
+    for (uint32_t m = 0; m < Model_Manager::get_num_animated_models(); m++){
+        Animated_Model mind = Model_Manager::get_skinned_model(m);
+        //debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
 
-    Model_Indirect mind = Model_Manager::get_skinned_model(0);
-    debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
+        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+            Per_Object_Data obj_data = { 0 };
 
-    for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-        Per_Object_Data obj_data = { 0 };
+            int col = m % 50;
+            int row = m / 50;
+            glm::vec3 pos(col * 3000, 0, row * 3000);
 
-        obj_data.model_matrix = mind.m_meshes[i].transform;
+            obj_data.model_matrix = glm::scale(glm::translate(mind.m_meshes[i].transform, pos), glm::vec3(1.0f));
 
-        Draw_Elements_Indirect_Command draw_command;
-        draw_command.count = mind.m_meshes[i].index_count;
-        draw_command.instance_count = 1;
-        draw_command.first_index = mind.m_meshes[i].base_index;
-        draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-        draw_command.base_instance = current_draw_count;
+            Draw_Elements_Indirect_Command draw_command;
+            draw_command.count = mind.m_meshes[i].index_count;
+            draw_command.instance_count = 1;
+            draw_command.first_index = mind.m_meshes[i].base_index;
+            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+            draw_command.base_instance = current_draw_count;
 
-        draw_commands_skinned.push_back(draw_command);
+            draw_commands_skinned.push_back(draw_command);
 
-        //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-        //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-        const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
-        obj_data.albedo = mater.albedo;
-        obj_data.normal = mater.normal;
-        obj_data.met_rough = mater.met_rough;
-        obj_data.emissive = mater.emissive;
-        obj_data.amb_occ = mater.amb_occ;
-        obj_data.emissive_factor = mater.emissive_factor;
-        obj_data.metallic_factor = mater.metallic_factor; // 4
-        obj_data.roughness_factor = mater.roughness_factor; // 4
-        obj_data.base_color = mater.base_color;
+            //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+            const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+            obj_data.albedo = mater.albedo;
+            obj_data.normal = mater.normal;
+            obj_data.met_rough = mater.met_rough;
+            obj_data.emissive = mater.emissive;
+            obj_data.amb_occ = mater.amb_occ;
+            obj_data.emissive_factor = mater.emissive_factor;
+            obj_data.metallic_factor = mater.metallic_factor; // 4
+            obj_data.roughness_factor = mater.roughness_factor; // 4
+            obj_data.base_color = mater.base_color;
 
-        per_object_data_skinned.push_back(obj_data);
+            obj_data.bone_offset = mind.bone_offset;
 
-        current_draw_count++;
+            per_object_data_skinned.push_back(obj_data);
+
+            current_draw_count++;
+        }
     }
 
     if (current_draw_count > 0) {
