@@ -43,27 +43,27 @@ struct GPU_Bone { // combine this bone with animation data to get skinned bone
     uint32_t padding[3];
 };
 
-struct GPU_Bone_Skinned { // all a bone needs is a transform once it has been skinned
-    glm::mat4 transform;  // this will be gpu ssbo that vertices index into
-};
-
 struct Temp_Bone { // struct that will be allocated to map vertices to bones, then nuked
     uint32_t bone_index; // index into global bones
     float bone_weight;
 };
 
 struct Animation {
-    std::string name;
-    std::vector<GPU_Bone_Animation> bone_animations;
-    float duration;
-    bool loop;
-};
-
-struct GPU_Animation {
     uint32_t base_bone_animation;
     uint32_t bone_animation_count;
     float duration;
-    bool loop;
+    //bool loop;
+};
+
+struct Bone_Animation {
+    uint32_t bone_index;
+    uint32_t base_position_keyframe;
+    uint32_t position_keyframe_count;
+    uint32_t base_rotation_keyframe;
+    uint32_t rotation_keyframe_count;
+    uint32_t base_scale_keyframe;
+    uint32_t scale_keyframe_count;
+    uint32_t padding;
 };
 
 struct Animation_Command {
@@ -80,6 +80,22 @@ struct Animation_Command {
     uint32_t leaf_thread_offset;
     bool loop;
     uint32_t padding[2];
+};
+
+struct Position_Keyframe { // todo compress?
+    glm::vec3 position;
+    float time;
+};
+
+struct Rotation_Keyframe { // todo pack
+    glm::quat rotation;
+    float time;
+    uint32_t padding[3];
+};
+
+struct Scale_Keyframe { // todo compress?
+    glm::vec3 scale;
+    float time;
 };
 
 // todo skeleton
@@ -119,21 +135,20 @@ namespace Model_Manager {
     // animated stuff
     static uint32_t num_animated_meshes = 0;
     static uint32_t rigged_vao, r_vbo, r_ebo;
+
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
-    static std::vector<Vertex> g_skinned_vertices(0); // rigged verts get written here
+    //static std::vector<Vertex> g_skinned_vertices(0); // rigged verts get written here
     static std::vector<uint32_t> g_animated_indices(0); // same index buffer for skinned and non
-
-    static std::vector<Bone> g_rigged_bones(0); // one set of bones can produce many sets of skinned
-    static std::vector<uint32_t> g_leaf_bones(0);
-    //static std::vector<GPU_Bone_Skinned> g_skinned_bones(0); // todo change to just number for gpu animation
-    static uint32_t num_skinned_bones = 0;
-
     static std::vector<Animated_Model> m_animated_models(0);
     static std::vector<std::string> m_animated_model_names(0); // todo think about how to store names
 
-    static std::vector<Animation> g_animations(0);
-    static std::vector<std::string> g_animation_names(0);
+    static std::vector<Bone> g_rigged_bones(0); // one set of bones can produce many sets of skinned
+    static std::vector<uint32_t> g_leaf_bones(0);
+    static uint32_t num_skinned_bones = 0;
     
+    static std::vector<std::string> g_animation_names(0);
+    static std::vector<Animation> g_animations(0);
+    static std::vector<Bone_Animation> g_bone_animations(0);
     static std::vector<Position_Keyframe> position_keyframes(0);
     static std::vector<Rotation_Keyframe> rotation_keyframes(0);
     static std::vector<Scale_Keyframe> scale_keyframes(0);
@@ -172,7 +187,7 @@ namespace Model_Manager {
             return model_index;
 
         Assimp::Importer import;
-        const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+        const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_ValidateDataStructure | aiProcess_PopulateArmatureData);
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
             printf("ERROR::ASSIMP::%s\n", import.GetErrorString());
@@ -266,17 +281,13 @@ namespace Model_Manager {
 
             model.base_leaf = g_leaf_bones.size();
             add_leaf_bones(base_bone, g_rigged_bones.size());
-            model.leaf_count = g_leaf_bones.size();
+            model.leaf_count = g_leaf_bones.size() - model.base_leaf;
 
             printf("LOADING ANIMATIONS\n");
 
             model.base_animation = g_animations.size();
             load_animations_from_scene(scene, base_bone);
-            model.animation_count = g_animations.size();
-
-            for (Animation a : g_animations)
-                printf("%s, %d\n", a.name.c_str(), a.duration);
-
+            model.animation_count = g_animations.size() - model.base_animation;
 
             printf("base bone %d\n", model.base_bone);
             printf("bone count%d\n", model.bone_count);
@@ -297,7 +308,7 @@ namespace Model_Manager {
         printf("num bones after model %d\n", g_rigged_bones.size());
         // leaf bones
         // maybe kf's
-        printf("num animations loaded %d\n", g_animations.size());
+        //printf("num animations loaded %d\n", g_animations.size());
     }
 
     void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform) {
@@ -613,17 +624,17 @@ namespace Model_Manager {
             aiAnimation* ai_anim = scene->mAnimations[anim_idx];
 
             Animation animation;
-            animation.name = ai_anim->mName.C_Str();
             animation.duration = static_cast<float>(ai_anim->mDuration / ai_anim->mTicksPerSecond);
+            animation.base_bone_animation = g_bone_animations.size();
 
-            printf("Loading animation: %s, duration: %.2f seconds\n", animation.name.c_str(), animation.duration);
+            printf("Loading animation: %s, duration: %.2f seconds\n", ai_anim->mName.C_Str(), animation.duration);
 
             for (uint32_t channel_idx = 0; channel_idx < ai_anim->mNumChannels; ++channel_idx) {
                 aiNodeAnim* ai_channel = ai_anim->mChannels[channel_idx];
 
                 uint32_t bone_index = find_bone_index(ai_channel->mNodeName.C_Str(), base_bone);
 
-                GPU_Bone_Animation bone_anim;
+                Bone_Animation bone_anim;
                 bone_anim.bone_index = bone_index;
                 bone_anim.base_position_keyframe = position_keyframes.size();
                 bone_anim.base_rotation_keyframe = rotation_keyframes.size();
@@ -635,11 +646,13 @@ namespace Model_Manager {
                 bone_anim.rotation_keyframe_count = rotation_keyframes.size() - bone_anim.base_rotation_keyframe;
                 bone_anim.scale_keyframe_count = scale_keyframes.size() - bone_anim.base_scale_keyframe;
 
-                animation.bone_animations.push_back(bone_anim);
+                g_bone_animations.push_back(bone_anim);
             }
 
+            animation.bone_animation_count = g_bone_animations.size() - animation.base_bone_animation;
+
             g_animations.push_back(animation);
-            g_animation_names.push_back(animation.name);
+            g_animation_names.push_back(std::string(ai_anim->mName.C_Str()));
         }
     }
 
@@ -910,13 +923,6 @@ namespace Model_Manager {
         glBufferData(GL_SHADER_STORAGE_BUFFER, rigged_bones_temp.size() * sizeof(GPU_Bone), rigged_bones_temp.data(), GL_DYNAMIC_DRAW); // prob not dynamic dry
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-        std::vector<GPU_Bone_Animation> gpu_bone_anims;
-        for (Animation animiation : g_animations) {
-            for (GPU_Bone_Animation ba : animiation.bone_animations) {
-                gpu_bone_anims.push_back(ba);
-            }
-        }
         
         glGenBuffers(1, &animation_commands);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, animation_commands);
@@ -927,7 +933,7 @@ namespace Model_Manager {
         //bone_animation_ssbo
         glGenBuffers(1, &bone_animation_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, bone_animation_ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, gpu_bone_anims.size() * sizeof(GPU_Bone_Animation), gpu_bone_anims.data(), GL_DYNAMIC_DRAW); // prob not dynamic dry
+        glBufferData(GL_SHADER_STORAGE_BUFFER, g_bone_animations.size() * sizeof(Bone_Animation), g_bone_animations.data(), GL_DYNAMIC_DRAW); // prob not dynamic dry
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_animation_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
@@ -955,103 +961,11 @@ namespace Model_Manager {
         glBufferData(GL_SHADER_STORAGE_BUFFER, g_leaf_bones.size() * sizeof(uint32_t), g_leaf_bones.data(), GL_DYNAMIC_DRAW); // prob not dynamic dry
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, leaf_bones_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-        printf("Animation setup complete:\n");
-        printf("  - Bones: %zu\n", g_rigged_bones.size());
-        printf("  - Leaf bones: %zu\n", g_leaf_bones.size());
-        printf("  - Bone animations: %zu\n", gpu_bone_anims.size());
-        printf("  - Position keyframes: %zu\n", position_keyframes.size());
-        printf("  - Rotation keyframes: %zu\n", rotation_keyframes.size());
-        printf("  - Scale keyframes: %zu\n", scale_keyframes.size());
-
-        // Also check if any animations actually have keyframes
-        for (size_t i = 0; i < std::min(gpu_bone_anims.size(), size_t(5)); i++) {
-            printf("Bone %u: pos=%u, rot=%u, scale=%u keyframes\n",
-                gpu_bone_anims[i].bone_index,
-                gpu_bone_anims[i].position_keyframe_count,
-                gpu_bone_anims[i].rotation_keyframe_count,
-                gpu_bone_anims[i].scale_keyframe_count);
-        }
-
-        if (position_keyframes.size() > 0) {
-            float min_time = position_keyframes[0].time;
-            float max_time = position_keyframes[0].time;
-            for (const auto& kf : position_keyframes) {
-                min_time = std::min(min_time, kf.time);
-                max_time = std::max(max_time, kf.time);
-            }
-            printf("Position keyframe time range: %.3f to %.3f\n", min_time, max_time);
-        }
     }
 
-    glm::mat4 get_bone_local_transform_from_animation(uint32_t bone_index, uint32_t animation_index, float time) {
-    //    if (animation_index >= g_animations.size()) {
-    //        return glm::mat4(1.0f);
-    //    }
-    //    const Animation& anim = g_animations[animation_index];
-
-    //    glm::vec3 position(0.0f);
-    //    glm::quat rotation(1.0f, 0.0f, 0.0f, 0.0f);
-    //    glm::vec3 scale(1.0f);
-
-    //    for (const Bone_Animation& bone_anim : anim.bone_animations) {
-    //        if (bone_anim.bone_index == bone_index) {
-    //            position = sample_position_keyframes(bone_anim.position_keyframes, time);
-    //            rotation = sample_rotation_keyframes(bone_anim.rotation_keyframes, time);
-    //            scale = sample_scale_keyframes(bone_anim.scale_keyframes, time);
-    //            break;
-    //        }
-    //    }
-
-    //    glm::mat4 translation = glm::translate(glm::mat4(1.0f), position);
-    //    glm::mat4 rotation_mat = glm::mat4_cast(rotation);
-    //    glm::mat4 scale_mat = glm::scale(glm::mat4(1.0f), scale);
-
-    //    return translation * rotation_mat * scale_mat;
-        return glm::mat4(0);
-    }
-
-    glm::mat4 get_bone_world_transform_naive(uint32_t bone_index, uint32_t animation_index, float time) {
-        if (bone_index >= g_rigged_bones.size()) {
-            return glm::mat4(1.0f);
-        }
-
-        glm::mat4 local_transform = get_bone_local_transform_from_animation(bone_index, animation_index, time);
-
-        uint32_t parent_index = g_rigged_bones[bone_index].parent_bone;
-        if (parent_index != UINT32_MAX && parent_index < g_rigged_bones.size()) {
-            glm::mat4 parent_world = get_bone_world_transform_naive(parent_index, animation_index, time);
-            return parent_world * local_transform;
-        }
-
-        return local_transform;
-    }
-
-    void update_bones_from_animation(uint32_t animation_index, float time) {
-    //    if (animation_index < g_animations.size()) {
-    //        const Animation& anim = g_animations[animation_index];
-    //        if (anim.loop && time > anim.duration)
-    //            time = fmod(time, anim.duration);
-    //        else if (time > anim.duration)
-    //            time = anim.duration;
-    //    }
-
-    //    for (size_t i = 0; i < g_rigged_bones.size(); i++)
-    //        g_skinned_bones[i].transform = get_bone_world_transform_naive(i, animation_index, time) * g_rigged_bones[i].inverse_bind;
-
-    //     printf("%f\n", time);
-    //     const glm::mat4& m = g_skinned_bones[10].transform;
-    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][0], m[1][0], m[2][0], m[3][0]);
-    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][1], m[1][1], m[2][1], m[3][1]);
-    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][2], m[1][2], m[2][2], m[3][2]);
-    //     printf("  [%.3f %.3f %.3f %.3f]\n", m[0][3], m[1][3], m[2][3], m[3][3]);
-
-    //    glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
-    //    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, g_skinned_bones.size() * sizeof(glm::mat4), g_skinned_bones.data());
-    }
     static bool once = true;
-    uint32_t num_leafs = 0;
-    uint32_t n_cmds = 0;
+    static uint32_t num_leafs = 0;
+    static uint32_t n_cmds = 0;
 
     void update_bones_from_animation_compute(uint32_t animation_index, float time) {
         //const Animation& anim = g_animations[animation_index];
@@ -1062,8 +976,12 @@ namespace Model_Manager {
 
             for (uint32_t i = 0; i < Model_Manager::get_num_animated_models(); i++) {
                 Animated_Model m = m_animated_models[i];
-                
-                Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, 0, g_animations[0].bone_animations.size(), ((float)(i % 40)), num_leafs };
+
+                //printf("%s base anim %d, num animations %d\n", m.m_name.c_str(), m.base_animation, m.animation_count);
+
+                Animation a = g_animations[m.base_animation];
+
+                Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, a.base_bone_animation, a.bone_animation_count, a.duration, num_leafs };
                 cmds.push_back(cmd);
 
                 num_leafs += m.leaf_count;
@@ -1072,8 +990,16 @@ namespace Model_Manager {
                 // thread leaf offset = accumulated - base_leaf base
                 n_cmds++;
             }
+
+
             glNamedBufferData(animation_commands, cmds.size() * sizeof(Animation_Command), cmds.data(), GL_DYNAMIC_DRAW);
+
+            for (uint32_t i = 0; i < g_animations.size(); i++) {
+                printf("%s: ", g_animation_names[i].c_str());
+                printf("%d | %d\n", g_animations[i].base_bone_animation, g_animations[i].bone_animation_count);
+            }
         }
+
 
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();
@@ -1097,45 +1023,6 @@ namespace Model_Manager {
         //skeleton->set_uint("animation_count", (uint32_t)g_animations[0].bone_animations.size());
 
         skeleton->dispatch_and_wait((num_leafs + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
-    }
-
-    glm::vec3 sample_position_keyframes(const std::vector<Position_Keyframe>& keyframes, float time) {
-        if (keyframes.empty()) return glm::vec3(0.0f);
-        if (keyframes.size() == 1) return keyframes[0].position;
-
-        for (size_t i = 0; i < keyframes.size() - 1; i++) {
-            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-                return glm::mix(keyframes[i].position, keyframes[i + 1].position, t);
-            }
-        }
-        return keyframes.back().position;
-    }
-
-    glm::quat sample_rotation_keyframes(const std::vector<Rotation_Keyframe>& keyframes, float time) {
-        if (keyframes.empty()) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        if (keyframes.size() == 1) return keyframes[0].rotation;
-
-        for (size_t i = 0; i < keyframes.size() - 1; i++) {
-            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-                return glm::normalize(glm::slerp(keyframes[i].rotation, keyframes[i + 1].rotation, t));
-            }
-        }
-        return keyframes.back().rotation;
-    }
-
-    glm::vec3 sample_scale_keyframes(const std::vector<Scale_Keyframe>& keyframes, float time) {
-        if (keyframes.empty()) return glm::vec3(1.0f);
-        if (keyframes.size() == 1) return keyframes[0].scale;
-
-        for (size_t i = 0; i < keyframes.size() - 1; i++) {
-            if (time >= keyframes[i].time && time <= keyframes[i + 1].time) {
-                float t = (time - keyframes[i].time) / (keyframes[i + 1].time - keyframes[i].time);
-                return glm::mix(keyframes[i].scale, keyframes[i + 1].scale, t);
-            }
-        }
-        return keyframes.back().scale;
     }
 
     uint32_t get_bone_ssbo() { return bone_ssbo; }

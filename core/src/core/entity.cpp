@@ -65,7 +65,6 @@ Entity::Entity(glm::vec3 position,
 {
     model_id = Model_Manager::load_model(model_name);
     Util::AABB aabb = Model_Manager::get_aabb_indirect(model_id);
-    Util::print_AABB(aabb);
     if (physics_enabled)
         physics_id = Physics::add_box(position, (aabb.max - aabb.min) * scale, false);
 }

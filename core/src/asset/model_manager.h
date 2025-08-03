@@ -15,19 +15,7 @@
 
 typedef uint32_t model_handle;
 
-struct Position_Keyframe {
-    glm::vec3 position;
-    float time;
-};
-struct Rotation_Keyframe {
-    glm::quat rotation;
-    float time;
-    uint32_t padding[3];
-};
-struct Scale_Keyframe{
-    glm::vec3 scale;
-    float time;
-};
+
 
 //struct Bone_Animation {
 //    uint32_t bone_index; // bone this animation is for, maybe dont need if stored in flat array with bones
@@ -36,17 +24,6 @@ struct Scale_Keyframe{
 //    std::vector<Rotation_Keyframe> rotation_keyframes;
 //    std::vector<Scale_Keyframe> scale_keyframes;
 //};
-
-struct GPU_Bone_Animation {
-    uint32_t bone_index;
-    uint32_t base_position_keyframe;
-    uint32_t position_keyframe_count;
-    uint32_t base_rotation_keyframe;
-    uint32_t rotation_keyframe_count;
-    uint32_t base_scale_keyframe;
-    uint32_t scale_keyframe_count;
-    uint32_t padding;
-};
 
 namespace Model_Manager {
     glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat);
@@ -93,13 +70,6 @@ namespace Model_Manager {
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
     void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
 
-    glm::vec3 sample_position_keyframes(const std::vector<Position_Keyframe>& keyframes, float time);
-    glm::quat sample_rotation_keyframes(const std::vector<Rotation_Keyframe>& keyframes, float time);
-    glm::vec3 sample_scale_keyframes(const std::vector<Scale_Keyframe>& keyframes, float time);
-
-    glm::mat4 get_bone_local_transform_from_animation(uint32_t bone_index, uint32_t animation_index, float time);
-    glm::mat4 get_bone_world_transform_naive(uint32_t bone_index, uint32_t animation_index, float time);
-    void update_bones_from_animation(uint32_t animation_index, float time);
     void update_bones_from_animation_compute(uint32_t animation_index, float time);
 
     uint32_t get_bone_ssbo();

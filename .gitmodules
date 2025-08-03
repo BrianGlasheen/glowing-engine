@@ -1,0 +1,3 @@
+[submodule "core/ext/assimp"]
+	path = core/ext/assimp
+	url = git@github.com:assimp/assimp.git

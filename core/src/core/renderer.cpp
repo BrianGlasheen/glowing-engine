@@ -386,7 +386,7 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
             int col = m % 50;
             int row = m / 50;
-            glm::vec3 pos(col * 3000, 0, row * 3000);
+            glm::vec3 pos(50 * col, 0, row);
 
             obj_data.model_matrix = glm::scale(glm::translate(mind.m_meshes[i].transform, pos), glm::vec3(1.0f));
 

@@ -108,7 +108,7 @@ uniform uint num_animation_cmds;
 
 
 int find_bone_animation(uint bone_idx, uint base_bone_animation, uint bone_animation_count) { // todo dont do for each keyframe, just once
-    for (uint i = base_bone_animation; i < bone_animation_count; i++) {
+    for (uint i = base_bone_animation; i < base_bone_animation + bone_animation_count; i++) {
         if (gpu_bone_animations[i].bone_index == bone_idx) {
             return int(i);
         }
@@ -332,7 +332,9 @@ void main() {
 
     for (uint i = 0; i < num_animation_cmds; i++) { // could maybe binary search cus commands /in /order
         command = animation_commands[i];
-        if (dispatch >= (command.base_leaf + command.leaf_thread_offset) && dispatch < (command.base_leaf + command.leaf_count + command.leaf_thread_offset)) {
+        //if (dispatch >= (command.base_leaf + command.leaf_thread_offset) && dispatch < (command.base_leaf + command.leaf_count + command.leaf_thread_offset)) {
+
+        if (dispatch >= command.leaf_thread_offset && dispatch < (command.leaf_thread_offset + command.leaf_count)) {
             found = true;
             break;
         }

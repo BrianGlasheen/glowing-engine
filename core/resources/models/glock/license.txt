@@ -1,11 +1,8 @@
 Model Information:
-* title:	9mm Pistol
-* source:	https://sketchfab.com/3d-models/9mm-pistol-43bc09f5aace4346a8a2b6e1580fc03f
-* author:	TORI106 (https://sketchfab.com/TORI106)
+* title:	Glock
+* source:	https://sketchfab.com/3d-models/glock-5a96c958a4ee4fbfba9b4c3aaadf3efb
+* author:	BarcodeGame (https://sketchfab.com/barcodegames)
 
 Model License:
-* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
-* requirements:	Author must be credited. Commercial use is allowed.
-
-If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
-This work is based on "9mm Pistol" (https://sketchfab.com/3d-models/9mm-pistol-43bc09f5aace4346a8a2b6e1580fc03f) by TORI106 (https://sketchfab.com/TORI106) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works

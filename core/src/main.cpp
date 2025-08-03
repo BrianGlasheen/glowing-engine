@@ -124,18 +124,22 @@ int main()
         printf("%d\n", j);
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
+
     }
-    //model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
+    model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
+
+    model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
 
-    for (uint32_t i = 0; i < 500; i++) {
-        //model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
-        model_handle raccoon = Model_Manager::load_animated_model("goku/scene.gltf");
-    }
+    model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
+    //model_handle raccoon5 = Model_Manager::load_animated_model("gun/scene.gltf");
+    model_handle raccoon6 = Model_Manager::load_animated_model("glock2/source/Glock.fbx");
+    //model_handle raccoon4 = Model_Manager::load_animated_model("tadpole/scene.gltf");
+
     //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("clown/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("raccoon/scene.gltf");
-    //model_handle raccoon = Model_Manager::load_animated_model("dragon/scene.gltf");
+    //model_handle raccoon33 = Model_Manager::load_animated_model("dragon/scene.gltf");
     //model_handle raccoon2 = Model_Manager::load_animated_model("dragon/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
@@ -232,10 +236,7 @@ int main()
         //}
         {
             PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
-            if (player.key_toggles[(unsigned)'c'])
-                Model_Manager::update_bones_from_animation(0, current_time);
-            else
-                Model_Manager::update_bones_from_animation_compute(0, current_time);
+            Model_Manager::update_bones_from_animation_compute(0, current_time);
         }
         //printf("ct: %f\n", current_time);
 
