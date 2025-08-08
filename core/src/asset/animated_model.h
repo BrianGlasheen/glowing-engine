@@ -59,7 +59,6 @@ public:
 	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;
 
-	// todo below
 	uint32_t base_bone;
 	uint32_t bone_count;
 	uint32_t bone_offset; // difference between base bones (1 set for all meshes) to skinned bones (1 set per mesh)
@@ -67,4 +66,7 @@ public:
 	uint32_t leaf_count;
 	uint32_t base_animation;
 	uint32_t animation_count;
+
+	float animation_time = 0.0; // local time
+	bool animation_direction = true; // true forward false back?
 };

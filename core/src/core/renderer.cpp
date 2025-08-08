@@ -43,6 +43,7 @@ static camera_dir camera_directions[] = {
 };
 // point light shadow mapping
 
+static glm::mat4 cascade_mats[4] = { 0 };
 
 int Renderer::init() {
     // todo maybe move? into renderer or something?
@@ -129,6 +130,19 @@ int Renderer::init() {
     debug_renderer.init();
 
     setup_ssao();
+
+    glGenFramebuffers(1, &csm_fbo);
+    csm_texture = Texture_Manager::create_3d_texture(2048, 2048, 4);
+    glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "ERROR::FRAMEBUFFER:: CSM FBO is not complete!";
+        assert(false);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     return 0;
 }
@@ -290,6 +304,16 @@ void Renderer::cull_cluster_pass(Player& player) {
     cluster_cull->set_int("num_lights", num_lights);
 
     cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+}
+
+void Renderer::shadow_pass(Scene& scene, const Player& player) {
+    // cascades
+
+
+
+
+
+    // atlas
 }
 
 void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_time) {
@@ -551,6 +575,11 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         build_command_buffer(player, scene, delta_time);
     }
     {
+        PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
+        if (shadows_enabled)
+            shadow_pass(scene, player);
+    }
+    {
         PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
         if (use_depth_prepass)
             indirect_depth_prepass(player);
@@ -569,11 +598,6 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
         if (ssao_enabled)
             ssao_pass(player);
-    }
-    {
-        //PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
-        //if (shadows_enabled)
-            //shadow_pass(scene, player);
     }
     {
         PROFILE_SCOPE_COLOR("submit render commands", legit::Colors::clouds);

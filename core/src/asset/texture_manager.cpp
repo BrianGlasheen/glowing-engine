@@ -298,6 +298,44 @@ namespace Texture_Manager {
         return textures.size() - 1;
     }
 
+    texture_handle create_3d_texture(int width, int height, int layers) {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+
+        glBindTexture(GL_TEXTURE_2D_ARRAY, texture_id);
+        glTexImage3D(
+            GL_TEXTURE_2D_ARRAY, // todo arg?
+            0,
+            GL_DEPTH_COMPONENT32F, // todo arg
+            width,
+            height,
+            layers,
+            0,
+            GL_DEPTH_COMPONENT, // todo arg
+            GL_FLOAT, // todo arg?
+            nullptr);
+
+        //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+        constexpr float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, bordercolor);
+
+        /*glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);*/
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        textures.push_back(texture_id);
+        paths.push_back("3d"); // todo maybe change if multiple of these
+        return textures.size() - 1;
+    }
+
     void bind(texture_handle texture_id, uint32_t texture_unit) {
         glActiveTexture(GL_TEXTURE0 + texture_unit);
         glBindTexture(GL_TEXTURE_2D, textures[texture_id]);

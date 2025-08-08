@@ -114,7 +114,7 @@ uniform uvec2 screenDimensions;
 //uniform float directional_light_intensity;
 
 const float PI = 3.14159265359;
-float ambient_light = .5;
+float ambient_light = .03;
 
 // Normal Distribution Function (GGX/Trowbridge-Reitz)
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
@@ -226,8 +226,8 @@ void main() {
         discard;
     }
 
-    FragColor = vec4(baseColorSample.rgb, 1.0);
-    return ;
+    //FragColor = vec4(baseColorSample.rgb, 1.0);
+    //return ;
 
     vec3 N = normalize(Normal);
     if (normal_handle != 0) {

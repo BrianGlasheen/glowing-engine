@@ -126,6 +126,9 @@ public:
     texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture;
     shader_handle quad_shader;
 
+    uint32_t csm_fbo;
+    texture_handle csm_texture;
+
     glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);
     glm::vec3 acceleration_direction = glm::vec3(0.0f, 1.0f, 0.0f);
     float acceleration_force = 9.8f;

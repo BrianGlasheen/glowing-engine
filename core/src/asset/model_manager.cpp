@@ -7,6 +7,9 @@
 
 #include <stb_image.h>
 
+#define CGLTF_IMPLEMENTATION
+#include <cgltf.h>
+
 #include "asset/texture_manager.h"
 #include "asset/material_manager.h"
 #include "asset/shader_manager.h"
@@ -111,6 +114,27 @@ namespace Model_Manager {
             ai_mat.a3, ai_mat.b3, ai_mat.c3, ai_mat.d3,
             ai_mat.a4, ai_mat.b4, ai_mat.c4, ai_mat.d4
         );
+    }
+
+    glm::mat4 cgltf_to_glm(const cgltf_float* matrix) {
+        return glm::mat4(
+            matrix[0], matrix[4], matrix[8], matrix[12],
+            matrix[1], matrix[5], matrix[9], matrix[13],
+            matrix[2], matrix[6], matrix[10], matrix[14],
+            matrix[3], matrix[7], matrix[11], matrix[15]
+        );
+    }
+
+    glm::vec3 cgltf_to_vec3(const cgltf_float* data) {
+        return glm::vec3(data[0], data[1], data[2]);
+    }
+
+    glm::vec2 cgltf_to_vec2(const cgltf_float* data) {
+        return glm::vec2(data[0], data[1]);
+    }
+
+    glm::quat cgltf_to_quat(const cgltf_float* data) {
+        return glm::quat(data[3], data[0], data[1], data[2]); // w, x, y, z
     }
 
     void init(std::string path) {
@@ -256,6 +280,7 @@ namespace Model_Manager {
          
 
         Assimp::Importer import;
+        import.SetPropertyBool(AI_CONFIG_IMPORT_REMOVE_EMPTY_BONES, false);
         const aiScene* scene = import.ReadFile(full_path, aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
 
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {

@@ -19,6 +19,7 @@ namespace Texture_Manager {
     texture_handle create_bloom_texture(int width, int height);
     texture_handle create_ssao_texture(int width, int height);
     texture_handle create_noise_texture(const std::vector<float>& data, int width, int height);
+    texture_handle create_3d_texture(int width, int height, int layers);
 
     void bind(texture_handle texture_id, uint32_t texture_unit = 0);
     uint32_t get_ogl_id(texture_handle texture_id);

@@ -133,7 +133,8 @@ int main()
 
     model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon5 = Model_Manager::load_animated_model("gun/scene.gltf");
-    model_handle raccoon6 = Model_Manager::load_animated_model("glock2/source/Glock.fbx");
+    //model_handle raccoon6 = Model_Manager::load_animated_model("glockhell/glock.gltf");
+    //model_handle raccoon6 = Model_Manager::load_animated_model("pistol/scene.gltf");
     //model_handle raccoon4 = Model_Manager::load_animated_model("tadpole/scene.gltf");
 
     //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
