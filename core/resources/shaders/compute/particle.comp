@@ -1,4 +1,5 @@
 ﻿#version 460 core
+
 layout(local_size_x = 128) in;
 
 struct Particle {

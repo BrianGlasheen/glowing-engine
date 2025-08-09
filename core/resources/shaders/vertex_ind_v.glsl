@@ -1,4 +1,6 @@
 #version 460 core
+#define BINDLESS 0
+
 #extension GL_ARB_gpu_shader_int64: enable
 
 layout (location = 0) in vec3 aPos;
@@ -43,9 +45,16 @@ out flat float metallic_factor;
 out flat float roughness_factor;
 
 uniform mat4 vp;
+#if !BINDLESS
+    uniform uint draw_id;
+#endif
 
 void main() {
-    Per_Object_Data obj_data = per_object_data[gl_DrawID];
+    #if BINDLESS
+        Per_Object_Data obj_data = per_object_data[gl_DrawID];
+    #else
+        Per_Object_Data obj_data = per_object_data[draw_id];
+    #endif
 
     base_color_factor = obj_data.base_color;
     albedo_handle = obj_data.albedo;
@@ -56,7 +65,7 @@ void main() {
     metallic_factor = obj_data.metallic_factor;
     roughness_factor = obj_data.roughness_factor;
     amb_occ_handle = obj_data.amb_occ;
-
+    
     mat4 model = obj_data.model_matrix;
 
     FragPos = vec3(model * vec4(aPos, 1.0));

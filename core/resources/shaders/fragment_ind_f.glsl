@@ -1,5 +1,10 @@
 #version 460 core
-#extension GL_ARB_bindless_texture : require
+#define BINDLESS 0
+
+#if BINDLESS
+    #extension GL_ARB_bindless_texture : require
+#endif
+
 #extension GL_ARB_gpu_shader_int64 : enable
 
 layout(location = 0) out vec4 FragColor;
@@ -44,6 +49,14 @@ in flat uint64_t amb_occ_handle;
 in flat vec4 emissive;
 in flat float metallic_factor;
 in flat float roughness_factor;
+
+#if !BINDLESS
+    layout(binding = 0) uniform sampler2D albedo_texture;
+    layout(binding = 1) uniform sampler2D normal_texture;
+    layout(binding = 2) uniform sampler2D metallic_roughness;
+    layout(binding = 3) uniform sampler2D emissive_texture;
+    layout(binding = 4) uniform sampler2D occlusion_texture;
+#endif
 
 uniform bool use_alpha_clipping; 
 float alpha_cutoff = 0.5;
@@ -168,7 +181,10 @@ void main() {
 
     vec4 baseColorSample = vec4(1.0);
     if (albedo_handle != 0) {
-        sampler2D albedo_texture = sampler2D(albedo_handle);
+        #if BINDLESS
+            sampler2D albedo_texture = sampler2D(albedo_handle);
+        #else
+        #endif
         baseColorSample = texture(albedo_texture, TexCoord);
     }
     vec4 baseColor = base_color_factor * baseColorSample;
@@ -181,7 +197,10 @@ void main() {
 
     vec3 N = normalize(Normal);
     if (normal_handle != 0) {
-        sampler2D normal_texture = sampler2D(normal_handle);
+        #if BINDLESS
+            sampler2D normal_texture = sampler2D(normal_handle);
+        #else
+        #endif
         vec3 normalMap = texture(normal_texture, TexCoord).rgb;
         normalMap = normalMap * 2.0 - 1.0;
     
@@ -191,7 +210,10 @@ void main() {
         N = normalize(TBN * normalMap);
     }
     
-    sampler2D metallic_roughness = sampler2D(met_rough_handle);
+    #if BINDLESS
+        sampler2D metallic_roughness = sampler2D(met_rough_handle); // todo maybe check
+    #else
+    #endif
     vec3 mrSample = texture(metallic_roughness, TexCoord).rgb;
     float metallic = mrSample.b * metallic_factor;
     float roughness = mrSample.g * roughness_factor;
@@ -249,12 +271,14 @@ void main() {
     //Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness); // todo CSM
 
     if (emissive_handle != 0) {
-        sampler2D emissive_texture = sampler2D(emissive_handle);
+        #if BINDLESS
+            sampler2D emissive_texture = sampler2D(emissive_handle);
+        #else
+        #endif
         Lo += texture(emissive_texture, TexCoord).rgb * emissive.rgb * emissive.a;
     } 
     else
         Lo += emissive.rgb * emissive.a;
-
 
     float brightness = dot(Lo, vec3(0.2126, 0.7152, 0.0722));
     if (brightness > 1.0) {
@@ -265,7 +289,10 @@ void main() {
 
     float ao = 1.0;
     if (amb_occ_handle != 0) {
-        sampler2D occlusion_texture = sampler2D(amb_occ_handle);
+        #if BINDLESS
+            sampler2D occlusion_texture = sampler2D(amb_occ_handle);
+        #else
+        #endif
         ao = texture(occlusion_texture, TexCoord).r; 
     }
 

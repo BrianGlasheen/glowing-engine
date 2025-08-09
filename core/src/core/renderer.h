@@ -105,7 +105,7 @@ public:
     bool shadows_enabled = false;
     bool bloom_enabled = true;
     float alpha_cutoff = 0.5f;
-    int num_lights = 50;
+    int num_lights = 4;
     bool forward_plus = true;
     
     bool ssao_enabled = true;

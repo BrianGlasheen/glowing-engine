@@ -1,5 +1,7 @@
 #include "asset/model_manager.h"
 
+#include "glow.h"
+
 #include <string>
 #include <cassert>
 #include <algorithm>
@@ -273,7 +275,9 @@ namespace Model_Manager {
             printf("num bones after model %d\n", g_rigged_bones.size());
             // leaf bones
             // maybe kf's
+            printf("here\n");
             printf("num animations loaded %d\n", g_animations.size());
+            printf("not here\n");
 
             return model_index;
         }
@@ -334,6 +338,7 @@ namespace Model_Manager {
         // leaf bones
         // maybe kf's
         //printf("num animations loaded %d\n", g_animations.size());
+        return model_index;
     }
 
     void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform) {
@@ -550,7 +555,7 @@ namespace Model_Manager {
 
     Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
         Material_Indirect mesh_mat{ 0 };
-
+        printf("path is :%s\n", path.c_str());
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
@@ -559,13 +564,20 @@ namespace Model_Manager {
             if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
                 aiString str;
                 material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
-                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #if BINDLESS
+                    mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #else
+                    mesh_mat.albedo = Texture_Manager::load_from_path(path + str.C_Str());
+                #endif
             }
-
             if (material->GetTextureCount(aiTextureType_NORMALS)) {
                 aiString str;
                 material->GetTexture(aiTextureType_NORMALS, 0, &str);
-                mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #if BINDLESS
+                    mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #else
+                    mesh_mat.normal = Texture_Manager::load_from_path(path + str.C_Str());
+                #endif
             }
 
             // todo why metallic 1?
@@ -575,8 +587,11 @@ namespace Model_Manager {
                 aiString str;
                 material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &str);
                 // printf("MET ROUGHESNSENSENESNESNE %s\n", str.C_Str());
-                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-
+                #if BINDLESS
+                    mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #else
+                    mesh_mat.met_rough = Texture_Manager::load_from_path(path + str.C_Str());
+                #endif
                 aiReturn metallicResult = material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
                 aiReturn roughnessResult = material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
             }
@@ -589,7 +604,11 @@ namespace Model_Manager {
             if (material->GetTextureCount(aiTextureType_EMISSIVE)) {
                 aiString str;
                 material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
-                mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #if BINDLESS
+                    mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #else
+                    mesh_mat.emissive = Texture_Manager::load_from_path(path + str.C_Str());
+                #endif
             }
 
             aiColor3D emissiveColor;
@@ -617,7 +636,11 @@ namespace Model_Manager {
             if (material->GetTextureCount(aiTextureType_LIGHTMAP)) {
                 aiString str;
                 material->GetTexture(aiTextureType_LIGHTMAP, 0, &str);
-                mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #if BINDLESS
+                    mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
+                #else
+                    mesh_mat.amb_occ = Texture_Manager::load_from_path(path + str.C_Str());
+                #endif
             }
         }
 

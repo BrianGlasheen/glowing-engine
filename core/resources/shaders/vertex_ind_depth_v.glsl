@@ -1,11 +1,12 @@
 #version 460 core
+
 #extension GL_ARB_gpu_shader_int64: enable
 
 layout (location = 0) in vec3 aPos;
-//layout (location = 1) in vec3 aNor;
-//layout (location = 2) in vec2 aTexCoord;
-//layout (location = 3) in vec3 Tangent;
-//layout (location = 4) in vec3 Bitangent;
+layout (location = 1) in vec3 aNor;
+layout (location = 2) in vec2 aTexCoord;
+layout (location = 3) in vec3 Tangent;
+layout (location = 4) in vec3 Bitangent;
 
 struct Per_Object_Data {
     mat4 model_matrix;
@@ -30,7 +31,14 @@ out vec3 FragPos;  // position in world space
 // maybe output normal for AO?
 
 uniform mat4 vp;
+#if !BINDLESS
+    uniform uint draw_id;
+#endif
 
 void main() {
-    gl_Position = vp * per_object_data[gl_DrawID].model_matrix * vec4(aPos, 1.0);
+    #if BINDLESS
+        gl_Position = vp * per_object_data[gl_DrawID].model_matrix * vec4(aPos, 1.0);
+    #else
+        gl_Position = vp * per_object_data[draw_id].model_matrix * vec4(aPos, 1.0);
+    #endif
 }

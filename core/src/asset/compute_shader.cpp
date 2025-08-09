@@ -1,5 +1,7 @@
 #include "compute_shader.h"
 
+#include "glow.h"
+
 #include <fstream>
 #include <sstream>
 #include <iostream>

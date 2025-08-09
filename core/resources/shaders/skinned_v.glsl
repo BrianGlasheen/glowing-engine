@@ -1,4 +1,5 @@
 #version 460 core
+
 #extension GL_ARB_gpu_shader_int64: enable
 
 layout (location = 0) in vec3 aPos;
@@ -58,9 +59,16 @@ out flat float metallic_factor;
 out flat float roughness_factor;
 
 uniform mat4 vp;
+#if !BINDLESS
+    uniform uint draw_id;
+#endif
 
 void main() {
-    Per_Object_Data obj_data = per_object_data[gl_DrawID];
+    #if BINDLESS
+        Per_Object_Data obj_data = per_object_data[gl_DrawID];
+    #else
+        Per_Object_Data obj_data = per_object_data[draw_id];
+    #endif
 
     base_color_factor = obj_data.base_color;
     albedo_handle = obj_data.albedo;
@@ -74,8 +82,15 @@ void main() {
 
     mat4 model = obj_data.model_matrix;
 
-    uint bone_offset = obj_data.bone_offset;
+    //FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
+    TexCoord = aTexCoord;
+    Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
+    Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
+    BonesOut = BoneIds;
+    BoneWeightsOut = BoneWeights;
 
+    uint bone_offset = obj_data.bone_offset;
     mat4 bone_transform = bones[BoneIds[0] + bone_offset].transform * BoneWeights[0]; // add offset
     bone_transform += bones[BoneIds[1] + bone_offset].transform * BoneWeights[1];
     bone_transform += bones[BoneIds[2] + bone_offset].transform * BoneWeights[2];
@@ -84,14 +99,6 @@ void main() {
     
     //FragPos = vec3(model * vec4(aPos, 1.0)); // todo change this to use bones
     FragPos = vec3(model * skinned_pos);
-
-    //FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
-    TexCoord = aTexCoord;
-    Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
-    Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
-    BonesOut = BoneIds;
-    BoneWeightsOut = BoneWeights;
 
     gl_Position = vp * model * skinned_pos;
 }

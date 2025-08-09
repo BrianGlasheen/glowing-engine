@@ -124,14 +124,13 @@ int main()
         printf("%d\n", j);
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
-
     }
-    model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
+    // model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
 
     model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
-    //model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
+    // model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
 
-    model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
+    // model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon5 = Model_Manager::load_animated_model("gun/scene.gltf");
     //model_handle raccoon6 = Model_Manager::load_animated_model("glockhell/glock.gltf");
     //model_handle raccoon6 = Model_Manager::load_animated_model("pistol/scene.gltf");

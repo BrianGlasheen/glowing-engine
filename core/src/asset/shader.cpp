@@ -1,8 +1,11 @@
 #include "shader.h"
 
+#include "glow.h"
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <string.h>
 
 // #include <glad/glad.h>
 #include "core/opengl.h"
@@ -32,6 +35,26 @@ bool Shader::init(const char* vertexPath, const char* fragmentPath) {
     catch (std::ifstream::failure& e) {
         std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
     }
+
+    size_t offset = strlen("#define BINDLESS") + 1; // number
+
+    size_t v_bindless_pos = vertexCode.find("#define BINDLESS");
+    if (v_bindless_pos != std::string::npos) {
+        #if BINDLESS
+            vertexCode[v_bindless_pos + offset] = '1';
+        #else
+            vertexCode[v_bindless_pos + offset] = '0';
+        #endif
+    }
+    size_t f_bindless_pos = fragmentCode.find("#define BINDLESS");
+    if (f_bindless_pos != std::string::npos) {
+        #if BINDLESS
+            fragmentCode[f_bindless_pos + offset] = '1';
+        #else
+            fragmentCode[f_bindless_pos + offset] = '0';
+        #endif
+    }
+
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
     // 2. compile shaders

@@ -1,5 +1,7 @@
 #include "renderer.h"
 
+#include "glow.h"
+
 #include <cstddef>
 #include <ctime>
 #include <cfloat>
@@ -527,45 +529,106 @@ void Renderer::render_indirect(Player& player) {
     //time += delta_time;
 
     // main pass
+    #if BINDLESS
+        uint32_t vao = Model_Manager::get_big_vao();
+        glBindVertexArray(vao);
 
-    uint32_t vao = Model_Manager::get_big_vao();
-    glBindVertexArray(vao);
+        // draw commands and transform
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
 
-    // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+        cluster_ssbo.bind(1);
+        light_ssbo.bind(2);
+        Texture_Manager::bind(ssao_texture, 0);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-    cluster_ssbo.bind(1);
-    light_ssbo.bind(2);
-    Texture_Manager::bind(ssao_texture, 0);
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+        glBindVertexArray(0);
+        //
+        // skinned
+        //
+        shader = Shader_Manager::get_shader("skinned");
+        shader->use();
+        shader->set_mat4("vp", viewproj);
+        shader->set_uint("bone", bone);
+        //printf("bone: %d\n", bone);
 
-    glBindVertexArray(0);
-    // unbind
-    //glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-    // unbind ssbos?
+        vao = Model_Manager::get_rigged_vao();
+        glBindVertexArray(vao);
 
-    //
-    // skinned
-    //
-    shader = Shader_Manager::get_shader("skinned");
-    shader->use();
-    shader->set_mat4("vp", viewproj);
-    shader->set_uint("bone", bone);
-    //printf("bone: %d\n", bone);
+        // draw commands and transform
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-    vao = Model_Manager::get_rigged_vao();
-    glBindVertexArray(vao);
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
 
-    // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+        glBindVertexArray(0);
+    #else
+        uint32_t vao = Model_Manager::get_big_vao();
+        glBindVertexArray(vao);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+        cluster_ssbo.bind(1);
+        light_ssbo.bind(2);
+        Texture_Manager::bind(ssao_texture, 0);
 
-    glBindVertexArray(0);
+        for (size_t i = 0; i < draw_commands.size(); i++) {
+            Draw_Elements_Indirect_Command cmd = draw_commands[i];
+            Per_Object_Data pod = per_object_data[i];
+
+            Texture_Manager::bind(pod.albedo, 0);
+            Texture_Manager::bind(pod.normal, 1);
+            Texture_Manager::bind(pod.met_rough, 2);
+            Texture_Manager::bind(pod.emissive, 3);
+            Texture_Manager::bind(pod.amb_occ, 4);
+            shader->set_uint("draw_id", i);
+
+            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+                                                cmd.count,
+                                                GL_UNSIGNED_INT,
+                                                (void*)(cmd.first_index * sizeof(uint32_t)),
+                                                cmd.instance_count,
+                                                cmd.base_vertex,
+                                                cmd.base_instance);
+        }
+        glBindVertexArray(0);
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        shader = Shader_Manager::get_shader("skinned");
+        shader->use();
+        shader->set_mat4("vp", viewproj);
+        shader->set_uint("bone", bone);
+        //printf("bone: %d\n", bone);
+
+        vao = Model_Manager::get_rigged_vao();
+        glBindVertexArray(vao);
+
+        // draw commands and transform
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+
+        for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
+            Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
+            Per_Object_Data pod = per_object_data_skinned[i];
+
+            Texture_Manager::bind(pod.albedo, 0);
+            Texture_Manager::bind(pod.normal, 1);
+            Texture_Manager::bind(pod.met_rough, 2);
+            Texture_Manager::bind(pod.emissive, 3);
+            Texture_Manager::bind(pod.amb_occ, 4);
+            shader->set_uint("draw_id", i);
+
+            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+                                                cmd.count,
+                                                GL_UNSIGNED_INT,
+                                                (void*)(cmd.first_index * sizeof(uint32_t)),
+                                                cmd.instance_count,
+                                                cmd.base_vertex,
+                                                cmd.base_instance);
+        }
+
+        glBindVertexArray(0);
+    #endif
 }
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
