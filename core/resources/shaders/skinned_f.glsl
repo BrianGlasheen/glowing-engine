@@ -1,6 +1,5 @@
 /*
 #version 460 core
-#define BINDLESS 0
 #extension GL_ARB_bindless_texture : require
 #extension GL_ARB_gpu_shader_int64 : enable
 
@@ -230,7 +229,6 @@ void main() {
     if (albedo_handle != 0) {
         #if BINDLESS
             sampler2D albedo_texture = sampler2D(albedo_handle);
-        #else
         #endif
         baseColorSample = texture(albedo_texture, TexCoord);
     }
@@ -249,7 +247,6 @@ void main() {
     if (normal_handle != 0) {
         #if BINDLESS
             sampler2D normal_texture = sampler2D(normal_handle);
-        #else
         #endif
         vec3 normalMap = texture(normal_texture, TexCoord).rgb;
         normalMap = normalMap * 2.0 - 1.0;
@@ -262,7 +259,6 @@ void main() {
     
     #if BINDLESS
         sampler2D metallic_roughness = sampler2D(met_rough_handle); // todo maybe check
-    #else
     #endif
     vec3 mrSample = texture(metallic_roughness, TexCoord).rgb;
     float metallic = mrSample.b * metallic_factor;
@@ -323,7 +319,6 @@ void main() {
     if (emissive_handle != 0) {
         #if BINDLESS
             sampler2D emissive_texture = sampler2D(emissive_handle);
-        #else
         #endif
         Lo += texture(emissive_texture, TexCoord).rgb * emissive.rgb * emissive.a;
     } 
@@ -341,7 +336,6 @@ void main() {
     if (amb_occ_handle != 0) {
         #if BINDLESS
             sampler2D occlusion_texture = sampler2D(amb_occ_handle);
-        #else
         #endif
         ao = texture(occlusion_texture, TexCoord).r; 
     }

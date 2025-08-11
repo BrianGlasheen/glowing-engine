@@ -2,4 +2,4 @@
 
 #include <cstdint>
 
-#define BINDLESS 0
+#define BINDLESS 1
