@@ -111,7 +111,7 @@ public:
         return model;
     }
 
-    float get_camera_zoom() {
+    float get_camera_zoom() const {
         if (out_of_body)
             return debug_camera.zoom;
         else
@@ -125,14 +125,18 @@ public:
     //        return camera;
     //}
 
-    glm::mat4 get_view_matrix() {
+    glm::mat4 get_body_view_matrix() const {
+        return camera.get_view_matrix();
+    }
+
+    glm::mat4 get_view_matrix() const {
         if (out_of_body)
             return debug_camera.get_view_matrix();
         else
             return camera.get_view_matrix();
     }
 
-    glm::vec3 get_view_position() {
+    glm::vec3 get_view_position() const {
         if (out_of_body)
             return camera.position;
         else

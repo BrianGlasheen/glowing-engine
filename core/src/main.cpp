@@ -37,11 +37,10 @@ struct Particle {
     glm::vec2 padding;
 };
 
-int main() 
-{
+int main() {
     float delta_time = 0.0f;
     float last_frame = 0.0f;
-    bool editor_mode = 1;
+    bool editor_mode = 0;
 
     Window window;
     if (window.init(1600, 900, "GLOW"))
@@ -252,12 +251,6 @@ int main()
         }
         // render scene
         renderer.render(player, scene, delta_time, particle_ssbo);
-
-        {
-            PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-            if (player.key_toggles[(unsigned)'r'])
-                renderer.render_debug(player);
-        }
 
         //renderer.render_crosshair(crosshair);
         //renderer.render_hud_text(fpscounter);

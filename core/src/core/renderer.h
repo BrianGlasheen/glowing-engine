@@ -68,6 +68,7 @@ public:
 
     void build_cluster_pass(Player& player);
     void cull_cluster_pass(Player& player);
+    void shadow_setup(const Player& player);
     void shadow_pass(Scene& scene, const Player& player);
     void render(Player& player, Scene& scene, float delta_time, SSBO& particles);
     void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
@@ -102,7 +103,7 @@ public:
     float ambient_light = 0.01f;
 
     bool use_alpha_clipping = true;
-    bool shadows_enabled = false;
+    bool shadows_enabled = true;
     bool bloom_enabled = true;
     float alpha_cutoff = 0.5f;
     int num_lights = 4;
@@ -128,6 +129,8 @@ public:
 
     uint32_t csm_fbo;
     texture_handle csm_texture;
+    std::vector<std::vector<Draw_Elements_Indirect_Command>> csm_draw_commands;
+    std::vector<std::vector<Per_Object_Data>> csm_per_object_data;
 
     glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);
     glm::vec3 acceleration_direction = glm::vec3(0.0f, 1.0f, 0.0f);

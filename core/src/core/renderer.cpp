@@ -27,6 +27,11 @@
 const float FAR_PLANE = 1000.0f;
 const uint32_t MAX_DRAW_COMMANDS = 4000;
 
+const uint32_t NUM_CASCADE = 4;
+const float CASCADE_SIZE = 50.0f;
+const glm::vec3 SUN_DIR = glm::vec3(1.0f, -1.0f, 0.0f);
+static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 };
+const float CASCADE_END[NUM_CASCADE + 1] = { 0.0f, 25.0f, 50.0f, 100.0f, 200.0f };
 
 // point light shadow mapping
 struct camera_dir {
@@ -44,8 +49,6 @@ static camera_dir camera_directions[] = {
     { GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f) }
 };
 // point light shadow mapping
-
-static glm::mat4 cascade_mats[4] = { 0 };
 
 int Renderer::init() {
     // todo maybe move? into renderer or something?
@@ -133,18 +136,37 @@ int Renderer::init() {
 
     setup_ssao();
 
+    //glGenFramebuffers(1, &csm_fbo);
+    //csm_texture = Texture_Manager::create_2d_array_texture(2048, 2048, 4);
+    //glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
+    //glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0);
+    //glDrawBuffer(GL_NONE);
+    //glReadBuffer(GL_NONE);
+    //int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    //if (status != GL_FRAMEBUFFER_COMPLETE) {
+    //    std::cout << "ERROR::FRAMEBUFFER:: CSM FBO is not complete!";
+    //    assert(false);
+    //}
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glGenFramebuffers(1, &csm_fbo);
-    csm_texture = Texture_Manager::create_3d_texture(2048, 2048, 4);
+    csm_texture = Texture_Manager::create_2d_array_texture(2048, 2048, NUM_CASCADE);
     glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
+    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0, 0);
     int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: CSM FBO is not complete!";
         assert(false);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+    csm_draw_commands.resize(NUM_CASCADE);
+    csm_per_object_data.resize(NUM_CASCADE);
+    
+    Shader_Manager::load_from_paths("fullscreen_texture", "quad_v.glsl", "quad_texture.glsl");
 
     return 0;
 }
@@ -308,12 +330,142 @@ void Renderer::cull_cluster_pass(Player& player) {
     cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
+void Renderer::shadow_setup(const Player& player) {
+    glm::mat4 view = player.get_body_view_matrix();
+    glm::mat4 inv_view = glm::inverse(view);
+
+    glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), SUN_DIR, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    //float ar = (float)scr_height / (float)scr_width;
+    //float tanHalfHFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
+    //float tanHalfVFOV = tanf(glm::radians((player.camera.zoom * ar) / 2.0f));
+    float ar = (float)scr_width / (float)scr_height;
+    float tanHalfVFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
+    float tanHalfHFOV = tanHalfVFOV * ar;
+
+    //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
+
+    for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+        float xn = CASCADE_END[i] * tanHalfHFOV;
+        float xf = CASCADE_END[i + 1] * tanHalfHFOV;
+        float yn = CASCADE_END[i] * tanHalfVFOV;
+        float yf = CASCADE_END[i + 1] * tanHalfVFOV;
+
+        //printf("xn %f xf %f\n", xn, xf);
+        //printf("yn %f yf %f\n", yn, yf);
+
+        glm::vec4 frustumCorners[8] = {
+            // near face
+            glm::vec4(xn,   yn, -CASCADE_END[i], 1.0),
+            glm::vec4(-xn,  yn, -CASCADE_END[i], 1.0),
+            glm::vec4(xn,  -yn, -CASCADE_END[i], 1.0),
+            glm::vec4(-xn, -yn, -CASCADE_END[i], 1.0),
+
+            // far face
+            glm::vec4(xf,   yf, -CASCADE_END[i + 1], 1.0),
+            glm::vec4(-xf,  yf, -CASCADE_END[i + 1], 1.0),
+            glm::vec4(xf,  -yf, -CASCADE_END[i + 1], 1.0),
+            glm::vec4(-xf, -yf, -CASCADE_END[i + 1], 1.0)
+        };
+
+        //glm::vec4 frustumCornersL[8];
+
+        glm::vec4 min = glm::vec4(FLT_MAX);
+        glm::vec4 max = glm::vec4(-FLT_MAX);
+
+        for (uint32_t j = 0; j < 8; j++) {
+            //printf("Frustum: ");
+            glm::vec4 vW = inv_view * frustumCorners[j];
+            //printf("Light space: ");
+            //frustumCornersL[j] = sun_mat * vW;
+            //frustumCornersL[j].Print();
+            //printf("\n");
+            glm::vec4 corner = sun_mat * vW;
+
+            min = glm::min(min, corner);
+            max = glm::max(max, corner);
+        }
+
+        printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
+        // draw aabb?
+        //cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
+        cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z);
+
+        glm::mat4 inv_sun_mat = glm::inverse(sun_mat);
+        glm::vec3 lightCorners[8] = {
+            {min.x, min.y, min.z}, {max.x, min.y, min.z},
+            {min.x, max.y, min.z}, {max.x, max.y, min.z},
+            {min.x, min.y, max.z}, {max.x, min.y, max.z},
+            {min.x, max.y, max.z}, {max.x, max.y, max.z}
+        };
+        glm::vec3 minW(FLT_MAX), maxW(-FLT_MAX);
+        for (auto& c : lightCorners) {
+            glm::vec4 w = inv_sun_mat * glm::vec4(c, 1.0f);
+            minW = glm::min(minW, glm::vec3(w));
+            maxW = glm::max(maxW, glm::vec3(w));
+        }
+        debug_renderer.add_bbox(minW, maxW, Util::cyan);
+    }
+}
+
 void Renderer::shadow_pass(Scene& scene, const Player& player) {
-    // cascades
 
+    //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
 
+    Shader* shader = Shader_Manager::get_shader("indirect_depth_prepass");
+    shader->use();
 
+    glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
+    glViewport(0, 0, 2048, 2048);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_GREATER);
+    glDepthMask(GL_TRUE);
 
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+
+    for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+            Texture_Manager::get_ogl_id(csm_texture),
+            0,        // mip level
+            i);       // texture array layer
+
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        /*glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);*/
+
+        shader->set_mat4("vp", cascade_mats[i]);
+    #if BINDLESS
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+    #else
+        for (size_t i = 0; i < draw_commands.size(); i++) {
+            Draw_Elements_Indirect_Command cmd = draw_commands[i];
+            Per_Object_Data pod = per_object_data[i];
+
+            //Texture_Manager::bind(pod.albedo, 0);
+            //Texture_Manager::bind(pod.normal, 1);
+            //Texture_Manager::bind(pod.met_rough, 2);
+            //Texture_Manager::bind(pod.emissive, 3);
+            Texture_Manager::bind(pod.amb_occ, 4);
+            shader->set_uint("draw_id", i);
+
+            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+                cmd.count,
+                GL_UNSIGNED_INT,
+                (void*)(cmd.first_index * sizeof(uint32_t)),
+                cmd.instance_count,
+                cmd.base_vertex,
+                cmd.base_instance);
+        }
+    #endif
+    }
+
+    glBindVertexArray(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // atlas
 }
@@ -381,6 +533,9 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
             current_draw_count++;
         }
+
+        // check if entity interescts each cascade
+        // add to cascade command buffer + per obj data
     }
 
     if (current_draw_count > 0) {
@@ -391,7 +546,7 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
     if (player.out_of_body) {
         debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE, Util::red);
-        printf("out\n");
+        // printf("out\n");
     }
 
     //
@@ -529,110 +684,114 @@ void Renderer::render_indirect(Player& player) {
     //time += delta_time;
 
     // main pass
-    #if BINDLESS
-        uint32_t vao = Model_Manager::get_big_vao();
-        glBindVertexArray(vao);
+#if BINDLESS
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
 
-        // draw commands and transform
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+    // draw commands and transform
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-        cluster_ssbo.bind(1);
-        light_ssbo.bind(2);
-        Texture_Manager::bind(ssao_texture, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
+    Texture_Manager::bind(ssao_texture, 0);
 
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
 
-        glBindVertexArray(0);
-        //
-        // skinned
-        //
-        shader = Shader_Manager::get_shader("skinned");
-        shader->use();
-        shader->set_mat4("vp", viewproj);
-        shader->set_uint("bone", bone);
-        //printf("bone: %d\n", bone);
+    glBindVertexArray(0);
+    //
+    // skinned
+    //
+    shader = Shader_Manager::get_shader("skinned");
+    shader->use();
+    shader->set_mat4("vp", viewproj);
+    shader->set_uint("bone", bone);
+    //printf("bone: %d\n", bone);
 
-        vao = Model_Manager::get_rigged_vao();
-        glBindVertexArray(vao);
+    vao = Model_Manager::get_rigged_vao();
+    glBindVertexArray(vao);
 
-        // draw commands and transform
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+    // draw commands and transform
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
 
-        glBindVertexArray(0);
-    #else
-        uint32_t vao = Model_Manager::get_big_vao();
-        glBindVertexArray(vao);
+    glBindVertexArray(0);
+#else
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-        cluster_ssbo.bind(1);
-        light_ssbo.bind(2);
-        Texture_Manager::bind(ssao_texture, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
+    Texture_Manager::bind(ssao_texture, 0);
 
-        for (size_t i = 0; i < draw_commands.size(); i++) {
-            Draw_Elements_Indirect_Command cmd = draw_commands[i];
-            Per_Object_Data pod = per_object_data[i];
+    for (size_t i = 0; i < draw_commands.size(); i++) {
+        Draw_Elements_Indirect_Command cmd = draw_commands[i];
+        Per_Object_Data pod = per_object_data[i];
 
-            Texture_Manager::bind(pod.albedo, 0);
-            Texture_Manager::bind(pod.normal, 1);
-            Texture_Manager::bind(pod.met_rough, 2);
-            Texture_Manager::bind(pod.emissive, 3);
-            Texture_Manager::bind(pod.amb_occ, 4);
-            shader->set_uint("draw_id", i);
+        Texture_Manager::bind(pod.albedo, 0);
+        Texture_Manager::bind(pod.normal, 1);
+        Texture_Manager::bind(pod.met_rough, 2);
+        Texture_Manager::bind(pod.emissive, 3);
+        Texture_Manager::bind(pod.amb_occ, 4);
+        shader->set_uint("draw_id", i);
 
-            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-                                                cmd.count,
-                                                GL_UNSIGNED_INT,
-                                                (void*)(cmd.first_index * sizeof(uint32_t)),
-                                                cmd.instance_count,
-                                                cmd.base_vertex,
-                                                cmd.base_instance);
-        }
-        glBindVertexArray(0);
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        shader = Shader_Manager::get_shader("skinned");
-        shader->use();
-        shader->set_mat4("vp", viewproj);
-        shader->set_uint("bone", bone);
-        //printf("bone: %d\n", bone);
+        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+                                            cmd.count,
+                                            GL_UNSIGNED_INT,
+                                            (void*)(cmd.first_index * sizeof(uint32_t)),
+                                            cmd.instance_count,
+                                            cmd.base_vertex,
+                                            cmd.base_instance);
+    }
+    glBindVertexArray(0);
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    shader = Shader_Manager::get_shader("skinned");
+    shader->use();
+    shader->set_mat4("vp", viewproj);
+    shader->set_uint("bone", bone);
+    //printf("bone: %d\n", bone);
 
-        vao = Model_Manager::get_rigged_vao();
-        glBindVertexArray(vao);
+    vao = Model_Manager::get_rigged_vao();
+    glBindVertexArray(vao);
 
-        // draw commands and transform
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+    // draw commands and transform
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-        for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
-            Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
-            Per_Object_Data pod = per_object_data_skinned[i];
+    for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
+        Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
+        Per_Object_Data pod = per_object_data_skinned[i];
 
-            Texture_Manager::bind(pod.albedo, 0);
-            Texture_Manager::bind(pod.normal, 1);
-            Texture_Manager::bind(pod.met_rough, 2);
-            Texture_Manager::bind(pod.emissive, 3);
-            Texture_Manager::bind(pod.amb_occ, 4);
-            shader->set_uint("draw_id", i);
+        Texture_Manager::bind(pod.albedo, 0);
+        Texture_Manager::bind(pod.normal, 1);
+        Texture_Manager::bind(pod.met_rough, 2);
+        Texture_Manager::bind(pod.emissive, 3);
+        Texture_Manager::bind(pod.amb_occ, 4);
+        shader->set_uint("draw_id", i);
 
-            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-                                                cmd.count,
-                                                GL_UNSIGNED_INT,
-                                                (void*)(cmd.first_index * sizeof(uint32_t)),
-                                                cmd.instance_count,
-                                                cmd.base_vertex,
-                                                cmd.base_instance);
-        }
+        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+                                            cmd.count,
+                                            GL_UNSIGNED_INT,
+                                            (void*)(cmd.first_index * sizeof(uint32_t)),
+                                            cmd.instance_count,
+                                            cmd.base_vertex,
+                                            cmd.base_instance);
+    }
 
-        glBindVertexArray(0);
-    #endif
+    glBindVertexArray(0);
+#endif
 }
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
     // begin frame
+    {
+        PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
+        shadow_setup(player);
+    }
     {
         PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
         build_command_buffer(player, scene, delta_time);
@@ -682,6 +841,35 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
         composite();
     }
+
+    {
+        PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
+        if (player.key_toggles[(unsigned)'r'])
+            render_debug(player);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+    Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
+    shader->use();
+
+    glDisable(GL_DEPTH_TEST);
+    Texture_Manager::bind(csm_texture, 0);
+
+    for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+
+        int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
+        int x = i * (quad_size + 10);
+        int y = scr_height - quad_size - 10;
+
+        glViewport(x, y, quad_size, quad_size);
+
+        shader->set_float("cascade_layer", (float)i);
+
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+    glBindVertexArray(0); // unbind quad
     // end frame
 }
 
