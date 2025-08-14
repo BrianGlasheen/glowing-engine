@@ -54,7 +54,7 @@ public:
         return result;
     }
 
-    glm::mat4 get_projection(float aspect, float requested_zoom) {
+    glm::mat4 get_projection(float aspect, float requested_zoom) const {
         float f = 1.0f / std::tan(glm::radians(requested_zoom) * 0.5f);
 
         glm::mat4 result(0.0f);

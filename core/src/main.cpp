@@ -113,20 +113,20 @@ int main() {
     //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
     //scene.include(e233232332);
 
-    //Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
-    //scene.include(e2323322);    
+    Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
+    scene.include(e2323322);    
     
-    //Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp", false);
-    //scene.include(e232lamp3322);
+    Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp/scene.gltf", false);
+    scene.include(e232lamp3322);
 
     for (int j = 0; j < 10; j++) {
         printf("%d\n", j);
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
     }
-    // model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
-
-    model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
+    
+    model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
     // model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
 
     // model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");

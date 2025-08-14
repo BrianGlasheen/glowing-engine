@@ -19,6 +19,7 @@ public:
     void set_int(const std::string& name, int value) const;
     void set_uint(const std::string& name, unsigned int value) const;
     void set_float(const std::string& name, float value) const;
+    void set_float_array(const std::string& name, const float* floats, uint32_t count) const;
     void set_vec2(const std::string& name, const glm::vec2& value) const;
     void set_vec2(const std::string& name, float x, float y) const;
     void set_vec3(const std::string& name, const glm::vec3& value) const;
@@ -32,6 +33,7 @@ public:
     void set_mat2(const std::string& name, const glm::mat2& mat) const;
     void set_mat3(const std::string& name, const glm::mat3& mat) const;
     void set_mat4(const std::string& name, const glm::mat4& mat) const;
+    void set_mat4_array(const std::string& name, const glm::mat4* matrices, uint32_t count) const;
 
 private:
     void check_compile_errors(uint32_t shader, std::string type);

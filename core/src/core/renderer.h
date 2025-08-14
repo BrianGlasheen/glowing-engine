@@ -101,6 +101,7 @@ public:
     float penis = 25.0f;
     float close_plane = 0.5f;
     float ambient_light = 0.01f;
+    float sun_strength = 1.0f;
 
     bool use_alpha_clipping = true;
     bool shadows_enabled = true;

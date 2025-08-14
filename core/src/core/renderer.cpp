@@ -29,9 +29,9 @@ const uint32_t MAX_DRAW_COMMANDS = 4000;
 
 const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
-const glm::vec3 SUN_DIR = glm::vec3(1.0f, -1.0f, 0.0f);
+const glm::vec3 SUN_DIR = glm::vec3(0.0, -1.0f, -1.0f);
 static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 };
-const float CASCADE_END[NUM_CASCADE + 1] = { 0.0f, 25.0f, 50.0f, 100.0f, 200.0f };
+const float CASCADE_END[NUM_CASCADE + 1] = { 1.0f, 25.0f, 50.0f, 100.0f, 200.0f };
 
 // point light shadow mapping
 struct camera_dir {
@@ -334,14 +334,15 @@ void Renderer::shadow_setup(const Player& player) {
     glm::mat4 view = player.get_body_view_matrix();
     glm::mat4 inv_view = glm::inverse(view);
 
-    glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), SUN_DIR, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::normalize(SUN_DIR), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    //float ar = (float)scr_height / (float)scr_width;
-    //float tanHalfHFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
-    //float tanHalfVFOV = tanf(glm::radians((player.camera.zoom * ar) / 2.0f));
-    float ar = (float)scr_width / (float)scr_height;
-    float tanHalfVFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
-    float tanHalfHFOV = tanHalfVFOV * ar;
+    //float ar = (float)scr_width / (float)scr_height;
+    //float tanHalfVFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
+    //float tanHalfHFOV = tanHalfVFOV * ar;
+
+    float ar = (float)scr_height / (float)scr_width;
+    float tanHalfHFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
+    float tanHalfVFOV = tanf(glm::radians((player.camera.zoom * ar) / 2.0f));
 
     //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
 
@@ -386,10 +387,20 @@ void Renderer::shadow_setup(const Player& player) {
             max = glm::max(max, corner);
         }
 
-        printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
+        glm::vec3 box_size = glm::vec3(max) - glm::vec3(min);
+
+        float texel_size_x = box_size.x / 2048;
+        float texel_size_y = box_size.y / 2048;
+        min.x = floor(min.x / texel_size_x) * texel_size_x;
+        min.y = floor(min.y / texel_size_y) * texel_size_y;
+        
+        max.x = min.x + box_size.x;
+        max.y = min.y + box_size.y;
+        
+        //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
         // draw aabb?
         //cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
-        cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z);
+        cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, max.z, min.z) * sun_mat;
 
         glm::mat4 inv_sun_mat = glm::inverse(sun_mat);
         glm::vec3 lightCorners[8] = {
@@ -424,8 +435,8 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -439,6 +450,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
         glReadBuffer(GL_NONE);*/
 
         shader->set_mat4("vp", cascade_mats[i]);
+
     #if BINDLESS
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
     #else
@@ -450,7 +462,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
             //Texture_Manager::bind(pod.normal, 1);
             //Texture_Manager::bind(pod.met_rough, 2);
             //Texture_Manager::bind(pod.emissive, 3);
-            Texture_Manager::bind(pod.amb_occ, 4);
+            //Texture_Manager::bind(pod.amb_occ, 4);
             shader->set_uint("draw_id", i);
 
             glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
@@ -485,8 +497,8 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
         debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
 
         // if culled
-        if (!frustum.intersectsAABB(model_aabb, true))
-            continue;
+        //if (!frustum.intersectsAABB(model_aabb, true))
+        //    continue;
 
         for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
             if (current_draw_count >= MAX_DRAW_COMMANDS) {
@@ -679,6 +691,16 @@ void Renderer::render_indirect(Player& player) {
 
     shader->set_bool("ssao_enabled", ssao_enabled);
 
+    shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
+    shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
+    shader->set_int("num_cascades", NUM_CASCADE);
+    shader->set_vec3("directional_light_direction", SUN_DIR);
+    shader->set_vec3("directional_light_color", glm::vec3(1.0f));
+    shader->set_float("directional_light_intensity", sun_strength);
+
+    Texture_Manager::bind(ssao_texture, 0); // todo once
+    Texture_Manager::bind_array(csm_texture, 1); // todo once
+
 
     //static float time = 0.0f;
     //time += delta_time;
@@ -694,7 +716,6 @@ void Renderer::render_indirect(Player& player) {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
-    Texture_Manager::bind(ssao_texture, 0);
 
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
 
@@ -853,10 +874,9 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     shader->use();
 
     glDisable(GL_DEPTH_TEST);
-    Texture_Manager::bind(csm_texture, 0);
+    Texture_Manager::bind_array(csm_texture, 0);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-
         int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
         int x = i * (quad_size + 10);
         int y = scr_height - quad_size - 10;
@@ -1075,6 +1095,8 @@ void Renderer::imgui_pass() {
     ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
     ImGui::Checkbox("shadows enabled", &shadows_enabled);
     ImGui::SliderInt("num_lights", &num_lights, 0, 1000);
+    ImGui::Checkbox("light quads", &do_draw_light_quads);
+    ImGui::SliderFloat("sun strength", &sun_strength, 0, 500.0);
     ImGui::Checkbox("forward+", &forward_plus);
     ImGui::Checkbox("bloom_enabled", &bloom_enabled);
     ImGui::Checkbox("ssao_enabled", &ssao_enabled);
@@ -1083,7 +1105,6 @@ void Renderer::imgui_pass() {
     ImGui::SliderInt("ssao_samples", &ssao_samples, 0, 64);
     ImGui::SliderFloat("min_depth", &min_depth, -0.01, 0.2f);
     ImGui::SliderFloat("power", &power, -2, 4);
-    ImGui::Checkbox("light quads", &do_draw_light_quads);
 
     ImGui::End();
 }

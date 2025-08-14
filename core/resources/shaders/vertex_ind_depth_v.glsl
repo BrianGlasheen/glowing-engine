@@ -1,5 +1,7 @@
 #version 460 core
 
+#define BINDLESS 0
+
 #extension GL_ARB_gpu_shader_int64: enable
 
 layout (location = 0) in vec3 aPos;
@@ -27,7 +29,7 @@ layout(std430, binding = 0) readonly buffer per_object_ssbo {
     Per_Object_Data per_object_data[];
 };
 
-out vec3 FragPos;  // position in world space
+// out vec3 FragPos;  // position in world space
 // maybe output normal for AO?
 
 uniform mat4 vp;

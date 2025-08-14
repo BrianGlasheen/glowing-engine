@@ -7,6 +7,9 @@
 #include <iostream>
 #include <string.h>
 
+#include <glm/gtc/type_ptr.hpp>
+
+
 // #include <glad/glad.h>
 #include "core/opengl.h"
 
@@ -98,6 +101,9 @@ void Shader::set_uint(const std::string& name, unsigned int value) const {
 void Shader::set_float(const std::string& name, float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
+void Shader::set_float_array(const std::string& name, const float* floats, uint32_t count) const {
+    glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, floats);
+}
 void Shader::set_vec2(const std::string& name, const glm::vec2& value) const {
     glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
@@ -136,6 +142,9 @@ void Shader::set_mat3(const std::string& name, const glm::mat3& mat) const {
 }
 void Shader::set_mat4(const std::string& name, const glm::mat4& mat) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+}
+void Shader::set_mat4_array(const std::string& name, const glm::mat4* matrices, uint32_t count) const {
+    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(matrices[0]));
 }
 
 // utility function for checking shader compilation/linking errors.

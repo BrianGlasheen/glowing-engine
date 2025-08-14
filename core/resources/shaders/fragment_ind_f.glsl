@@ -33,6 +33,7 @@ layout(std430, binding = 2) restrict buffer lightSSBO {
 };
 
 layout(binding = 0) uniform sampler2D ssao;
+layout(binding = 1) uniform sampler2DArray directional_shadow_map;
 
 in vec3 FragPos;
 in vec3 Normal;
@@ -72,15 +73,17 @@ uniform mat4 viewMatrix;
 uniform uvec3 gridSize;
 uniform uvec2 screenDimensions;
 
+uniform mat4 cascade_matrices[4];
+uniform float cascade_distances[5];
+uniform int num_cascades;
+uniform vec3 directional_light_direction;
+uniform vec3 directional_light_color;
+uniform float directional_light_intensity;
+
 //uniform sampler2D shadow_map; // todo shadow atlas
 
-//uniform sampler2D directional_shadow_map; // todo CSM
-//uniform vec3 directional_light_direction;
-//uniform vec3 directional_light_color;
-//uniform float directional_light_intensity;
-
 const float PI = 3.14159265359;
-float ambient_light = .02;
+const float ambient_light = .001;
 
 // Normal Distribution Function (GGX/Trowbridge-Reitz)
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
@@ -165,7 +168,73 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
     return lighting * (1.0 - shadow);
 }
 
+int GetCascadeIndex(float depth) {
+    for (int i = 0; i < num_cascades; i++) {
+        if (depth < cascade_distances[i + 1]) {
+            return i;
+        }
+    }
+    return num_cascades - 1;
+}
+
+float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos) {
+    int cascadeIndex = GetCascadeIndex(abs(fragViewPos.z));
+
+    vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
+
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
+
+
+    float currentDepth = projCoords.z;
+  //  float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
+    float shadow = currentDepth + 0.005 < shadowDepth ? 1.0 : 0.0;
+
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
+        projCoords.y < 0.0 || projCoords.y > 1.0) {
+        shadow = 0.0;
+    }
+
+    return shadow;
+}
+
+vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, vec3 fragViewPos) {
+    vec3 L = normalize(-directional_light_direction);
+    vec3 radiance = directional_light_color * directional_light_intensity;
+    
+    vec3 lighting = CalculateLighting(L, radiance, N, V, F0, albedo, metallic, roughness);
+    
+    float shadow = 0.0;
+    //if (shadows_enabled) {
+        shadow = DirectionalShadowCalculation(FragPos, fragViewPos);
+    //}
+    
+    return lighting * (1.0 - shadow);
+}
+
 void main() { 
+/*
+    vec3 fragViewPos2 = vec3(viewMatrix * vec4(FragPos, 1.0));
+    float depth = abs(fragViewPos2.z);
+    int cascadeIndex = GetCascadeIndex(depth);
+
+    vec3 color23;
+    if (cascadeIndex == 0)
+        color23 = vec3(1.0, 0.0, 0.0);
+    if (cascadeIndex == 1)
+        color23 = vec3(0.0, 1.0, 0.0);
+    if (cascadeIndex == 2)
+        color23 = vec3(0.0, 0.0, 1.0);
+    if (cascadeIndex == 3)
+        color23 = vec3(0.0, 1.0, 1.0);
+    if (cascadeIndex == 4)
+        color23 = vec3(1.0, 1.0, 1.0);
+
+    FragColor = vec4(color23, 1.0);
+    return;
+    */
 
     //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
     //FragColor = color;
@@ -244,9 +313,6 @@ void main() {
     //return;
 
     vec3 Lo = vec3(0.0);
-    //vec3 diffuse_color = albedo * (1.0 - metallic);
-    //Lo += CalculatePointLight(N, V, F0, diffuseColor, metallic, roughness, light);
-
     for (int i = 0; i < light_count; i++) {
         GPU_Light light;
         if (forward_plus) {
@@ -265,7 +331,7 @@ void main() {
             //Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness, light);
         }
     }
-    //Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness); // todo CSM
+    Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness, fragViewPos); // todo CSM
 
     if (emissive_handle != 0) {
         #if BINDLESS

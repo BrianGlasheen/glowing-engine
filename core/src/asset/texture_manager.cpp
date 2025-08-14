@@ -361,6 +361,11 @@ namespace Texture_Manager {
         glBindTexture(GL_TEXTURE_2D, textures[texture_id]);
     }
 
+    void bind_array(texture_handle texture_id, uint32_t texture_unit) {
+        glActiveTexture(GL_TEXTURE0 + texture_unit);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, textures[texture_id]);
+    }
+
     uint32_t get_ogl_id(texture_handle texture_id) {
         return textures[texture_id];
     }

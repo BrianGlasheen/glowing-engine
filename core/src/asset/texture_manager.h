@@ -23,6 +23,7 @@ namespace Texture_Manager {
     texture_handle create_2d_array_texture(int width, int height, int layers);
 
     void bind(texture_handle texture_id, uint32_t texture_unit = 0);
+    void bind_array(texture_handle texture_id, uint32_t texture_unit);
     uint32_t get_ogl_id(texture_handle texture_id);
     size_t get_texture_count();
     std::string get_name(texture_handle texture_id);
