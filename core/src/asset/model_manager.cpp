@@ -103,7 +103,7 @@ struct Scale_Keyframe { // todo compress?
     float time;
 };
 
-// todo skeleton
+// todo skeleton, maybe not!
 
 namespace Model_Manager {
 
@@ -744,7 +744,7 @@ namespace Model_Manager {
         return m_indirect_models[idx];
     }
     
-    Animated_Model get_skinned_model(uint32_t idx) {
+    Animated_Model get_animated_model(uint32_t idx) {
         return m_animated_models[idx];
     }
 

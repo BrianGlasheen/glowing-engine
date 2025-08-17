@@ -48,10 +48,9 @@ public:
         //controllers[ControllerType::PLANE] = std::make_unique<Controller_plane>();
         controller = controllers[ControllerType::FPS].get();
 
-        weapons[Weapon_Id::M4A1] = std::make_unique<Weapon>(Weapon::M4A1());
         weapons[Weapon_Id::GLOCK] = std::make_unique<Weapon>(Weapon::GLOCK());
         // weapons[Weapon_Id::NONE] = std::make_unique<Weapon>(Weapon::NONE());
-        active_weapon = weapons[Weapon_Id::M4A1].get();
+        active_weapon = weapons[Weapon_Id::GLOCK].get();
     }
 
     void controller_step(GLFWwindow* window, float deltaTime, Scene& scene) {

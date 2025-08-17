@@ -24,7 +24,8 @@ public:
         bool physics_enabled,
         bool fade = false,
         float ttl = 0.0f,
-        float max_ttl = 0.0f
+        float max_ttl = 0.0f,
+        bool is_animated = false
     );
 
     Entity(
@@ -32,6 +33,29 @@ public:
         glm::quat rotation,
         glm::vec3 scale,
         std::string model_name,
+        bool physics_enabled,
+        bool fade = false,
+        float ttl = 0.0f,
+        float max_ttl = 0.0f,
+        bool is_animated = false
+    );
+
+    static Entity Animated_Entity(
+        glm::vec3 position,
+        glm::quat rotation,
+        glm::vec3 scale,
+        std::string model_name,
+        bool physics_enabled,
+        bool fade = false,
+        float ttl = 0.0f,
+        float max_ttl = 0.0f
+    );
+
+    static Entity Animated_Entity(
+        glm::vec3 position,
+        glm::quat rotation,
+        glm::vec3 scale,
+        model_handle model_id,
         bool physics_enabled,
         bool fade = false,
         float ttl = 0.0f,
@@ -60,6 +84,12 @@ public:
     bool fade;
     float ttl;
     float max_ttl;
+
+    bool is_animated;
+    // maybe just keep this pointer so we dont have to Model_Manager::get_animated_model(model_id) to
+    // to something to our animation data, idk maybe will rethink, maybe Animator::set_animation_state(model_id, animation_state);
+    // to store less data per entity
+    Animated_Model* animated_model; 
 
     //Util::AABB aabb;
 

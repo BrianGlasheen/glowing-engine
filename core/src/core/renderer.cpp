@@ -331,7 +331,7 @@ void Renderer::cull_cluster_pass(Player& player) {
 }
 
 void Renderer::shadow_setup(const Player& player) {
-    glm::mat4 view = player.get_body_view_matrix();
+    glm::mat4 view = player.get_body_view_matrix(); // -> glm::lookAt(position, position + front, up);
     glm::mat4 inv_view = glm::inverse(view);
 
     glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::normalize(SUN_DIR), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -396,21 +396,23 @@ void Renderer::shadow_setup(const Player& player) {
         
         max.x = min.x + box_size.x;
         max.y = min.y + box_size.y;
-        
+
+        //min *= 1.5;
+        //max *= 1.5;
         //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
         // draw aabb?
         //cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
         cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, max.z, min.z) * sun_mat;
 
         glm::mat4 inv_sun_mat = glm::inverse(sun_mat);
-        glm::vec3 lightCorners[8] = {
+        glm::vec3 light_corners[8] = {
             {min.x, min.y, min.z}, {max.x, min.y, min.z},
             {min.x, max.y, min.z}, {max.x, max.y, min.z},
             {min.x, min.y, max.z}, {max.x, min.y, max.z},
             {min.x, max.y, max.z}, {max.x, max.y, max.z}
         };
         glm::vec3 minW(FLT_MAX), maxW(-FLT_MAX);
-        for (auto& c : lightCorners) {
+        for (auto& c : light_corners) {
             glm::vec4 w = inv_sun_mat * glm::vec4(c, 1.0f);
             minW = glm::min(minW, glm::vec3(w));
             maxW = glm::max(maxW, glm::vec3(w));
@@ -571,17 +573,13 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
     current_draw_count = 0;
     
     for (uint32_t m = 0; m < Model_Manager::get_num_animated_models(); m++){
-        Animated_Model mind = Model_Manager::get_skinned_model(m);
+        Animated_Model mind = Model_Manager::get_animated_model(m);
         //debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
 
         for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
             Per_Object_Data obj_data = { 0 };
 
-            int col = m % 50;
-            int row = m / 50;
-            glm::vec3 pos(50 * col, 0, row);
-
-            obj_data.model_matrix = glm::scale(glm::translate(mind.m_meshes[i].transform, pos), glm::vec3(1.0f));
+            obj_data.model_matrix = mind.m_meshes[i].transform;
 
             Draw_Elements_Indirect_Command draw_command;
             draw_command.count = mind.m_meshes[i].index_count;
@@ -869,27 +867,29 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
             render_debug(player);
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-    Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
-    shader->use();
+    if (player.key_toggles['l']) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
+        shader->use();
 
-    glDisable(GL_DEPTH_TEST);
-    Texture_Manager::bind_array(csm_texture, 0);
+        glDisable(GL_DEPTH_TEST);
+        Texture_Manager::bind_array(csm_texture, 0);
 
-    for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-        int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
-        int x = i * (quad_size + 10);
-        int y = scr_height - quad_size - 10;
+        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
+            int x = i * (quad_size + 10);
+            int y = scr_height - quad_size - 10;
 
-        glViewport(x, y, quad_size, quad_size);
+            glViewport(x, y, quad_size, quad_size);
 
-        shader->set_float("cascade_layer", (float)i);
+            shader->set_float("cascade_layer", (float)i);
 
-        glBindVertexArray(quadVAO);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        glBindVertexArray(0); // unbind quad
     }
-
-    glBindVertexArray(0); // unbind quad
     // end frame
 }
 

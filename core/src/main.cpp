@@ -124,8 +124,15 @@ int main() {
         Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
         scene.include(dsadasdasdasda);
     }
-    
-    model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
+
+    //model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
+    //model_handle raccoon3 = Model_Manager::load_animated_model("glock/scene.gltf");
+    //model_handle raccoon4 = Model_Manager::load_animated_model("glock2/scene.gltf");
+    //model_handle raccoon5 = Model_Manager::load_animated_model("glockhell/scene.gltf");
+    //model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
+    model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
+    //model_handle raccoon226 = Model_Manager::load_animated_model("glock2/scene.gltf");
+    //model_handle raccoon26 = Model_Manager::load_animated_model("vector/scene.gltf");
     //model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
     // model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
 

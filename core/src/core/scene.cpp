@@ -11,9 +11,9 @@ Scene::Scene(std::string skybox_name) : skybox(skybox_name) {
 
 Scene::~Scene() {}
 
-void Scene::include(Entity ntitty) {
+void Scene::include(Entity ntitty) { // and maybe dont copy everything in Lol
     if (ntitty.fade) {
-        timed_entities.push_back(ntitty);
+        timed_entities.push_back(ntitty); // maybe dont copy everything in, fine for now
     }
     else {
         entities.push_back(ntitty);

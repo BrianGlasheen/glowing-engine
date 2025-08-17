@@ -16,7 +16,7 @@ struct Animated_Mesh {
 	std::string name;
 
 	uint32_t material_index;
-	// parent? 
+	// uint32_t parent id? maybe later if needed prob not 
 	glm::mat4 transform; // relative to parent
 };
 
@@ -34,17 +34,11 @@ public:
 	}
 
 	void calculate_aabb() {
-		// todo change to calculate some kind of max or something
 		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
 
 		for (const Animated_Mesh& mesh : m_meshes) {
-			if (mesh.aabb.min.x < m_aabb.min.x) m_aabb.min.x = mesh.aabb.min.x;
-			if (mesh.aabb.min.y < m_aabb.min.y) m_aabb.min.y = mesh.aabb.min.y;
-			if (mesh.aabb.min.z < m_aabb.min.z) m_aabb.min.z = mesh.aabb.min.z;
-
-			if (mesh.aabb.max.x > m_aabb.max.x) m_aabb.max.x = mesh.aabb.max.x;
-			if (mesh.aabb.max.y > m_aabb.max.y) m_aabb.max.y = mesh.aabb.max.y;
-			if (mesh.aabb.max.z > m_aabb.max.z) m_aabb.max.z = mesh.aabb.max.z;
+			m_aabb.min = glm::min(mesh.aabb.min, m_aabb.min);
+			m_aabb.max = glm::max(mesh.aabb.max, m_aabb.max);
 		}
 	}
 
@@ -68,5 +62,6 @@ public:
 	uint32_t animation_count;
 
 	float animation_time = 0.0; // local time
-	bool animation_direction = true; // true forward false back?
+	bool animation_direction = true; // true forward false back? maybe add loop / bounce flags
+	uint32_t current_animation = 0;
 };

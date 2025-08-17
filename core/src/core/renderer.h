@@ -104,7 +104,7 @@ public:
     float sun_strength = 1.0f;
 
     bool use_alpha_clipping = true;
-    bool shadows_enabled = true;
+    bool shadows_enabled = false;
     bool bloom_enabled = true;
     float alpha_cutoff = 0.5f;
     int num_lights = 4;

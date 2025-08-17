@@ -84,36 +84,6 @@ public:
           is_sprinting(false),
           is_ads(false) {}
     
-    static Weapon M4A1() {
-        Weapon weapon;
-        //weapon.model.load_model("../resources/models/m4a1/M4A1.obj");
-        weapon.id = Weapon_Id::M4A1;
-        weapon.name = "m4a1";
-        weapon.min_pos = glm::vec3(0.6f, -0.5f, -1.6f);
-        weapon.wep_pos = weapon.min_pos;
-        weapon.ads_pos = glm::vec3(0.0f, -0.45f, -1.2f);
-        weapon.sprint_pos = glm::vec3(0.8f, -0.3f, -1.5f);
-        weapon.ads_speed = 20.0f;
-        weapon.sound_file = "gun1.wav";
-        weapon.sound_volume = 0.1f;
-        weapon.cooldown = 0.07f; // ~857 rounds per minute
-        weapon.magazine_size = 30;
-        weapon.current_ammo = 30;
-        weapon.reserve_ammo = 90;
-        weapon.reload_time = 2.5f;
-        weapon.shake_intensity = 0.05f;
-        weapon.shake_decay = 10.0f;
-        weapon.is_automatic = true;
-        weapon.prev_firing = false;
-        return weapon;
-    }
-    // glm::vec3 wep_rot = glm::vec3(0.0f);
-    // float ads_speed = 20.0f;
-    // int holding = 0;
-    // int rounds_per_min = 700;
-    // float weapon_sound_cooldown = 0.07f; 
-    // float last_shot_time = 0.0f; 
-    
     static Weapon GLOCK() {
         Weapon weapon;
         //weapon.model.load_model("../resources/models/glock/glock.gltf");

@@ -15,16 +15,6 @@
 
 typedef uint32_t model_handle;
 
-
-
-//struct Bone_Animation {
-//    uint32_t bone_index; // bone this animation is for, maybe dont need if stored in flat array with bones
-//    float duration; // todo maybe rm
-//    std::vector<Position_Keyframe> position_keyframes;
-//    std::vector<Rotation_Keyframe> rotation_keyframes;
-//    std::vector<Scale_Keyframe> scale_keyframes;
-//};
-
 namespace Model_Manager {
     glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat);
 
@@ -57,7 +47,7 @@ namespace Model_Manager {
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
     Model_Indirect get_model_ind(uint32_t idx);
-    Animated_Model get_skinned_model(uint32_t idx);
+    Animated_Model get_animated_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
 
     void setup_buffers();
