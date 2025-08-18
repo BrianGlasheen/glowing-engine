@@ -6,6 +6,7 @@
 #include <cassert>
 #include <algorithm>
 #include <set>
+#include <memory>
 
 #include <stb_image.h>
 
@@ -120,10 +121,10 @@ namespace Model_Manager {
 
     glm::mat4 cgltf_to_glm(const cgltf_float* matrix) {
         return glm::mat4(
-            matrix[0], matrix[4], matrix[8], matrix[12],
-            matrix[1], matrix[5], matrix[9], matrix[13],
-            matrix[2], matrix[6], matrix[10], matrix[14],
-            matrix[3], matrix[7], matrix[11], matrix[15]
+            matrix[0], matrix[1], matrix[2], matrix[3],
+            matrix[4], matrix[5], matrix[6], matrix[7],
+            matrix[8], matrix[9], matrix[10], matrix[11],
+            matrix[12], matrix[13], matrix[14], matrix[15]
         );
     }
 
@@ -137,15 +138,6 @@ namespace Model_Manager {
 
     glm::quat cgltf_to_quat(const cgltf_float* data) {
         return glm::quat(data[3], data[0], data[1], data[2]); // w, x, y, z
-    }
-
-    void init(std::string path) {
-        base_path = path;
-        model_handle mh = load_model("teapot.obj");
-    }
-
-    void cleanup() {
-        // todo Lol
     }
 
     // indirect stuff
@@ -179,6 +171,18 @@ namespace Model_Manager {
     static std::vector<Rotation_Keyframe> rotation_keyframes(0);
     static std::vector<Scale_Keyframe> scale_keyframes(0);
 
+    void init(std::string path) {
+        base_path = path;
+        model_handle mh = load_model("teapot.obj");
+
+        Bone b = { "default", 0xFFFFFFFF, glm::mat4(1.0f) };
+        g_rigged_bones.push_back(b);
+    }
+
+    void cleanup() {
+        // todo Lol
+    }
+
     //uint32_t get_num_meshes() { return num_meshes;  }
 
     bool indirect_model_loaded(const std::string& full_path, model_handle& model_index) {
@@ -203,8 +207,8 @@ namespace Model_Manager {
     }
 
     model_handle load_model(const std::string& path) {
-        printf("num verts before model %d\n", g_vertices.size());
-        printf("num idx before model %d\n", g_indices.size());
+        printf("num verts before model %llu\n", g_vertices.size());
+        printf("num idx before model %llu\n", g_indices.size());
 
         const std::string full_path = base_path + path;
 
@@ -233,16 +237,63 @@ namespace Model_Manager {
         m_indirect_models.push_back(model_ind);
         m_indirect_model_names.push_back(full_path);
 
-        printf("num verts after model %d\n", g_vertices.size());
-        printf("num idx after model %d\n", g_indices.size());
+        printf("num verts after model %llu\n", g_vertices.size());
+        printf("num idx after model %llu\n", g_indices.size());
+
+        return model_index;
+    }
+
+    model_handle load_model_cgltf(const std::string& path) {
+        printf("num verts before model %llu\n", g_vertices.size());
+        printf("num idx before model %llu\n", g_indices.size());
+
+        const std::string full_path = base_path + path;
+
+        model_handle model_index;
+        if (indirect_model_loaded(full_path, model_index))
+            return model_index;
+
+        cgltf_options options = {};
+        cgltf_data* data = NULL;
+        cgltf_result res = cgltf_parse_file(&options, full_path.c_str(), &data);
+        if (res != cgltf_result_success)
+            assert(false);
+
+        std::unique_ptr<cgltf_data, void (*)(cgltf_data*)> dataPtr(data, &cgltf_free);
+
+        res = cgltf_load_buffers(&options, data, full_path.c_str());
+        if (res != cgltf_result_success)
+            assert(false);
+
+        res = cgltf_validate(data);
+        if (res != cgltf_result_success)
+            return false;
+
+        const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
+
+        Model_Indirect model;
+        model.m_name = path;
+        for (cgltf_size i = 0; i < data->scene->nodes_count; i++) {
+            process_node_cgltf(data->scene->nodes[i], data, model, path_without_filename, glm::mat4(1.0f));
+        }
+
+        model.calculate_aabb();
+
+        model_index = m_indirect_models.size();
+
+        m_indirect_models.push_back(model);
+        m_indirect_model_names.push_back(full_path);
+
+        printf("num verts after model %llu\n", g_vertices.size());
+        printf("num idx after model %llu\n", g_indices.size());
 
         return model_index;
     }
 
     model_handle load_animated_model(const std::string& path) {
-        printf("num rigged verts before model %d\n", g_rigged_vertices.size());
-        printf("num rigged idx before model %d\n", g_animated_indices.size());
-        printf("num bones before model %d\n", g_rigged_bones.size());
+        printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
+        printf("num rigged idx before model %llu\n", g_animated_indices.size());
+        printf("num bones before model %llu\n", g_rigged_bones.size());
 
         const std::string full_path = base_path + path;
 
@@ -270,13 +321,13 @@ namespace Model_Manager {
             m_animated_model_names.push_back(full_path);
 
             //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
-            printf("num rigged verts after model %d\n", g_rigged_vertices.size());
-            printf("num rigged idx after model %d\n", g_animated_indices.size());
-            printf("num bones after model %d\n", g_rigged_bones.size());
+            printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
+            printf("num rigged idx after model %llu\n", g_animated_indices.size());
+            printf("num bones after model %llu\n", g_rigged_bones.size());
             // leaf bones
             // maybe kf's
             printf("here\n");
-            printf("num animations loaded %d\n", g_animations.size());
+            printf("num animations loaded %llu\n", g_animations.size());
             printf("not here\n");
 
             return model_index;
@@ -332,12 +383,207 @@ namespace Model_Manager {
         m_animated_models.push_back(model);
         m_animated_model_names.push_back(full_path);
 
-        printf("num rigged verts after model %d\n", g_rigged_vertices.size());
-        printf("num rigged idx after model %d\n", g_animated_indices.size());
-        printf("num bones after model %d\n", g_rigged_bones.size());
+        printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
+        printf("num rigged idx after model %llu\n", g_animated_indices.size());
+        printf("num bones after model %llu\n", g_rigged_bones.size());
         // leaf bones
         // maybe kf's
         //printf("num animations loaded %d\n", g_animations.size());
+        return model_index;
+    }
+
+    void compare_animation_data(uint32_t first, uint32_t second) {
+        return;
+        printf("%llu\n", m_animated_models.size());
+        Animated_Model a = m_animated_models[0];
+        Animated_Model b = m_animated_models[1];
+
+        //static std::vector<Bone> g_rigged_bones(0); // one set of bones can produce many sets of skinned
+        //static std::vector<uint32_t> g_leaf_bones(0);
+        //static uint32_t num_skinned_bones = 0;
+
+        //uint32_t base_bone;
+        //uint32_t bone_count;
+        //uint32_t bone_offset; // difference between base bones (1 set for all meshes) to skinned bones (1 set per mesh)
+        //uint32_t base_leaf;
+        //uint32_t leaf_count;
+        //uint32_t base_animation;
+        //uint32_t animation_count;
+
+        assert(a.bone_count == b.bone_count);
+        assert(a.leaf_count == b.leaf_count);
+        assert(a.animation_count == b.animation_count);
+
+        for (uint32_t i = 0; i < a.bone_count; i++) {
+            printf("A: %s, B:%s\n", g_rigged_bones[a.base_bone + i].name.c_str(), g_rigged_bones[b.base_bone + i].name.c_str());
+            assert(g_rigged_bones[a.base_bone + i].name == g_rigged_bones[b.base_bone + i].name);
+
+            assert(g_rigged_bones[a.base_bone + i].inverse_bind == g_rigged_bones[b.base_bone + i].inverse_bind);
+
+            printf("A: %d, B: %d\n", g_rigged_bones[a.base_bone + i].parent_bone, g_rigged_bones[b.base_bone + i].parent_bone);
+            //assert(g_rigged_bones[a.base_bone + i].parent_bone == g_rigged_bones[b.base_bone + i].parent_bone);
+
+            if (g_rigged_bones[b.base_bone + i].parent_bone != 0xFFFFFFFF) {
+
+                printf("a bone [%d, %s], parent: [%d, %s]\n", a.base_bone + i, g_rigged_bones[a.base_bone + i].name.c_str(), g_rigged_bones[b.base_bone + i].parent_bone,
+                                                            g_rigged_bones[g_rigged_bones[a.base_bone + i].parent_bone].name.c_str());
+
+                printf("b bone [%d, %s], parent: [%d, %s]\n", b.base_bone + i, g_rigged_bones[b.base_bone + i].name.c_str(), g_rigged_bones[b.base_bone + i].parent_bone,
+                g_rigged_bones[g_rigged_bones[b.base_bone + i].parent_bone].name.c_str());
+            }
+
+        }
+
+        // for every animation
+        //uint32_t base_animation;
+        //uint32_t animation_count;
+
+        assert(a.animation_count == b.animation_count);
+
+        for (uint32_t i = 0; i < a.animation_count; i++) {
+            Animation aa = g_animations[a.base_animation + i];
+            Animation ab = g_animations[b.base_animation + i];
+            std::string aan = g_animation_names[a.base_animation + i];
+            std::string abn = g_animation_names[b.base_animation + i];
+
+            //float duration;
+
+            printf("A: %s, B: %s", aan.c_str(), abn.c_str());
+            assert(aan == abn);
+
+            uint32_t bba_a = aa.base_bone_animation;
+            uint32_t bac_a = aa.bone_animation_count;
+
+            uint32_t bba_b = ab.base_bone_animation;
+            uint32_t bac_b = ab.bone_animation_count;
+
+            //assert(bba_a == bba_b);
+            printf("animation %d, A has %d, B has %d", i, bac_a, bac_b);
+            assert(bac_a == bac_b);
+
+            for (uint32_t j = 0; j < bac_a; j++) {
+
+                Bone_Animation a_bone_anim = g_bone_animations[bba_a + j];
+                Bone_Animation b_bone_anim = g_bone_animations[bba_b + j];
+
+                std::string bone_a_n = g_rigged_bones[a_bone_anim.bone_index].name;
+                std::string bone_a_b = g_rigged_bones[b_bone_anim.bone_index].name;
+                
+                assert(bone_a_n == bone_a_b);
+
+                //uint32_t base_position_keyframe;
+                //uint32_t position_keyframe_count;
+                //uint32_t base_rotation_keyframe;
+                //uint32_t rotation_keyframe_count;
+                //uint32_t base_scale_keyframe;
+                //uint32_t scale_keyframe_count;
+
+            }
+
+        }
+
+
+        //static std::vector<Bone_Animation> g_bone_animations(0);
+        //static std::vector<Position_Keyframe> position_keyframes(0);
+        //static std::vector<Rotation_Keyframe> rotation_keyframes(0);
+        //static std::vector<Scale_Keyframe> scale_keyframes(0);
+    }
+
+
+    model_handle load_animated_model_cgltf(const std::string& path) {
+        printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
+        printf("num rigged idx before model %llu\n", g_animated_indices.size());
+        printf("num bones before model %llu\n", g_rigged_bones.size());
+
+        const std::string full_path = base_path + path;
+
+        model_handle model_index;/*
+        if (animated_model_loaded(full_path, model_index)) {
+            printf("OYYOYOYOYOYOYOOY\n\n\n\n\nYOOO");
+            Animated_Model loaded = m_animated_models[model_index];
+            //num_skinned_bones += model.bone_count;
+
+            Animated_Model copy;
+            copy.m_meshes = loaded.m_meshes; // todo change when duplicating verts
+            copy.m_aabb = loaded.m_aabb;
+            copy.base_bone = loaded.base_bone;
+            copy.bone_count = loaded.bone_count;
+            copy.bone_offset = num_skinned_bones - loaded.base_bone; assert(copy.bone_offset >= 0);
+            num_skinned_bones += copy.bone_count;
+            copy.base_leaf = loaded.base_leaf;
+            copy.leaf_count = loaded.leaf_count;
+            copy.base_animation = loaded.base_animation;
+            copy.animation_count = loaded.animation_count;
+
+            model_index = m_animated_models.size();
+            m_animated_models.push_back(copy);
+            m_animated_model_names.push_back(full_path);
+
+            //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
+            printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
+            printf("num rigged idx after model %llu\n", g_animated_indices.size());
+            printf("num bones after model %llu\n", g_rigged_bones.size());
+            // leaf bones
+            // maybe kf's
+            printf("here\n");
+            printf("num animations loaded %llu\n", g_animations.size());
+            printf("not here\n");
+
+            return model_index;
+        }*/
+
+        cgltf_options options = {};
+        cgltf_data* data = NULL;
+        cgltf_result res = cgltf_parse_file(&options, full_path.c_str(), &data);
+        if (res != cgltf_result_success)
+            assert(false);
+
+        std::unique_ptr<cgltf_data, void (*)(cgltf_data*)> dataPtr(data, &cgltf_free);
+
+        res = cgltf_load_buffers(&options, data, full_path.c_str());
+        if (res != cgltf_result_success)
+            assert(false);
+
+        res = cgltf_validate(data);
+        if (res != cgltf_result_success)
+            return false;
+
+        const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
+
+
+        Animated_Model model;
+        model.m_name = path;
+
+        uint32_t base_bone = g_rigged_bones.size();
+        for (cgltf_size i = 0; i < data->scene->nodes_count; i++) {
+            process_node_animated_cgltf(data->scene->nodes[i], data, model, path_without_filename, glm::mat4(1.0f), base_bone);
+        }
+
+        model.base_bone = base_bone;
+        model.bone_count = g_rigged_bones.size() - base_bone;
+        model.bone_offset = num_skinned_bones - model.base_bone; assert(model.bone_offset >= 0);
+        num_skinned_bones += model.bone_count;
+
+        printf("calculating leaf bones\n");
+        model.base_leaf = g_leaf_bones.size();
+        add_leaf_bones(base_bone, g_rigged_bones.size());
+        model.leaf_count = g_leaf_bones.size() - model.base_leaf;
+
+        printf("LOADING ANIMATIONS\n");
+        model.base_animation = g_animations.size();
+        load_animations_from_scene_cgltf(data, base_bone);
+        model.animation_count = g_animations.size() - model.base_animation;
+
+        model.calculate_aabb();
+
+        model_index = m_animated_models.size();
+        m_animated_models.push_back(model);
+        m_animated_model_names.push_back(full_path);
+
+        printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
+        printf("num rigged idx after model %llu\n", g_animated_indices.size());
+        printf("num bones after model %llu\n", g_rigged_bones.size());
+
         return model_index;
     }
 
@@ -359,6 +605,87 @@ namespace Model_Manager {
 
         for (uint32_t i = 0; i < node->mNumChildren; i++) {
             process_node(node->mChildren[i], scene, model, path, current_transform);
+        }
+    }
+
+    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model_Indirect& model, const std::string& path, glm::mat4 parent_transform) {
+        cgltf_float c_transform[16];
+        cgltf_node_transform_local(node, c_transform);
+
+        glm::mat4 transform = parent_transform * cgltf_to_glm(c_transform);
+
+        if (node->mesh) {
+            const cgltf_mesh* mesh = node->mesh;
+            std::string mesh_name = mesh->name ? std::string(mesh->name) : "unnamed_mesh";
+
+            for (cgltf_size i = 0; i < mesh->primitives_count; i++) {
+                const cgltf_primitive* prim = &mesh->primitives[i];
+
+                if (prim->type != cgltf_primitive_type_triangles) { // maybe support more
+                    continue;
+                }
+
+                Mesh_Indirect mesh = process_mesh_cgltf(prim, data, i, path);
+
+                mesh.transform = transform;
+                mesh.aabb.max = glm::vec3(transform * glm::vec4(mesh.aabb.max, 1.0f));
+                mesh.aabb.min = glm::vec3(transform * glm::vec4(mesh.aabb.min, 1.0f));
+
+                model.add_mesh(mesh);
+
+                num_meshes++;
+            }
+        }
+        // todo add handling for light, maybe camera
+
+        for (cgltf_size i = 0; i < node->children_count; i++) {
+            process_node_cgltf(node->children[i], data, model, path, transform);
+        }
+    }
+
+    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, glm::mat4 parent_transform, uint32_t base_bone) {
+        cgltf_float c_transform[16];
+        cgltf_node_transform_local(node, c_transform);
+        glm::mat4 transform = parent_transform * cgltf_to_glm(c_transform);
+
+        if (node->mesh) {
+            const cgltf_mesh* mesh = node->mesh;
+
+            if (!node->skin) {
+                printf("Warning: mesh %s has no skin, skipping animated processing\n", mesh->name ? mesh->name : "unnamed");
+            }
+            else {
+                cgltf_skin* skin = node->skin;
+
+                std::unordered_map<const cgltf_node*, const cgltf_node*> node_to_parent;
+                //                          child             parent
+                for (cgltf_size i = 0; i < data->nodes_count; i++) {
+                    cgltf_node* parent = &data->nodes[i];
+                    for (cgltf_size j = 0; j < parent->children_count; j++) {
+                        node_to_parent[parent->children[j]] = parent;
+                    }
+                }
+
+                std::unordered_map<const cgltf_node*, uint32_t> node_to_bone_index;
+                load_bones_from_skin_cgltf(skin, data, base_bone, node_to_parent, node_to_bone_index);
+
+                for (cgltf_size i = 0; i < mesh->primitives_count; i++) {
+                    const cgltf_primitive* prim = &mesh->primitives[i];
+                    if (prim->type != cgltf_primitive_type_triangles) continue; // todo maybe support more
+
+                    Animated_Mesh anim_mesh = process_animated_mesh_cgltf(prim, data, path, base_bone, skin, node_to_bone_index);
+
+                    anim_mesh.transform = transform;
+                    anim_mesh.aabb.max = glm::vec3(transform * glm::vec4(anim_mesh.aabb.max, 1.0f));
+                    anim_mesh.aabb.min = glm::vec3(transform * glm::vec4(anim_mesh.aabb.min, 1.0f));
+
+                    model.add_mesh(anim_mesh);
+                }
+            }
+        }
+
+        for (cgltf_size i = 0; i < node->children_count; i++) {
+            process_node_animated_cgltf(node->children[i], data, model, path, transform, base_bone);
         }
     }
 
@@ -449,6 +776,129 @@ namespace Model_Manager {
         return mesh_ind;
     }
 
+    Mesh_Indirect process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path) {
+        Mesh_Indirect mesh_ind = { 0 };
+
+        //mesh_ind.name = mesh_name + "_primitive_" + std::to_string(primitive_index);
+        //printf("loading mesh %s\n", mesh_ind.name.c_str());
+
+        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
+        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        mesh_ind.base_vertex = g_vertices.size();
+
+        uint32_t vertex_count = 0;
+        cgltf_accessor* position_accessor = nullptr;
+
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            if (prim->attributes[i].type == cgltf_attribute_type_position) {
+                position_accessor = prim->attributes[i].data;
+                vertex_count = position_accessor->count;
+                break;
+            }
+        }
+
+        if (!position_accessor) {
+            printf("Warning: primitive has no position attribute\n");
+            assert(false);
+        }
+
+        g_vertices.reserve(g_vertices.size() + vertex_count);
+
+        std::vector<Vertex> temp_vertices(vertex_count);
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            cgltf_attribute* attr = &prim->attributes[i];
+            cgltf_accessor* accessor = attr->data;
+
+            if (attr->type == cgltf_attribute_type_position) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float pos[3];
+                    cgltf_accessor_read_float(accessor, v, pos, 3);
+                    temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+
+                    mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
+                    mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_normal) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float normal[3];
+                    cgltf_accessor_read_float(accessor, v, normal, 3);
+                    temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_texcoord) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float texcoord[2];
+                    cgltf_accessor_read_float(accessor, v, texcoord, 2);
+                    temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_tangent) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float tangent[4];
+                    cgltf_accessor_read_float(accessor, v, tangent, 4);
+                    temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+
+                    glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+                    temp_vertices[v].bitangent = bitangent;
+                }
+            }
+            // maybe add color
+        }
+
+        for (uint32_t v = 0; v < vertex_count; v++) {
+            if (glm::length(temp_vertices[v].normal) == 0.0f) {
+                temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            }
+            if (temp_vertices[v].tex_coords == glm::vec2(0.0f) && !has_attribute(prim, cgltf_attribute_type_texcoord)) {
+                temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+            }
+            if (glm::length(temp_vertices[v].tangent) == 0.0f) {
+                temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+            if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
+                temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+            }
+        }
+
+        for (const auto& vertex : temp_vertices) {
+            g_vertices.push_back(vertex);
+        }
+
+        mesh_ind.base_index = g_indices.size();
+
+        if (prim->indices) {
+            uint32_t index_count = prim->indices->count;
+
+            std::vector<uint32_t> temp_indices(index_count);
+            cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
+
+            for (uint32_t idx : temp_indices)
+                g_indices.push_back(idx);
+
+            mesh_ind.index_count = index_count;
+        }
+        else {
+            for (uint32_t i = 0; i < vertex_count; i++)
+                g_indices.push_back(mesh_ind.base_vertex + i);
+
+            mesh_ind.index_count = vertex_count;
+        }
+
+        Material_Indirect material = load_material_cgltf(prim, data, path);
+        mesh_ind.material_index = Material_Manager::add_material(material);
+
+        return mesh_ind;
+    }
+    bool has_attribute(const cgltf_primitive* prim, cgltf_attribute_type type) {
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            if (prim->attributes[i].type == type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     Animated_Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone) {
         Animated_Mesh mesh_ind = { 0 };
         mesh_ind.name = std::string(mesh->mName.C_Str());
@@ -519,7 +969,7 @@ namespace Model_Manager {
             std::vector<Temp_Bone>& vertex_bones = vertex_bone_influences[i];
             if (vertex_bones.size() > 4) {
                 // maybe do something
-                printf("\n\n-----SUS MORE THAN 4 BONES [%d]-----\n\n", vertex_bones.size());
+                printf("\n\n-----SUS MORE THAN 4 BONES [%llu]-----\n\n", vertex_bones.size());
             }
 
             uint32_t num_bones = vertex_bones.size() > 4 ? 4 : vertex_bones.size();
@@ -553,9 +1003,194 @@ namespace Model_Manager {
         return mesh_ind;
     }
 
+    Animated_Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>&node_to_bone_index) {
+        Animated_Mesh mesh_ind = { 0 };
+        // mesh_ind.name = ?
+        printf("cgltf loading RIGGED mesh %s\n", mesh_ind.name.c_str());
+
+        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
+        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+
+        // Get vertex count
+        uint32_t vertex_count = 0;
+        cgltf_accessor* position_accessor = nullptr;
+
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            if (prim->attributes[i].type == cgltf_attribute_type_position) {
+                position_accessor = prim->attributes[i].data;
+                vertex_count = position_accessor->count;
+                break;
+            }
+        }
+
+        if (!position_accessor) {
+            printf("no position attribute\n");
+            assert(false);
+        }
+
+        cgltf_accessor* joints_accessor = nullptr;
+        cgltf_accessor* weights_accessor = nullptr;
+
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            if (prim->attributes[i].type == cgltf_attribute_type_joints) {
+                joints_accessor = prim->attributes[i].data;
+            }
+            else if (prim->attributes[i].type == cgltf_attribute_type_weights) {
+                weights_accessor = prim->attributes[i].data;
+            }
+        }
+
+        if (!joints_accessor || !weights_accessor) {
+            printf("missing joint/weight data\n");
+            assert(false);
+        }
+
+        mesh_ind.base_vertex = g_rigged_vertices.size();
+        g_rigged_vertices.reserve(g_rigged_vertices.size() + vertex_count);
+
+        std::vector<Rigged_Vertex> temp_vertices(vertex_count);
+        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+            cgltf_attribute* attr = &prim->attributes[i];
+            cgltf_accessor* accessor = attr->data;
+
+            if (attr->type == cgltf_attribute_type_position) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float pos[3];
+                    cgltf_accessor_read_float(accessor, v, pos, 3);
+                    temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+
+                    mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
+                    mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_normal) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float normal[3];
+                    cgltf_accessor_read_float(accessor, v, normal, 3);
+                    temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_texcoord) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float texcoord[2];
+                    cgltf_accessor_read_float(accessor, v, texcoord, 2);
+                    temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_tangent) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float tangent[4];
+                    cgltf_accessor_read_float(accessor, v, tangent, 4);
+                    temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+
+                    glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+                    temp_vertices[v].bitangent = bitangent;
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_joints) {
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    uint32_t joints[4];
+                    if (cgltf_accessor_read_uint(accessor, v, joints, 4)) {
+                        for (int j = 0; j < 4; j++) {
+                            if (joints[j] < skin->joints_count) {
+                                cgltf_node* joint_node = skin->joints[joints[j]];
+                                auto it = node_to_bone_index.find(joint_node);
+
+                                if (it != node_to_bone_index.end()) {
+                                    temp_vertices[v].bone_ids[j] = it->second;
+                                }
+                                else {
+                                    printf("Joint node mapping failed for vertex %u, joint %d\n", v, j);
+                                    temp_vertices[v].bone_ids[j] = 0;
+                                }
+                            }
+                            else {
+                                printf("Joint index out of bounds: %u >= %llu\n", joints[j], skin->joints_count);
+                                temp_vertices[v].bone_ids[j] = 0;
+                            }
+                        }
+                        printf("Vertex %u joints: [%u, %u, %u, %u] -> bones: [%u, %u, %u, %u]\n",
+                            v, joints[0], joints[1], joints[2], joints[3],
+                            temp_vertices[v].bone_ids[0], temp_vertices[v].bone_ids[1],
+                            temp_vertices[v].bone_ids[2], temp_vertices[v].bone_ids[3]);
+                    }
+                    else {
+                        printf("Failed to read joint data for vertex %u\n", v);
+                        for (int j = 0; j < 4; j++) {
+                            temp_vertices[v].bone_ids[j] = 0;
+                        }
+                    }
+                }
+            }
+            else if (attr->type == cgltf_attribute_type_weights) {
+                printf("=== WEIGHT ACCESSOR DEBUG ===\n");
+                printf("Weight component_type: %d, type: %d, count: %llu\n",
+                    accessor->component_type, accessor->type, accessor->count);
+
+                for (uint32_t v = 0; v < vertex_count; v++) {
+                    float weights[4];
+                    cgltf_accessor_read_float(accessor, v, weights, 4);
+                    for (int j = 0; j < 4; j++) {
+                        temp_vertices[v].bone_weights[j] = weights[j];
+                    }
+                }
+            }
+        }
+
+        for (uint32_t v = 0; v < vertex_count; v++) {
+            if (glm::length(temp_vertices[v].normal) == 0.0f) {
+                temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            }
+            if (temp_vertices[v].tex_coords == glm::vec2(0.0f) &&
+                !has_attribute(prim, cgltf_attribute_type_texcoord)) {
+                temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+            }
+            if (glm::length(temp_vertices[v].tangent) == 0.0f) {
+                temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+            if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
+                temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+            }
+            // joint & weight?
+
+            for (uint32_t j = 0; j < 4; j++) {
+                //if (temp_vertices[v].bone_weights[j] == 0.0f)
+                //    temp_vertices[v].bone_ids[j] = 0;
+                printf("  slot %d: bone %u, weight %.3f\n", v, temp_vertices[v].bone_ids[j], temp_vertices[v].bone_weights[j]);
+            }
+        }
+
+        for (const auto& vertex : temp_vertices) {
+            g_rigged_vertices.push_back(vertex);
+        }
+
+        mesh_ind.base_index = g_animated_indices.size();
+        if (prim->indices) {
+            uint32_t index_count = prim->indices->count;
+            std::vector<uint32_t> temp_indices(index_count);
+            cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
+
+            for (uint32_t idx : temp_indices) {
+                g_animated_indices.push_back(idx);
+            }
+            mesh_ind.index_count = index_count;
+        }
+        else {
+            for (uint32_t i = 0; i < vertex_count; i++) {
+                g_animated_indices.push_back(i);
+            }
+            mesh_ind.index_count = vertex_count;
+        }
+
+        Material_Indirect material = load_material_cgltf(prim, data, path);
+        mesh_ind.material_index = Material_Manager::add_material(material);
+
+        return mesh_ind;
+    }
+
     Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
         Material_Indirect mesh_mat{ 0 };
-        printf("path is :%s\n", path.c_str());
+        // printf("path is :%s\n", path.c_str());
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
@@ -647,6 +1282,367 @@ namespace Model_Manager {
         return mesh_mat;
     }
 
+    Material_Indirect load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path) {
+        Material_Indirect mesh_mat{ 0 };
+
+        if (!prim->material) {
+            mesh_mat.base_color = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);
+            mesh_mat.metallic_factor = 0.0f;
+            mesh_mat.roughness_factor = 1.0f;
+            mesh_mat.emissive_factor = glm::vec4(1.0f);
+            return mesh_mat;
+        }
+
+        cgltf_material* material = prim->material;
+
+        // just met rough for now
+        if (material->has_pbr_metallic_roughness) {
+            cgltf_pbr_metallic_roughness* pbr = &material->pbr_metallic_roughness;
+
+            if (pbr->base_color_texture.texture && pbr->base_color_texture.texture->image &&
+                pbr->base_color_texture.texture->image->uri) {
+
+                std::string uri = pbr->base_color_texture.texture->image->uri;
+                uri.resize(cgltf_decode_uri(&uri[0]));
+
+            #if BINDLESS
+                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + uri);
+            #else
+                mesh_mat.albedo = Texture_Manager::load_from_path(path + uri);
+            #endif
+            }
+
+            if (pbr->metallic_roughness_texture.texture && pbr->metallic_roughness_texture.texture->image &&
+                pbr->metallic_roughness_texture.texture->image->uri) {
+
+                std::string uri = pbr->metallic_roughness_texture.texture->image->uri;
+                uri.resize(cgltf_decode_uri(&uri[0]));
+
+            #if BINDLESS
+                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + uri);
+            #else
+                mesh_mat.met_rough = Texture_Manager::load_from_path(path + uri);
+            #endif
+            }
+
+            mesh_mat.metallic_factor = pbr->metallic_factor;
+            mesh_mat.roughness_factor = pbr->roughness_factor;
+
+            mesh_mat.base_color = glm::vec4(
+                pbr->base_color_factor[0],
+                pbr->base_color_factor[1],
+                pbr->base_color_factor[2],
+                pbr->base_color_factor[3]
+            );
+
+            printf("MET: %f, ROG: %f\n", mesh_mat.metallic_factor, mesh_mat.roughness_factor);
+        }
+        else {
+            mesh_mat.base_color = glm::vec4(1.0f);
+            mesh_mat.metallic_factor = 0.0f;
+            mesh_mat.roughness_factor = 1.0f;
+        }
+
+        if (material->normal_texture.texture && material->normal_texture.texture->image &&
+            material->normal_texture.texture->image->uri) {
+
+            std::string uri = material->normal_texture.texture->image->uri;
+            uri.resize(cgltf_decode_uri(&uri[0]));
+
+        #if BINDLESS
+            mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + uri);
+        #else
+            mesh_mat.normal = Texture_Manager::load_from_path(path + uri);
+        #endif
+        }
+
+        if (material->emissive_texture.texture && material->emissive_texture.texture->image &&
+            material->emissive_texture.texture->image->uri) {
+
+            std::string uri = material->emissive_texture.texture->image->uri;
+            uri.resize(cgltf_decode_uri(&uri[0]));
+
+        #if BINDLESS
+            mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + uri);
+        #else
+            mesh_mat.emissive = Texture_Manager::load_from_path(path + uri);
+        #endif
+        }
+
+        mesh_mat.emissive_factor = glm::vec4(
+            material->emissive_factor[0],
+            material->emissive_factor[1],
+            material->emissive_factor[2],
+            1.0f // todo get emissive strength 
+        );
+
+        if (material->occlusion_texture.texture && material->occlusion_texture.texture->image &&
+            material->occlusion_texture.texture->image->uri) {
+
+            std::string uri = material->occlusion_texture.texture->image->uri;
+            uri.resize(cgltf_decode_uri(&uri[0]));
+
+        #if BINDLESS
+            mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + uri);
+        #else
+            mesh_mat.amb_occ = Texture_Manager::load_from_path(path + uri);
+        #endif
+        }
+
+        printf("path is :%s\n", path.c_str());
+
+        return mesh_mat;
+    }
+
+
+    void load_all_skins(const cgltf_data* data, uint32_t base_bone) {
+        //std::unordered_map<const cgltf_node*, const cgltf_node*> node_to_parent;
+        ////                          child             parent
+        //
+        //for (cgltf_size i = 0; i < data->nodes_count; i++) {
+        //    cgltf_node* parent = &data->nodes[i];
+        //    for (cgltf_size j = 0; j < parent->children_count; j++) {
+        //        node_to_parent[parent->children[j]] = parent;
+        //    }
+        //}
+
+        for (cgltf_size i = 0; i < data->skins_count; i++) {
+            //load_bones_from_skin_cgltf(&data->skins[i], data, base_bone, node_to_parent);
+        }
+    }
+
+    void load_bones_from_skin_cgltf(const cgltf_skin* skin, const cgltf_data* data, uint32_t base_bone, const std::unordered_map<const cgltf_node*, const cgltf_node*>& node_to_parent, std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index) {
+        printf("[SKIN] Loading skin with %llu joints\n", skin->joints_count);
+
+        // g_rigged_bones.reserve(g_rigged_bones.size() + skin->joints_count);
+        for (cgltf_size i = 0; i < skin->joints_count; i++) {
+            cgltf_node* joint_node = skin->joints[i];
+            std::string bone_name = joint_node->name ? std::string(joint_node->name) : ("joint_" + std::to_string(i));
+
+            uint32_t bone_index = UINT32_MAX;
+            for (uint32_t j = base_bone; j < g_rigged_bones.size(); j++) {
+                if (g_rigged_bones[j].name == bone_name) {
+                    bone_index = j;
+                    break;
+                }
+            }
+
+            if (bone_index == UINT32_MAX) {
+                printf("[BONE] adding bone %s\n", bone_name.c_str());
+                Bone new_bone;
+                new_bone.name = bone_name;
+
+                if (skin->inverse_bind_matrices) {
+                    float matrix[16];
+                    cgltf_accessor_read_float(skin->inverse_bind_matrices, i, matrix, 16);
+                    new_bone.inverse_bind = cgltf_to_glm(matrix);
+                    //new_bone.inverse_bind = glm::mat4(1.0f);
+                }
+                else {
+                    new_bone.inverse_bind = glm::mat4(1.0f);
+                }
+
+                new_bone.parent_bone = UINT32_MAX;
+                bone_index = g_rigged_bones.size();
+                g_rigged_bones.push_back(new_bone);
+            }
+
+            node_to_bone_index[joint_node] = bone_index;
+        }
+
+        // update parents
+        for (cgltf_size i = 0; i < skin->joints_count; i++) {
+            cgltf_node* joint_node = skin->joints[i];
+            uint32_t bone_index = node_to_bone_index[joint_node];
+
+
+            const cgltf_node* parent_node = joint_node->parent;
+            if (parent_node) {
+                auto itp = node_to_bone_index.find(parent_node);
+                if (itp != node_to_bone_index.end()) g_rigged_bones[bone_index].parent_bone = itp->second;
+                else g_rigged_bones[bone_index].parent_bone = UINT32_MAX;
+            }
+            else {
+                g_rigged_bones[bone_index].parent_bone = UINT32_MAX;
+            }
+
+            /*
+            const cgltf_node* parent_node = nullptr;
+            auto parent_it = node_to_parent.find(joint_node);
+            if (parent_it != node_to_parent.end()) {
+                parent_node = parent_it->second;
+            }
+
+            if (parent_node && node_to_bone_index.find(parent_node) != node_to_bone_index.end()) {
+                uint32_t parent_bone_index = node_to_bone_index[parent_node];
+                g_rigged_bones[bone_index].parent_bone = parent_bone_index;
+                printf("[BONE] %s -> parent: %s (index %u)\n",
+                    g_rigged_bones[bone_index].name.c_str(),
+                    g_rigged_bones[parent_bone_index].name.c_str(),
+                    parent_bone_index);
+            }
+            else {
+                printf("[BONE] %s is a root bone (no parent or parent not in skin)\n", g_rigged_bones[bone_index].name.c_str());
+            }*/
+        }
+        //for (cgltf_size i = 0; i < skin->joints_count; i++) {
+        //    cgltf_node* joint_node = skin->joints[i];
+        //    uint32_t bone_index = node_to_bone_index[joint_node];
+
+        //    cgltf_node* parent_node = joint_node->parent;
+
+        //    if (parent_node) {
+        //        auto parent_it = node_to_bone_index.find(parent_node);
+        //        if (parent_it != node_to_bone_index.end()) {
+        //            uint32_t parent_bone_index = parent_it->second;
+        //            g_rigged_bones[bone_index].parent_bone = parent_bone_index;
+        //        }
+        //    }
+        //}
+    }
+
+    void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone) {
+        for (cgltf_size anim_idx = 0; anim_idx < data->animations_count; ++anim_idx) {
+            cgltf_animation* gltf_anim = &data->animations[anim_idx];
+
+            Animation animation;
+            animation.base_bone_animation = g_bone_animations.size();
+
+            std::string anim_name = gltf_anim->name ? std::string(gltf_anim->name) :
+                ("animation_" + std::to_string(anim_idx));
+
+            printf("Loading animation: %s\n", anim_name.c_str());
+
+            float max_time = 0.0f;
+            for (cgltf_size channel_idx = 0; channel_idx < gltf_anim->channels_count; channel_idx++) {
+                cgltf_animation_channel* channel = &gltf_anim->channels[channel_idx];
+                cgltf_animation_sampler* sampler = channel->sampler;
+
+                if (sampler->input->count > 0) {
+                    float last_time;
+                    cgltf_accessor_read_float(sampler->input, sampler->input->count - 1, &last_time, 1);
+                    max_time = std::max(max_time, last_time);
+                }
+            }
+            animation.duration = max_time;
+
+            /*
+            for (cgltf_size channel_idx = 0; channel_idx < gltf_anim->channels_count; channel_idx++) {
+                cgltf_animation_channel* channel = &gltf_anim->channels[channel_idx];
+
+                if (!channel->target_node) continue;
+
+                // Find bone index for this node
+                std::string node_name = channel->target_node->name ? std::string(channel->target_node->name) : ("node_" + std::to_string(cgltf_node_index(data, channel->target_node)));
+
+                uint32_t bone_index = find_bone_index(node_name, base_bone);
+
+                Bone_Animation bone_anim;
+                bone_anim.bone_index = bone_index;
+                bone_anim.base_position_keyframe = position_keyframes.size();
+                bone_anim.base_rotation_keyframe = rotation_keyframes.size();
+                bone_anim.base_scale_keyframe = scale_keyframes.size();
+
+                load_keyframes_from_channel_cgltf(channel);
+
+                bone_anim.position_keyframe_count = position_keyframes.size() - bone_anim.base_position_keyframe;
+                bone_anim.rotation_keyframe_count = rotation_keyframes.size() - bone_anim.base_rotation_keyframe;
+                bone_anim.scale_keyframe_count = scale_keyframes.size() - bone_anim.base_scale_keyframe;
+
+                g_bone_animations.push_back(bone_anim);
+            }
+            */
+
+            std::unordered_map<uint32_t, Bone_Animation> bone_anim_map;
+            for (cgltf_size channel_idx = 0; channel_idx < gltf_anim->channels_count; channel_idx++) {
+                cgltf_animation_channel* channel = &gltf_anim->channels[channel_idx];
+                if (!channel->target_node) continue;
+
+                std::string node_name = channel->target_node->name ?
+                    std::string(channel->target_node->name) :
+                    ("node" + std::to_string(cgltf_node_index(data, channel->target_node)));
+
+                uint32_t bone_index = find_bone_index(node_name, base_bone);
+                if (bone_index == 0xFFFFFFFF) continue;
+
+                auto& bone_anim = bone_anim_map[bone_index];
+                if (bone_anim.bone_index == 0 && bone_anim.base_position_keyframe == 0) {
+                    bone_anim.bone_index = bone_index;
+                    bone_anim.base_position_keyframe = position_keyframes.size();
+                    bone_anim.base_rotation_keyframe = rotation_keyframes.size();
+                    bone_anim.base_scale_keyframe = scale_keyframes.size();
+                }
+
+                load_keyframes_from_channel_cgltf(channel);
+
+                if (channel->target_path == cgltf_animation_path_type_translation)
+                    bone_anim.position_keyframe_count = position_keyframes.size() - bone_anim.base_position_keyframe;
+                else if (channel->target_path == cgltf_animation_path_type_rotation)
+                    bone_anim.rotation_keyframe_count = rotation_keyframes.size() - bone_anim.base_rotation_keyframe;
+                else if (channel->target_path == cgltf_animation_path_type_scale)
+                    bone_anim.scale_keyframe_count = scale_keyframes.size() - bone_anim.base_scale_keyframe;
+            }
+
+            for (auto& [bone_idx, anim] : bone_anim_map)
+                g_bone_animations.push_back(anim);
+
+            animation.bone_animation_count = g_bone_animations.size() - animation.base_bone_animation;
+            g_animations.push_back(animation);
+            g_animation_names.push_back(anim_name);
+
+            printf("Animation duration: %.2f seconds\n", animation.duration);
+        }
+    }
+
+    void load_keyframes_from_channel_cgltf(cgltf_animation_channel* channel) {
+        cgltf_animation_sampler* sampler = channel->sampler;
+
+        if (channel->target_path == cgltf_animation_path_type_translation) {
+            for (cgltf_size i = 0; i < sampler->input->count; i++) {
+                Position_Keyframe keyframe;
+
+                float time;
+                cgltf_accessor_read_float(sampler->input, i, &time, 1);
+                keyframe.time = time;
+
+                float pos[3];
+                cgltf_accessor_read_float(sampler->output, i, pos, 3);
+                keyframe.position = glm::vec3(pos[0], pos[1], pos[2]);
+
+                position_keyframes.push_back(keyframe);
+            }
+        }
+        else if (channel->target_path == cgltf_animation_path_type_rotation) {
+            for (cgltf_size i = 0; i < sampler->input->count; i++) {
+                Rotation_Keyframe keyframe;
+
+                float time;
+                cgltf_accessor_read_float(sampler->input, i, &time, 1);
+                keyframe.time = time;
+
+                float rot[4];
+                cgltf_accessor_read_float(sampler->output, i, rot, 4);
+                keyframe.rotation = glm::quat(rot[3], rot[0], rot[1], rot[2]);
+                rotation_keyframes.push_back(keyframe);
+            }
+        }
+        else if (channel->target_path == cgltf_animation_path_type_scale) {
+            for (cgltf_size i = 0; i < sampler->input->count; i++) {
+                Scale_Keyframe keyframe;
+
+                float time;
+                cgltf_accessor_read_float(sampler->input, i, &time, 1);
+                keyframe.time = time;
+
+                float scale[3];
+                cgltf_accessor_read_float(sampler->output, i, scale, 3);
+                keyframe.scale = glm::vec3(scale[0], scale[1], scale[2]);
+
+                scale_keyframes.push_back(keyframe);
+            }
+        }
+    }
+
     uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone) {
         std::string bone_name(bone->mName.C_Str());
         
@@ -668,7 +1664,7 @@ namespace Model_Manager {
     }
 
     void load_animations_from_scene(const aiScene* scene, uint32_t base_bone) {
-        for (uint32_t anim_idx = 0; anim_idx < scene->mNumAnimations; ++anim_idx) {
+        for (uint32_t anim_idx = 0; anim_idx < scene->mNumAnimations; anim_idx++) {
             aiAnimation* ai_anim = scene->mAnimations[anim_idx];
 
             Animation animation;
@@ -677,7 +1673,7 @@ namespace Model_Manager {
 
             printf("Loading animation: %s, duration: %.2f seconds\n", ai_anim->mName.C_Str(), animation.duration);
 
-            for (uint32_t channel_idx = 0; channel_idx < ai_anim->mNumChannels; ++channel_idx) {
+            for (uint32_t channel_idx = 0; channel_idx < ai_anim->mNumChannels; channel_idx++) {
                 aiNodeAnim* ai_channel = ai_anim->mChannels[channel_idx];
 
                 uint32_t bone_index = find_bone_index(ai_channel->mNodeName.C_Str(), base_bone);
@@ -705,7 +1701,7 @@ namespace Model_Manager {
     }
 
     void load_keyframes_from_channel(aiNodeAnim* channel, double ticks_per_second) {
-        for (uint32_t i = 0; i < channel->mNumPositionKeys; ++i) {
+        for (uint32_t i = 0; i < channel->mNumPositionKeys; i++) {
             Position_Keyframe keyframe;
             aiVector3D pos = channel->mPositionKeys[i].mValue;
             keyframe.position = glm::vec3(pos.x, pos.y, pos.z);
@@ -713,7 +1709,7 @@ namespace Model_Manager {
             position_keyframes.push_back(keyframe);
         }
 
-        for (uint32_t i = 0; i < channel->mNumRotationKeys; ++i) {
+        for (uint32_t i = 0; i < channel->mNumRotationKeys; i++) {
             Rotation_Keyframe keyframe;
             aiQuaternion rot = channel->mRotationKeys[i].mValue;
             keyframe.rotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
@@ -721,7 +1717,7 @@ namespace Model_Manager {
             rotation_keyframes.push_back(keyframe);
         }
 
-        for (uint32_t i = 0; i < channel->mNumScalingKeys; ++i) {
+        for (uint32_t i = 0; i < channel->mNumScalingKeys; i++) {
             Scale_Keyframe keyframe;
             aiVector3D scale = channel->mScalingKeys[i].mValue;
             keyframe.scale = glm::vec3(scale.x, scale.y, scale.z);
@@ -731,8 +1727,9 @@ namespace Model_Manager {
     }
 
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone) {
-        for (uint32_t i = base_bone; i < g_rigged_bones.size(); ++i) {
+        for (uint32_t i = base_bone; i < g_rigged_bones.size(); i++) {
             if (g_rigged_bones[i].name == bone_name) {
+                printf("MATCH %s | %s", bone_name.c_str(), g_rigged_bones[i].name.c_str());
                 return i;
             }
         }
@@ -1048,6 +2045,7 @@ namespace Model_Manager {
             }
         }
 
+        //printf("animating for %d leafs\n", num_leafs);
 
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();

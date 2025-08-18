@@ -579,7 +579,7 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
         for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
             Per_Object_Data obj_data = { 0 };
 
-            obj_data.model_matrix = mind.m_meshes[i].transform;
+            obj_data.model_matrix = glm::translate(mind.m_meshes[i].transform, glm::vec3(5.0, 0.0, 0.0));
 
             Draw_Elements_Indirect_Command draw_command;
             draw_command.count = mind.m_meshes[i].index_count;

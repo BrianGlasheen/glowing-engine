@@ -1,4 +1,5 @@
 #version 460 core
+#define BINDLESS 1
 
 #extension GL_ARB_gpu_shader_int64: enable
 

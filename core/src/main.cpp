@@ -113,8 +113,12 @@ int main() {
     //Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
     //scene.include(e233232332);
 
-    Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
-    scene.include(e2323322);    
+    //Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
+    //scene.include(e2323322);
+
+    model_handle id = Model_Manager::load_model_cgltf("f22/scene.gltf");
+    Entity e232332232323(glm::vec3(-5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), id, true);
+    scene.include(e232332232323);
     
     Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp/scene.gltf", false);
     scene.include(e232lamp3322);
@@ -125,25 +129,36 @@ int main() {
         scene.include(dsadasdasdasda);
     }
 
-    //model_handle raccoon2 = Model_Manager::load_animated_model("goku/scene.gltf");
-    //model_handle raccoon3 = Model_Manager::load_animated_model("glock/scene.gltf");
-    //model_handle raccoon4 = Model_Manager::load_animated_model("glock2/scene.gltf");
+    //model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
+    //model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
     //model_handle raccoon5 = Model_Manager::load_animated_model("glockhell/scene.gltf");
     //model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
-    model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
+    //model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
+    //model_handle raccoon3 = Model_Manager::load_animated_model("hkm23/scene.gltf");
+    //model_handle raccoon6 = Model_Manager::load_animated_model_cgltf("hkm23/scene.gltf");
+    //model_handle raccoon6ddd = Model_Manager::load_animated_model("hkm23/source/Mark23.fbx");
+    
     //model_handle raccoon226 = Model_Manager::load_animated_model("glock2/scene.gltf");
-    //model_handle raccoon26 = Model_Manager::load_animated_model("vector/scene.gltf");
-    //model_handle raccoon = Model_Manager::load_animated_model("tiger/scene.gltf");
-    // model_handle raccoon2 = Model_Manager::load_animated_model("tiger/scene.gltf");
+    //model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
+    //model_handle raccoondddddd2 = Model_Manager::load_animated_model("tiger/scene.gltf");
+    //model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
+    //model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
+    //model_handle raccoon2333333 = Model_Manager::load_animated_model_cgltf("goku/scene.gltf");
+    //model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
+    model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
+
+
+    //Model_Manager::compare_animation_data(0, 1);
+    //model_handle raccoon = Model_Manager::load_animated_model_cgltf("tiger/scene.gltf");
 
     // model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon5 = Model_Manager::load_animated_model("gun/scene.gltf");
     //model_handle raccoon6 = Model_Manager::load_animated_model("glockhell/glock.gltf");
-    //model_handle raccoon6 = Model_Manager::load_animated_model("pistol/scene.gltf");
+    //model_handle raccoondsds6 = Model_Manager::load_animated_model("pistol/scene.gltf");
     //model_handle raccoon4 = Model_Manager::load_animated_model("tadpole/scene.gltf");
 
     //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
-    //model_handle raccoon = Model_Manager::load_rigged_model("clown/scene.gltf");
+    //model_handle raccoon = Model_Manager::load_animated_model_cgltf("clown/scene.gltf");
     //model_handle raccoon = Model_Manager::load_rigged_model("raccoon/scene.gltf");
     //model_handle raccoon33 = Model_Manager::load_animated_model("dragon/scene.gltf");
     //model_handle raccoon2 = Model_Manager::load_animated_model("dragon/scene.gltf");
@@ -243,6 +258,7 @@ int main() {
         {
             PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
             Model_Manager::update_bones_from_animation_compute(0, current_time);
+
         }
         //printf("ct: %f\n", current_time);
 
