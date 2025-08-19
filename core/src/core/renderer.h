@@ -64,7 +64,7 @@ public:
     void setup_indirect();
     void build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
     void indirect_depth_prepass(Player& player);
-    void render_indirect(Player& player);
+    void render_indirect(Player& player, Scene& scene);
 
     void build_cluster_pass(Player& player);
     void cull_cluster_pass(Player& player);
@@ -101,7 +101,7 @@ public:
     float penis = 25.0f;
     float close_plane = 0.5f;
     float ambient_light = 0.01f;
-    float sun_strength = 1.0f;
+    float sun_strength = 0.5f;
 
     bool use_alpha_clipping = true;
     bool shadows_enabled = false;
@@ -152,10 +152,17 @@ public:
     std::vector<Draw_Elements_Indirect_Command> draw_commands;
     std::vector<Per_Object_Data> per_object_data;
 
+    // todo
+    uint32_t blended_draw_command_buffer;
+    std::vector<Draw_Elements_Indirect_Command> draw_commands_blended;
+    std::vector<Per_Object_Data> per_object_data_blended;
+
     uint32_t draw_command_buffer_skinned, per_object_ssbo_skinned;
     std::vector<Draw_Elements_Indirect_Command> draw_commands_skinned;
     std::vector<Per_Object_Data> per_object_data_skinned;
     uint32_t bone = 0;
+
+    // todo maybe blended skinned draws
 
     uint32_t quadVAO;
 };

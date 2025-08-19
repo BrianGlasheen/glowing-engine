@@ -67,7 +67,7 @@ int main() {
 
     Crosshair crosshair(1.0f, 6.0f, 10.0f, 10.0f, 1.0f, glm::vec3(1.0f, 0.5f, 1.0f));
     
-    Scene scene("star"); //.todo move lights here?
+    Scene scene("sky"); //.todo move lights here?
 
    // bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
     //bool loaded = Model_Manager::load_model_indirect("ABeautifulGame/glTF/ABeautifulGame.gltf");
@@ -78,7 +78,7 @@ int main() {
     //bool loaded = Model_Manager::load_model_indirect("plane.obj");
     //bool loaded = Model_Manager::load_model_indirect("sword2/scene.gltf");
     //bool loaded = Model_Manager::load_model_indirect("astonmartin/scene.gltf");
-    //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+    //bool loaded = Model_Manager::load_model_cgltf();
     //bool loaded = Model_Manager::load_model_indirect("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
 
     //Model_Manager::upload_data();
@@ -116,8 +116,9 @@ int main() {
     //Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
     //scene.include(e2323322);
 
-    model_handle id = Model_Manager::load_model_cgltf("f22/scene.gltf");
-    Entity e232332232323(glm::vec3(-5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), id, true);
+    //model_handle id = Model_Manager::load_model_cgltf("f22/scene.gltf");
+    model_handle id = Model_Manager::load_model_cgltf("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+    Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
     scene.include(e232332232323);
     
     Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp/scene.gltf", false);
@@ -138,14 +139,15 @@ int main() {
     //model_handle raccoon6 = Model_Manager::load_animated_model_cgltf("hkm23/scene.gltf");
     //model_handle raccoon6ddd = Model_Manager::load_animated_model("hkm23/source/Mark23.fbx");
     
-    //model_handle raccoon226 = Model_Manager::load_animated_model("glock2/scene.gltf");
+    //model_handle raccoon226 = Model_Manager::load_animated_model_cgltf("gun/scene.gltf");
+
     //model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
     //model_handle raccoondddddd2 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-    //model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
+    model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
     //model_handle raccoon2333333 = Model_Manager::load_animated_model_cgltf("goku/scene.gltf");
     //model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
-    model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
+    //model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
 
 
     //Model_Manager::compare_animation_data(0, 1);
@@ -154,7 +156,7 @@ int main() {
     // model_handle raccoon3 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon5 = Model_Manager::load_animated_model("gun/scene.gltf");
     //model_handle raccoon6 = Model_Manager::load_animated_model("glockhell/glock.gltf");
-    //model_handle raccoondsds6 = Model_Manager::load_animated_model("pistol/scene.gltf");
+    //model_handle raccoondsds6 = Model_Manager::load_animated_model_cgltf("pistol/scene.gltf");
     //model_handle raccoon4 = Model_Manager::load_animated_model("tadpole/scene.gltf");
 
     //model_handle raccoon = Model_Manager::load_rigged_model("trex/scene.gltf");
@@ -181,8 +183,9 @@ int main() {
         //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
         //scene.include(fdfsdfsdfsdfsdf);
 
-          /*Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "bistro/Scene.gltf", false);
-         scene.include(sadasd23232323232332323);*/
+        model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+        Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+        scene.include(sadasd23232323232332323);
     }
 
     Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu

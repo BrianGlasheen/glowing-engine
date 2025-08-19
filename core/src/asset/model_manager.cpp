@@ -1100,19 +1100,19 @@ namespace Model_Manager {
                                     temp_vertices[v].bone_ids[j] = it->second;
                                 }
                                 else {
-                                    printf("Joint node mapping failed for vertex %u, joint %d\n", v, j);
+                                    //printf("Joint node mapping failed for vertex %u, joint %d\n", v, j);
                                     temp_vertices[v].bone_ids[j] = 0;
                                 }
                             }
                             else {
-                                printf("Joint index out of bounds: %u >= %llu\n", joints[j], skin->joints_count);
+                                //printf("Joint index out of bounds: %u >= %llu\n", joints[j], skin->joints_count);
                                 temp_vertices[v].bone_ids[j] = 0;
                             }
                         }
-                        printf("Vertex %u joints: [%u, %u, %u, %u] -> bones: [%u, %u, %u, %u]\n",
-                            v, joints[0], joints[1], joints[2], joints[3],
-                            temp_vertices[v].bone_ids[0], temp_vertices[v].bone_ids[1],
-                            temp_vertices[v].bone_ids[2], temp_vertices[v].bone_ids[3]);
+                        //printf("Vertex %u joints: [%u, %u, %u, %u] -> bones: [%u, %u, %u, %u]\n",
+                        //    v, joints[0], joints[1], joints[2], joints[3],
+                        //    temp_vertices[v].bone_ids[0], temp_vertices[v].bone_ids[1],
+                        //    temp_vertices[v].bone_ids[2], temp_vertices[v].bone_ids[3]);
                     }
                     else {
                         printf("Failed to read joint data for vertex %u\n", v);
@@ -1156,7 +1156,7 @@ namespace Model_Manager {
             for (uint32_t j = 0; j < 4; j++) {
                 //if (temp_vertices[v].bone_weights[j] == 0.0f)
                 //    temp_vertices[v].bone_ids[j] = 0;
-                printf("  slot %d: bone %u, weight %.3f\n", v, temp_vertices[v].bone_ids[j], temp_vertices[v].bone_weights[j]);
+                //printf("  slot %d: bone %u, weight %.3f\n", v, temp_vertices[v].bone_ids[j], temp_vertices[v].bone_weights[j]);
             }
         }
 
@@ -1450,6 +1450,42 @@ namespace Model_Manager {
             node_to_bone_index[joint_node] = bone_index;
         }
 
+
+        for (cgltf_size anim_idx = 0; anim_idx < data->animations_count; anim_idx++) {
+            const cgltf_animation* animation = &data->animations[anim_idx];
+            for (cgltf_size channel_idx = 0; channel_idx < animation->channels_count; channel_idx++) {
+                const cgltf_animation_channel* channel = &animation->channels[channel_idx];
+                cgltf_node* target_node = channel->target_node;
+
+                if (node_to_bone_index.find(target_node) != node_to_bone_index.end()) {
+                    continue;
+                }
+
+                std::string bone_name = target_node->name ? std::string(target_node->name) : ("anim_target_" + std::to_string(channel_idx));
+
+                uint32_t bone_index = UINT32_MAX;
+                for (uint32_t j = base_bone; j < g_rigged_bones.size(); j++) {
+                    if (g_rigged_bones[j].name == bone_name) {
+                        bone_index = j;
+                        break;
+                    }
+                }
+
+                if (bone_index == UINT32_MAX) {
+                    printf("[BONE] adding ANIMATION target bone %s\n", bone_name.c_str());
+                    Bone new_bone;
+                    new_bone.name = bone_name;
+                    new_bone.inverse_bind = glm::mat4(1.0f);
+                    new_bone.parent_bone = UINT32_MAX;
+                    bone_index = g_rigged_bones.size();
+                    g_rigged_bones.push_back(new_bone);
+                }
+
+                node_to_bone_index[target_node] = bone_index;
+            }
+        }
+
+
         // update parents
         for (cgltf_size i = 0; i < skin->joints_count; i++) {
             cgltf_node* joint_node = skin->joints[i];
@@ -1499,6 +1535,22 @@ namespace Model_Manager {
         //        }
         //    }
         //}
+
+        printf("\n[BONES] Final bone hierarchy:\n");
+        for (uint32_t i = base_bone; i < g_rigged_bones.size(); i++) {
+            const Bone& bone = g_rigged_bones[i];
+            if (bone.parent_bone == UINT32_MAX) {
+                printf("[BONE %u] %s (ROOT)\n", i, bone.name.c_str());
+            }
+            else {
+                printf("[BONE %u] %s -> parent: %s (index %u)\n",
+                    i, bone.name.c_str(),
+                    g_rigged_bones[bone.parent_bone].name.c_str(),
+                    bone.parent_bone);
+            }
+        }
+
+        printf("[BONES] Total bones loaded: %zu\n\n", g_rigged_bones.size() - base_bone);
     }
 
     void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone) {

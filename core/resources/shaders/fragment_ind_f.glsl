@@ -59,6 +59,9 @@ in flat float roughness_factor;
     layout(binding = 4) uniform sampler2D occlusion_texture;
 #endif
 
+layout(binding = 9) uniform samplerCube skybox;
+uniform uint num_skybox_mips;
+
 uniform bool use_alpha_clipping; 
 float alpha_cutoff = 0.5;
 uniform bool shadows_enabled;
@@ -214,7 +217,25 @@ vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metal
     return lighting * (1.0 - shadow);
 }
 
+vec3 CalculateEnvironmentReflection(vec3 N, vec3 V, vec3 F0, float roughness, float metallic) {
+    vec3 R = reflect(-V, N);
+    
+    float mip = roughness * (num_skybox_mips - 1);
+    //if (mip > 2)
+      //  mip = 2;
+    vec3 envColor = textureLod(skybox, R, mip).rgb;
+    
+    float cosTheta = max(dot(N, V), 0.0);
+    vec3 F = fresnelSchlick(cosTheta, F0);
+    
+    vec3 kS = F;
+    float reflectionStrength = metallic; // todo
+    
+    return envColor * kS * reflectionStrength * 1.0;
+}
+
 void main() { 
+
 /*
     vec3 fragViewPos2 = vec3(viewMatrix * vec4(FragPos, 1.0));
     float depth = abs(fragViewPos2.z);
@@ -332,6 +353,9 @@ void main() {
         }
     }
     Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness, fragViewPos); // todo CSM
+
+    vec3 envReflection = CalculateEnvironmentReflection(N, V, F0, roughness, metallic);
+    Lo += envReflection;
 
     if (emissive_handle != 0) {
         #if BINDLESS

@@ -41,7 +41,7 @@ public:
         return glm::lookAt(position, position + front, up);
     }
 
-    glm::mat4 get_projection(float aspect) {
+    glm::mat4 get_projection(float aspect) const {
         float f = 1.0f / std::tan(glm::radians(zoom) * 0.5f);
 
         glm::mat4 result(0.0f);

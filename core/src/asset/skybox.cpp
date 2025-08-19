@@ -16,15 +16,15 @@ Skybox::Skybox(const std::string& skybox_name)
 
     for (const auto& name : faceNames) {
         faces.push_back(basePath + name);
-        //std::cout << basePath + name << std::endl;
+        std::cout << basePath + name << std::endl;
     }
 
     load_cubemap(faces);
     setup_cube();
 }
 
-void Skybox::bind() const {
-    glActiveTexture(GL_TEXTURE0);
+void Skybox::bind(uint32_t slot) const {
+    glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
 }
 
@@ -93,9 +93,15 @@ void Skybox::load_cubemap(const std::vector<std::string>& faces) {
         }
     }
 
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    num_mips = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+    printf("skybox mips: %du\n", num_mips);
+
+    //glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 }

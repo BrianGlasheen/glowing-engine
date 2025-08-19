@@ -63,6 +63,8 @@ int Renderer::init() {
     glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
     glClearDepth(0.0f);
 
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
     glEnable(GL_CULL_FACE);
 
     //glEnable(GL_STENCIL_TEST);
@@ -649,7 +651,7 @@ void Renderer::indirect_depth_prepass(Player& player) {
     glBindVertexArray(0);
 }
 
-void Renderer::render_indirect(Player& player) {
+void Renderer::render_indirect(Player& player, Scene& scene) {
     // DRAW
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
@@ -675,6 +677,9 @@ void Renderer::render_indirect(Player& player) {
     Shader* shader = Shader_Manager::get_shader("indirect");
     shader->use();
     //glStencilMask(0x00);
+    
+    scene.skybox.bind(9);
+    shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
 
     shader->set_mat4("vp", viewproj);
 
@@ -842,7 +847,7 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     }
     {
         PROFILE_SCOPE_COLOR("submit render commands", legit::Colors::clouds);
-        render_indirect(player);
+        render_indirect(player, scene);
     }
     {
         PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
@@ -856,6 +861,9 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
     }
     if (do_draw_light_quads)
         draw_light_quads(player);
+
+    render_skybox(scene.skybox, player.get_view_matrix(), player.camera.get_projection((float)scr_height / (float) scr_height));
+
     {
         PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
         composite();
@@ -1058,6 +1066,8 @@ void Renderer::composite() {
 }
 
 void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection) {
+    glDepthFunc(GL_GEQUAL);
+
     Shader* shader = Shader_Manager::get_shader("skybox");
     shader->use();
 
@@ -1066,6 +1076,7 @@ void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const 
     shader->set_mat4("view", viewNoTranslation);
     shader->set_mat4("projection", projection);
 
+    skybox.bind(0);
     skybox.draw();
 }
 
