@@ -12,6 +12,7 @@
 
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
+#include <assimp/GltfMaterial.h>
 
 #include "asset/texture_manager.h"
 #include "asset/material_manager.h"
@@ -147,7 +148,7 @@ namespace Model_Manager {
 
     static std::vector<Vertex> g_vertices(0);
     static std::vector<uint32_t> g_indices(0);
-    static std::vector<Model_Indirect> m_indirect_models(0);
+    static std::vector<Model> m_indirect_models(0);
     static std::vector<std::string> m_indirect_model_names(0);
 
     // animated stuff
@@ -226,7 +227,7 @@ namespace Model_Manager {
 
         const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
 
-        Model_Indirect model_ind;
+        Model model_ind;
         model_ind.m_name = path;
         process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f));
 
@@ -271,7 +272,7 @@ namespace Model_Manager {
 
         const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
 
-        Model_Indirect model;
+        Model model;
         model.m_name = path;
         for (cgltf_size i = 0; i < data->scene->nodes_count; i++) {
             process_node_cgltf(data->scene->nodes[i], data, model, path_without_filename, glm::mat4(1.0f));
@@ -587,13 +588,13 @@ namespace Model_Manager {
         return model_index;
     }
 
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform) {
+    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const glm::mat4& parent_transform) {
         glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
 
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
 
-            Mesh_Indirect mesh = process_mesh(ai_mesh, scene, path);
+            Mesh mesh = process_mesh(ai_mesh, scene, path);
 
             mesh.transform = current_transform;
             mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
@@ -608,7 +609,7 @@ namespace Model_Manager {
         }
     }
 
-    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model_Indirect& model, const std::string& path, glm::mat4 parent_transform) {
+    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, glm::mat4 parent_transform) {
         cgltf_float c_transform[16];
         cgltf_node_transform_local(node, c_transform);
 
@@ -625,7 +626,7 @@ namespace Model_Manager {
                     continue;
                 }
 
-                Mesh_Indirect mesh = process_mesh_cgltf(prim, data, i, path);
+                Mesh mesh = process_mesh_cgltf(prim, data, i, path);
 
                 mesh.transform = transform;
                 mesh.aabb.max = glm::vec3(transform * glm::vec4(mesh.aabb.max, 1.0f));
@@ -710,8 +711,8 @@ namespace Model_Manager {
         }
     }
 
-    Mesh_Indirect process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
-        Mesh_Indirect mesh_ind = { 0 };
+    Mesh process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
+        Mesh mesh_ind = { 0 };
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading mesh %s\n", mesh_ind.name.c_str());
 
@@ -770,14 +771,13 @@ namespace Model_Manager {
         mesh_ind.index_count = num_idcs;
 
         // process material
-        Material_Indirect material = load_material(mesh, scene, path);
-        mesh_ind.material_index = Material_Manager::add_material(material);
+        mesh_ind.material = load_material(mesh, scene, path);
 
         return mesh_ind;
     }
 
-    Mesh_Indirect process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path) {
-        Mesh_Indirect mesh_ind = { 0 };
+    Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path) {
+        Mesh mesh_ind = { 0 };
 
         //mesh_ind.name = mesh_name + "_primitive_" + std::to_string(primitive_index);
         //printf("loading mesh %s\n", mesh_ind.name.c_str());
@@ -885,8 +885,7 @@ namespace Model_Manager {
             mesh_ind.index_count = vertex_count;
         }
 
-        Material_Indirect material = load_material_cgltf(prim, data, path);
-        mesh_ind.material_index = Material_Manager::add_material(material);
+        mesh_ind.material = load_material_cgltf(prim, data, path);
 
         return mesh_ind;
     }
@@ -997,8 +996,7 @@ namespace Model_Manager {
         mesh_ind.index_count = num_idcs;
 
         //// process material
-        Material_Indirect material = load_material(mesh, scene, path);
-        mesh_ind.material_index = Material_Manager::add_material(material);
+        mesh_ind.material = load_material(mesh, scene, path);
 
         return mesh_ind;
     }
@@ -1182,15 +1180,14 @@ namespace Model_Manager {
             mesh_ind.index_count = vertex_count;
         }
 
-        Material_Indirect material = load_material_cgltf(prim, data, path);
-        mesh_ind.material_index = Material_Manager::add_material(material);
+        mesh_ind.material = load_material_cgltf(prim, data, path);
 
         return mesh_ind;
     }
 
-    Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
-        Material_Indirect mesh_mat{ 0 };
-        // printf("path is :%s\n", path.c_str());
+    Material load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
+        Material mesh_mat{ 0 };
+         printf("path is :%s\n", path.c_str());
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
@@ -1277,13 +1274,51 @@ namespace Model_Manager {
                     mesh_mat.amb_occ = Texture_Manager::load_from_path(path + str.C_Str());
                 #endif
             }
+
+            float alpha_cutoff = 0.5f;
+            float opacity;
+            if (AI_SUCCESS == material->Get(AI_MATKEY_OPACITY, opacity)) {
+                alpha_cutoff = opacity;
+            }
+
+            float transparency;
+            if (AI_SUCCESS == material->Get(AI_MATKEY_TRANSPARENCYFACTOR, transparency)) {
+                alpha_cutoff = 1.0f - transparency;
+            }
+
+            float gltf_ac;
+            if (AI_SUCCESS == material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, gltf_ac)) {
+                alpha_cutoff = gltf_ac;
+            }
+
+            //AI_MATKEY_BLEND_FUNC
+            //#define AI_MATKEY_GLTF_ALPHAMODE "$mat.gltf.alphaMode", 0, 0
+
+            aiString alpha_mode;
+            if (AI_SUCCESS == material->Get(AI_MATKEY_GLTF_ALPHAMODE, alpha_mode)) {
+                if (strcmp(alpha_mode.C_Str(), "OPAQUE") == 0) {
+                    alpha_cutoff = 0.0f;
+                }
+                //else if (strcmp(alpha_mode.C_Str(), "MASK") == 0) {
+                //    float gltf_ac;
+                //    if (AI_SUCCESS == material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, gltf_ac)) {
+                //        alpha_cutoff = gltf_ac;
+                //    }
+                //}
+                //else if (strcmp(alpha_mode.C_Str(), "BLEND") == 0) {
+                //    alpha_cutoff = 0.0f;
+                //}
+            }
+
+            mesh_mat.alpha_cutoff = alpha_cutoff;
+
         }
 
         return mesh_mat;
     }
 
-    Material_Indirect load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path) {
-        Material_Indirect mesh_mat{ 0 };
+    Material load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path) {
+        Material mesh_mat{ 0 };
 
         if (!prim->material) {
             mesh_mat.base_color = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);
@@ -1789,7 +1824,7 @@ namespace Model_Manager {
         assert(false);
     }
 
-    Model_Indirect get_model_ind(uint32_t idx) {
+    Model get_model_ind(uint32_t idx) {
         return m_indirect_models[idx];
     }
     

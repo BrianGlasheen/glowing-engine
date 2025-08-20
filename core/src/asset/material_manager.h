@@ -4,7 +4,13 @@
 
 #include <glm/glm.hpp>
 
-struct Material_Indirect {
+enum Blend_Mode {
+	disabled = 0,
+	blend, // one minus alpha prob
+	additive
+};
+
+struct Material {
 	uint64_t albedo; // bindless handles
 	glm::vec4 base_color;
 	uint64_t normal;
@@ -14,10 +20,12 @@ struct Material_Indirect {
 	glm::vec4 emissive_factor; // r g b strength
 	float metallic_factor;
 	float roughness_factor;
+	float alpha_cutoff;
+	Blend_Mode blend_mode;
 };
 
 namespace Material_Manager {
-	uint32_t add_material(const Material_Indirect& mat);
-	const Material_Indirect& get_material(uint32_t index);
+	uint32_t add_material(const Material& mat);
+	const Material& get_material(uint32_t index);
 	size_t get_material_count();
 }

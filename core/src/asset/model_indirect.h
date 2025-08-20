@@ -13,7 +13,7 @@
 //	size_t index;
 //};
 
-struct Mesh_Indirect {
+struct Mesh {
 	uint32_t base_vertex;
 	uint32_t vertex_count;
 	uint32_t base_index;
@@ -21,28 +21,29 @@ struct Mesh_Indirect {
 	Util::AABB aabb;
 	std::string name;
 	
-	uint32_t material_index;
 	// parent? 
 	glm::mat4 transform; // relative to parent
+
+	Material material;
 };
 
-class Model_Indirect {
+class Model {
 public:
-	Model_Indirect() = default;
-	Model_Indirect(std::string name, std::vector<Mesh_Indirect> meshes) : 
+	Model() = default;
+	Model(std::string name, std::vector<Mesh> meshes) : 
 		m_name(name), m_meshes(meshes)
 	{
 		calculate_aabb();
 	}
 
-	void add_mesh(const Mesh_Indirect& mesh) {
+	void add_mesh(const Mesh& mesh) {
 		m_meshes.push_back(mesh);
 	}
 
 	void calculate_aabb() {
 		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
 
-		for (const Mesh_Indirect& mesh : m_meshes) {
+		for (const Mesh& mesh : m_meshes) {
 			if (mesh.aabb.min.x < m_aabb.min.x) m_aabb.min.x = mesh.aabb.min.x;
 			if (mesh.aabb.min.y < m_aabb.min.y) m_aabb.min.y = mesh.aabb.min.y;
 			if (mesh.aabb.min.z < m_aabb.min.z) m_aabb.min.z = mesh.aabb.min.z;
@@ -59,7 +60,7 @@ public:
 
 //private:
 	std::string m_name;
-	std::vector<Mesh_Indirect> m_meshes;
+	std::vector<Mesh> m_meshes;
 	// todo maybe huge buffer of all meshes or something
 	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;

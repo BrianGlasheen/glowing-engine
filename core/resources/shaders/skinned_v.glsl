@@ -14,19 +14,19 @@ layout (location = 6) in vec4 BoneWeights;
 struct Per_Object_Data {
     mat4 model_matrix;
     mat4 normal_matrix;
-    uint bone_offset;
-    uint padding1;
-    uint padding2;
-    uint padding3;
+    vec4 base_color;
+    vec4 emissive_factor;
+    
     uint64_t albedo;
     uint64_t normal;
     uint64_t met_rough;
     uint64_t emissive;
-    vec4 emissive_factor;
+    uint64_t amb_occ;
+
+    float alpha_cutoff;
     float metallic_factor; // 4
     float roughness_factor; // 4
-    uint64_t amb_occ;
-    vec4 base_color;
+    uint bone_offset; // todo remove
 };
 
 struct GPU_Bone_Skinned {

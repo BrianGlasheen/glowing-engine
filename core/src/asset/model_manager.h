@@ -36,13 +36,13 @@ namespace Model_Manager {
 
     void compare_animation_data(uint32_t first, uint32_t second);
 
-    void process_node(aiNode* node, const aiScene* scene, Model_Indirect& model, const std::string& path, const glm::mat4& parent_transform);
-    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model_Indirect& model, const std::string& path, glm::mat4 parent_transform);
+    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const glm::mat4& parent_transform);
+    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, glm::mat4 parent_transform);
     void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const glm::mat4& parent_transform, uint32_t base_bone);
     void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, glm::mat4 parent_transform, uint32_t base_bone);
 
-    Mesh_Indirect process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path);
-    Mesh_Indirect process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path);
+    Mesh process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path);
+    Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path);
     bool has_attribute(const cgltf_primitive* prim, cgltf_attribute_type type);
     Animated_Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone);
     Animated_Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index);
@@ -51,8 +51,8 @@ namespace Model_Manager {
     void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone);
     void load_keyframes_from_channel_cgltf(cgltf_animation_channel* channel);
 
-    Material_Indirect load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path);
-    Material_Indirect load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path);
+    Material load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path);
+    Material load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path);
 
     uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone);
 
@@ -64,7 +64,7 @@ namespace Model_Manager {
     //glm::vec3 interpolate_scale(aiNodeAnim* channel, double time);
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
-    Model_Indirect get_model_ind(uint32_t idx);
+    Model get_model_ind(uint32_t idx);
     Animated_Model get_animated_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
 

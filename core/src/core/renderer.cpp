@@ -492,17 +492,20 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
     draw_commands.clear();
     per_object_data.clear();
     uint32_t current_draw_count = 0;
+    draw_commands_blended.clear();
+    per_object_data_blended.clear();
+    uint32_t blended_draw_count = 0;
 
     for (Entity& entity : scene.entities) {
 
-        Model_Indirect mind = Model_Manager::get_model_ind(entity.model_id);
+        Model mind = Model_Manager::get_model_ind(entity.model_id);
 
         Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
         debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
 
         // if culled
-        //if (!frustum.intersectsAABB(model_aabb, true))
-        //    continue;
+        if (!frustum.intersectsAABB(model_aabb, true))
+            continue;
 
         for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
             if (current_draw_count >= MAX_DRAW_COMMANDS) {
@@ -530,11 +533,9 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
             draw_command.base_vertex = mind.m_meshes[i].base_vertex;
             draw_command.base_instance = current_draw_count;
 
-            draw_commands.push_back(draw_command);
-
             obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
             //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-            const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+            const Material& mater = mind.m_meshes[i].material;
             obj_data.albedo = mater.albedo;
             obj_data.normal = mater.normal;
             obj_data.met_rough = mater.met_rough;
@@ -544,10 +545,18 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
             obj_data.metallic_factor = mater.metallic_factor; // 4
             obj_data.roughness_factor = mater.roughness_factor; // 4
             obj_data.base_color = mater.base_color;
+            obj_data.alpha_cutoff = mater.alpha_cutoff;
 
-            per_object_data.push_back(obj_data);
+            // if opaque / alpha mask
+                draw_commands.push_back(draw_command);
+                per_object_data.push_back(obj_data);
+                current_draw_count++;
+            // else if blending
+                //draw_commands_blended.push_back(draw_command);
+                //per_object_data_blended.push_back(obj_data);
+                //blended_draw_count++;
+                
 
-            current_draw_count++;
         }
 
         // check if entity interescts each cascade
@@ -594,7 +603,7 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
             //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
             //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-            const Material_Indirect& mater = Material_Manager::get_material(mind.m_meshes[i].material_index);
+            const Material& mater = mind.m_meshes[i].material;
             obj_data.albedo = mater.albedo;
             obj_data.normal = mater.normal;
             obj_data.met_rough = mater.met_rough;
@@ -604,6 +613,8 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
             obj_data.metallic_factor = mater.metallic_factor; // 4
             obj_data.roughness_factor = mater.roughness_factor; // 4
             obj_data.base_color = mater.base_color;
+            ////obj_data.alpha_cutoff = mater.alpha_cutoff;
+            //obj_data.alpha_cutoff = 0.5;
 
             obj_data.bone_offset = mind.bone_offset;
 
@@ -615,7 +626,6 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
     if (current_draw_count > 0) {
         glNamedBufferSubData(draw_command_buffer_skinned, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands_skinned.data());
-
         glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data_skinned.data());
     }
 

@@ -50,6 +50,7 @@ in flat uint64_t amb_occ_handle;
 in flat vec4 emissive;
 in flat float metallic_factor;
 in flat float roughness_factor;
+in flat float alpha_cutoff;
 
 #if !BINDLESS
     layout(binding = 0) uniform sampler2D albedo_texture;
@@ -63,7 +64,7 @@ layout(binding = 9) uniform samplerCube skybox;
 uniform uint num_skybox_mips;
 
 uniform bool use_alpha_clipping; 
-float alpha_cutoff = 0.5;
+//float alpha_cutoff = 0.5;
 uniform bool shadows_enabled;
 uniform bool ssao_enabled;
 

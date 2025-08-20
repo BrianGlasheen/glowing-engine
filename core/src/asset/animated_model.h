@@ -15,9 +15,10 @@ struct Animated_Mesh {
 	Util::AABB aabb;
 	std::string name;
 
-	uint32_t material_index;
 	// uint32_t parent id? maybe later if needed prob not 
 	glm::mat4 transform; // relative to parent
+	
+	Material material;
 };
 
 class Animated_Model {

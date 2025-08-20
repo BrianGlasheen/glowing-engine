@@ -12,16 +12,20 @@ layout (location = 4) in vec3 Bitangent;
 struct Per_Object_Data {
     mat4 model_matrix;
     mat4 normal_matrix;
-    vec4 color; // todo remove
+    vec4 base_color;
+    vec4 emissive_factor;
+    
     uint64_t albedo;
     uint64_t normal;
     uint64_t met_rough;
     uint64_t emissive;
-    vec4 emissive_factor;
+    uint64_t amb_occ;
+    uint64_t padding;
+
+    float alpha_cutoff;
     float metallic_factor; // 4
     float roughness_factor; // 4
-    uint64_t amb_occ;
-    vec4 base_color;
+    uint bone_offset; // todo remove
 };
 
 layout(std430, binding = 0) readonly buffer per_object_ssbo {
@@ -43,6 +47,7 @@ out flat uint64_t amb_occ_handle;
 out flat vec4 emissive;
 out flat float metallic_factor;
 out flat float roughness_factor;
+out flat float alpha_cutoff;
 
 uniform mat4 vp;
 #if !BINDLESS
@@ -65,6 +70,7 @@ void main() {
     metallic_factor = obj_data.metallic_factor;
     roughness_factor = obj_data.roughness_factor;
     amb_occ_handle = obj_data.amb_occ;
+    alpha_cutoff = obj_data.alpha_cutoff;
     
     mat4 model = obj_data.model_matrix;
 

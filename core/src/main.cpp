@@ -121,7 +121,7 @@ int main() {
     Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
     scene.include(e232332232323);
     
-    Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 0.0f), glm::quat(0.707f, -0.707f, 0.0f, 0.0f), glm::vec3(0.025f), "lamp/scene.gltf", false);
+    Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0, 0.0f, 0.0f), glm::vec3(1.0f), "blendtest/glTF/AlphaBlendModeTest.gltf", false);
     scene.include(e232lamp3322);
 
     for (int j = 0; j < 10; j++) {
@@ -145,7 +145,7 @@ int main() {
     //model_handle raccoondddddd2 = Model_Manager::load_animated_model("tiger/scene.gltf");
     //model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
     model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
-    //model_handle raccoon2333333 = Model_Manager::load_animated_model_cgltf("goku/scene.gltf");
+    //model_handle raccoon2333333 = Model_Manager::load_animated_model("m4a1/scene.gltf");
     //model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
     //model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
 
@@ -183,9 +183,9 @@ int main() {
         //Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
         //scene.include(fdfsdfsdfsdfsdf);
 
-        model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-        Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
-        scene.include(sadasd23232323232332323);
+        //model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+        //Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+        //scene.include(sadasd23232323232332323);
     }
 
     Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
