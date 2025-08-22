@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <glm/gtc/quaternion.hpp>
 
 #include "asset/model_manager.h"
@@ -73,6 +73,8 @@ public:
     glm::vec3 position;
     glm::quat rotation;
     glm::vec3 scale;
+    // todo cache transform
+    // todo cache normal matrix glm::transpose(glm::inverse(obj_data.model_matrix));
     model_handle model_id;
     bool physics_enabled;
     JPH::BodyID physics_id;

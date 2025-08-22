@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 namespace Util {
     constexpr glm::vec3 red = glm::vec3(1.0f, 0.0f, 0.0f);

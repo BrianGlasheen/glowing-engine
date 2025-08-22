@@ -1,11 +1,11 @@
 #pragma once
 
-#include "glow.h"
 #include "util/aabb.h"
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include <string>
+#include <cstdint>
 
 struct Animated_Mesh {
 	uint32_t base_vertex;

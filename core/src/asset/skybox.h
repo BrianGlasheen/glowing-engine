@@ -1,6 +1,6 @@
 #pragma once
 
-#include "glow.h"
+#include <cstdint>
 
 #include <vector>
 #include <string>
@@ -10,8 +10,9 @@
 
 class Skybox {
 public:
-    Skybox(const std::string& skybox_name);
+    Skybox() = default;
     
+    void load(const std::string& skybox_name);
     void bind(uint32_t slot) const;
     void draw() const;
 

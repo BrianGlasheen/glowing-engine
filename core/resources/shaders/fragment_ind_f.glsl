@@ -67,6 +67,7 @@ uniform bool use_alpha_clipping;
 //float alpha_cutoff = 0.5;
 uniform bool shadows_enabled;
 uniform bool ssao_enabled;
+uniform bool blend;
 
 uniform vec3 view_pos;
 uniform int num_lights;
@@ -395,5 +396,8 @@ void main() {
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2));
     
-    FragColor = vec4(color, 1.0);
+    if (blend)
+        FragColor = vec4(color, alpha);
+    else
+        FragColor = vec4(color, 1.0);
 }

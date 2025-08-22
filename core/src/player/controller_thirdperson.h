@@ -1,7 +1,7 @@
 #ifndef CONTROLLER_THIRDPERSON_H
 #define CONTROLLER_THIRDPERSON_H
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include <core/camera.h>
 #include <core/scene.h>

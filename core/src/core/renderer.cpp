@@ -1,21 +1,8 @@
 #include "renderer.h"
 
-#include "glow.h"
+#include "glow_config.h"
 
-#include <cstddef>
-#include <ctime>
-#include <cfloat>
-#include <iostream>
-#include <algorithm>
-#include <random>
-
-// #include <glad/glad.h>
-// #include <GLFW/glfw3.h>
 #include "core/opengl.h"
-
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "asset/material_manager.h"
 #include "asset/model_manager.h"
@@ -23,6 +10,18 @@
 #include "util/frustum.h"
 #include "util/colors.h"
 #include "util/profiler.h"
+
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/type_ptr.hpp"
+
+#include <cstdint>
+#include <cstddef>
+#include <ctime>
+#include <cfloat>
+#include <iostream>
+#include <algorithm>
+#include <random>
 
 const float FAR_PLANE = 1000.0f;
 const uint32_t MAX_DRAW_COMMANDS = 4000;
@@ -193,10 +192,18 @@ void Renderer::setup_indirect() {
 
     glCreateBuffers(1, &draw_command_buffer);
     glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
-
     glCreateBuffers(1, &per_object_ssbo);
     glNamedBufferStorage(per_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
+    draw_commands_blended.reserve(MAX_DRAW_COMMANDS);
+    per_object_data_blended.reserve(MAX_DRAW_COMMANDS);
+    blended_draw_command_indices.resize(MAX_DRAW_COMMANDS);
+    blended_draw_command_distances.resize(MAX_DRAW_COMMANDS);
+    
+    glCreateBuffers(1, &blended_draw_command_buffer);
+    glNamedBufferStorage(blended_draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &per_object_ssbo_blended);
+    glNamedBufferStorage(per_object_ssbo_blended, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     Shader_Manager::load_from_name("skinned");
     draw_commands_skinned.reserve(MAX_DRAW_COMMANDS);
@@ -399,6 +406,9 @@ void Renderer::shadow_setup(const Player& player) {
         max.x = min.x + box_size.x;
         max.y = min.y + box_size.y;
 
+        max += 5.0f;
+        min -= 5.0f;
+
         //min *= 1.5;
         //max *= 1.5;
         //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
@@ -494,6 +504,8 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
     uint32_t current_draw_count = 0;
     draw_commands_blended.clear();
     per_object_data_blended.clear();
+    blended_draw_command_indices.clear();
+    blended_draw_command_distances.clear();
     uint32_t blended_draw_count = 0;
 
     for (Entity& entity : scene.entities) {
@@ -548,14 +560,21 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
             obj_data.alpha_cutoff = mater.alpha_cutoff;
 
             // if opaque / alpha mask
+            if (mater.blend_mode == Blend_Mode::disabled) {
                 draw_commands.push_back(draw_command);
                 per_object_data.push_back(obj_data);
                 current_draw_count++;
-            // else if blending
-                //draw_commands_blended.push_back(draw_command);
-                //per_object_data_blended.push_back(obj_data);
-                //blended_draw_count++;
-                
+            }
+            else { // assume non additive blending for now
+                draw_commands_blended.push_back(draw_command);
+                per_object_data_blended.push_back(obj_data);
+                blended_draw_command_indices.push_back(blended_draw_count);
+
+                glm::vec3 aabb_center = (mind.m_meshes[i].aabb.max + mind.m_meshes[i].aabb.min) * 0.5f;
+                glm::vec3 world_center = glm::vec3(obj_data.model_matrix * glm::vec4(aabb_center, 1.0f));
+                blended_draw_command_distances.push_back(glm::distance(player.camera.position, world_center));
+                blended_draw_count++;
+            }
 
         }
 
@@ -565,7 +584,6 @@ void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_ti
 
     if (current_draw_count > 0) {
         glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
-
         glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
     }
 
@@ -693,6 +711,8 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
 
     shader->set_mat4("vp", viewproj);
 
+    shader->set_bool("blend", false);
+
     shader->set_vec3("view_pos", player.camera.position);
     shader->set_int("num_lights", num_lights);
     shader->set_bool("forward_plus", forward_plus);
@@ -720,6 +740,8 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
 
     // main pass
 #if BINDLESS
+    glDisable(GL_BLEND);
+
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
@@ -753,6 +775,29 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
 
     glBindVertexArray(0);
+
+    // blended stuff
+    shader = Shader_Manager::get_shader("indirect");
+    shader->use();
+    shader->set_bool("blend", true);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+
+    vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
+
+    // draw commands and transform
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_buffer);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_blended);
+
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_blended.size(), 0);
+
+    glBindVertexArray(0);
+    glDepthMask(GL_TRUE);
+
 #else
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
@@ -818,9 +863,34 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
 
     glBindVertexArray(0);
 #endif
+
+}
+
+void Renderer::sort_blended_draws() {
+    // sort draw commands by center of aabb
+    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
+        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
+            return distances[d1] > distances[d2];
+        });
+
+    // order draw command per obj
+    uint32_t count = draw_commands_blended.size();
+    // TODO I HATE THIS FIND BETTER WAY
+    auto sorted_draw_commands = draw_commands_blended;
+    auto sorted_per_object_data = per_object_data_blended;
+    for (uint32_t i = 0; i < count; ++i) {
+        draw_commands_blended[i] = sorted_draw_commands[blended_draw_command_indices[i]];
+        per_object_data_blended[i] = sorted_per_object_data[blended_draw_command_indices[i]];
+    }
+
+    if (count) {
+        glNamedBufferSubData(blended_draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * count, draw_commands_blended.data());
+        glNamedBufferSubData(per_object_ssbo_blended, 0, sizeof(Per_Object_Data) * count, per_object_data_blended.data());
+    }
 }
 
 void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
+    printf("start");
     // begin frame
     {
         PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
@@ -834,6 +904,10 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
         if (shadows_enabled)
             shadow_pass(scene, player);
+    }
+    {
+        PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
+        sort_blended_draws();
     }
     {
         PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
@@ -856,8 +930,9 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
             ssao_pass(player);
     }
     {
-        PROFILE_SCOPE_COLOR("submit render commands", legit::Colors::clouds);
-        render_indirect(player, scene);
+        PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
+        render_indirect(player, scene); // opaque / mask pass
+        printf("draw");
     }
     {
         PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
@@ -909,6 +984,7 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         glBindVertexArray(0); // unbind quad
     }
     // end frame
+    printf("end");
 }
 
 void Renderer::render_debug(Player& player) {
@@ -925,6 +1001,7 @@ void Renderer::render_debug(Player& player) {
 }
 
 void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& player) {
+    // todo holy hell
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 

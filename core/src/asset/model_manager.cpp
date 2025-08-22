@@ -1,7 +1,8 @@
 #include "asset/model_manager.h"
 
-#include "glow.h"
+#include "glow_config.h"
 
+#include <cstdint>
 #include <string>
 #include <cassert>
 #include <algorithm>
@@ -1291,8 +1292,9 @@ namespace Model_Manager {
                 alpha_cutoff = gltf_ac;
             }
 
+            // todo grab this 
             //AI_MATKEY_BLEND_FUNC
-            //#define AI_MATKEY_GLTF_ALPHAMODE "$mat.gltf.alphaMode", 0, 0
+            mesh_mat.blend_mode = Blend_Mode::disabled;
 
             aiString alpha_mode;
             if (AI_SUCCESS == material->Get(AI_MATKEY_GLTF_ALPHAMODE, alpha_mode)) {
@@ -1305,13 +1307,14 @@ namespace Model_Manager {
                 //        alpha_cutoff = gltf_ac;
                 //    }
                 //}
-                //else if (strcmp(alpha_mode.C_Str(), "BLEND") == 0) {
-                //    alpha_cutoff = 0.0f;
-                //}
+                else if (strcmp(alpha_mode.C_Str(), "BLEND") == 0) {
+                    alpha_cutoff = 0.01f;
+                    mesh_mat.blend_mode = Blend_Mode::blend;
+                    printf("\n\n\nyesblend\n\n\n");
+                }
             }
 
             mesh_mat.alpha_cutoff = alpha_cutoff;
-
         }
 
         return mesh_mat;

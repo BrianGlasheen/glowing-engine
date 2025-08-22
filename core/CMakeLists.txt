@@ -36,6 +36,7 @@ include_directories(
 set(SOURCES
     ext/stb_image_impl.cpp
     src/main.cpp
+    src/glow.cpp
     
     "src/asset/compute_shader.cpp"
     "src/asset/crosshair.cpp"

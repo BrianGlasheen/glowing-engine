@@ -1,8 +1,8 @@
 #pragma once
 
-#include "glow.h"
+#include <cstdint>
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 enum Light_Type {
     DIRECTIONAL = 0,

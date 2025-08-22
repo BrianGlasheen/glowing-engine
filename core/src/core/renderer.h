@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <glm/gtc/quaternion.hpp>
 
 #include "renderer_debug.h"
@@ -66,6 +66,7 @@ public:
     void build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
     void indirect_depth_prepass(Player& player);
     void render_indirect(Player& player, Scene& scene);
+    void sort_blended_draws();
 
     void build_cluster_pass(Player& player);
     void cull_cluster_pass(Player& player);
@@ -154,9 +155,11 @@ public:
     std::vector<Per_Object_Data> per_object_data;
 
     // todo
-    uint32_t blended_draw_command_buffer;
+    uint32_t blended_draw_command_buffer, per_object_ssbo_blended;
     std::vector<Draw_Elements_Indirect_Command> draw_commands_blended;
     std::vector<Per_Object_Data> per_object_data_blended;
+    std::vector<uint32_t> blended_draw_command_indices;
+    std::vector<float> blended_draw_command_distances;
 
     uint32_t draw_command_buffer_skinned, per_object_ssbo_skinned;
     std::vector<Draw_Elements_Indirect_Command> draw_commands_skinned;

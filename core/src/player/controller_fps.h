@@ -3,7 +3,7 @@
 
 #include "core/opengl.h"
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "core/camera.h"
 #include "core/scene.h"

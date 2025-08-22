@@ -5,8 +5,7 @@
 
 #include "asset/texture_manager.h"
 
-Skybox::Skybox(const std::string& skybox_name)
-{
+void Skybox::load(const std::string& skybox_name) {
     std::vector<std::string> faceNames = {
         "px.png", "nx.png", "py.png", "ny.png", "pz.png", "nz.png"
     };
@@ -22,6 +21,7 @@ Skybox::Skybox(const std::string& skybox_name)
     load_cubemap(faces);
     setup_cube();
 }
+
 
 void Skybox::bind(uint32_t slot) const {
     glActiveTexture(GL_TEXTURE0 + slot);

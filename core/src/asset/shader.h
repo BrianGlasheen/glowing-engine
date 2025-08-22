@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 // todo add compute, maybe own class
 class Shader {

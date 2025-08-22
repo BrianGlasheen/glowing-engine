@@ -1,17 +1,16 @@
 #include "shader.h"
 
-#include "glow.h"
+#include "glow_config.h"
 
+#include "core/opengl.h"
+
+#include "glm/gtc/type_ptr.hpp"
+
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <string.h>
-
-#include <glm/gtc/type_ptr.hpp>
-
-
-// #include <glad/glad.h>
-#include "core/opengl.h"
 
 bool Shader::init(const char* vertexPath, const char* fragmentPath) {
     // 1. retrieve the vertex/fragment source code from filePath

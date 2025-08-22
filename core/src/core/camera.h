@@ -2,7 +2,7 @@
 
 #define NEAR_PLANE 1.f
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 // Default camera values

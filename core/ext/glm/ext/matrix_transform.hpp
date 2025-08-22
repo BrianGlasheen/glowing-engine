@@ -47,7 +47,7 @@ namespace glm
 	/// @tparam Q A value from qualifier enum
 	///
 	/// @code
-	/// #include <glm/glm.hpp>
+	/// #include "glm/glm.hpp"
 	/// #include <glm/gtc/matrix_transform.hpp>
 	/// ...
 	/// glm::mat4 m = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f));

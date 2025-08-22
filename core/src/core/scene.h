@@ -9,9 +9,10 @@
 
 class Scene {
 public:
-    Scene(std::string skybox_name);
+    Scene();
     ~Scene();
 
+    void load_skybox(const std::string& path);
     void include(Entity ntitty);
     void update_dirty();
     // returns the number of hits

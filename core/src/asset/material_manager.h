@@ -1,11 +1,10 @@
 #pragma once
 
-#include "glow.h"
-
-#include <glm/glm.hpp>
+#include <cstdint>
+#include "glm/glm.hpp"
 
 enum Blend_Mode {
-	disabled = 0,
+	disabled = 0, // opaque / clipped
 	blend, // one minus alpha prob
 	additive
 };

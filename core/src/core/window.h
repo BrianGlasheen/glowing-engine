@@ -4,7 +4,7 @@
 // #include <GLFW/glfw3.h>
 #include "core/opengl.h"
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "renderer.h"
 #include "player/player.h"

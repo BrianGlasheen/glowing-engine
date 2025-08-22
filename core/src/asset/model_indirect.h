@@ -1,9 +1,8 @@
 #include <string>
 #include <vector>
+#include <cstdint>
 
-#include "glow.h"
-
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 #include "asset/material_manager.h"
 #include "util/aabb.h"

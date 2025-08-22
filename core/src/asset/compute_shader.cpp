@@ -1,7 +1,6 @@
 #include "compute_shader.h"
 
-#include "glow.h"
-
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <iostream>

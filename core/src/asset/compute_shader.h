@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include "core/opengl.h"
 
 class Compute_Shader {

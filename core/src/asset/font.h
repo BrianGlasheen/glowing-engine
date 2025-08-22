@@ -4,7 +4,7 @@
 #include <fstream>
 #include <unordered_map>
 
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 #include <json.hpp>
 
 #include "texture_manager.h"
