@@ -1,6 +1,9 @@
-core/build/*
-.cache/
-.vscode/tasks.json
+glow/resources/models/
+glow/build/*
+
 odin/
-core/resources/models/
+
+.cache/
+
 .vs
+.vscode
