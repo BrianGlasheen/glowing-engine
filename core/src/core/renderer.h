@@ -89,6 +89,12 @@ public:
 
     void shutdown();
 
+    void Renderer::begin_frame();
+    void submit_render_command(const Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb);
+    void upload_render_commands();
+    void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
+    // todo probably move CSM to some kind of light system along with other lights
+    int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
 
 // private:
 
@@ -150,16 +156,18 @@ public:
     int max_particles = 10000;
     ////////
 
-    uint32_t draw_command_buffer, per_object_ssbo;
-    std::vector<Draw_Elements_Indirect_Command> draw_commands;
-    std::vector<Per_Object_Data> per_object_data;
+    uint32_t opaque_draw_command_ssbo, opaque_object_ssbo;
+    std::vector<Draw_Elements_Indirect_Command> opaque_draw_commands;
+    std::vector<Per_Object_Data> opaque_object_data;
+    uint32_t opaque_draw_count;
 
     // todo
-    uint32_t blended_draw_command_buffer, per_object_ssbo_blended;
-    std::vector<Draw_Elements_Indirect_Command> draw_commands_blended;
-    std::vector<Per_Object_Data> per_object_data_blended;
+    uint32_t blended_draw_command_ssbo, blended_object_ssbo;
+    std::vector<Draw_Elements_Indirect_Command> blended_draw_commands;
+    std::vector<Per_Object_Data> blended_object_data;
     std::vector<uint32_t> blended_draw_command_indices;
     std::vector<float> blended_draw_command_distances;
+    uint32_t blended_draw_count;
 
     uint32_t draw_command_buffer_skinned, per_object_ssbo_skinned;
     std::vector<Draw_Elements_Indirect_Command> draw_commands_skinned;

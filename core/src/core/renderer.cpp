@@ -187,23 +187,25 @@ void Renderer::resize(const int width, const int height) {
 void Renderer::setup_indirect() {
     Shader_Manager::load_from_paths("indirect", "vertex_ind_v.glsl", "fragment_ind_f.glsl");
 
-    draw_commands.reserve(MAX_DRAW_COMMANDS); // todo change draw command per entity prob
-    per_object_data.reserve(MAX_DRAW_COMMANDS);
+    opaque_draw_commands.reserve(MAX_DRAW_COMMANDS); // todo change draw command per entity prob
+    opaque_object_data.reserve(MAX_DRAW_COMMANDS);
 
-    glCreateBuffers(1, &draw_command_buffer);
-    glNamedBufferStorage(draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
-    glCreateBuffers(1, &per_object_ssbo);
-    glNamedBufferStorage(per_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &opaque_draw_command_ssbo);
+    glNamedBufferStorage(opaque_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &opaque_object_ssbo);
+    glNamedBufferStorage(opaque_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
-    draw_commands_blended.reserve(MAX_DRAW_COMMANDS);
-    per_object_data_blended.reserve(MAX_DRAW_COMMANDS);
+    blended_draw_commands.reserve(MAX_DRAW_COMMANDS);
+    blended_object_data.reserve(MAX_DRAW_COMMANDS);
     blended_draw_command_indices.resize(MAX_DRAW_COMMANDS);
     blended_draw_command_distances.resize(MAX_DRAW_COMMANDS);
     
-    glCreateBuffers(1, &blended_draw_command_buffer);
-    glNamedBufferStorage(blended_draw_command_buffer, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
-    glCreateBuffers(1, &per_object_ssbo_blended);
-    glNamedBufferStorage(per_object_ssbo_blended, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &blended_draw_command_ssbo);
+    glNamedBufferStorage(blended_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &blended_object_ssbo);
+    glNamedBufferStorage(blended_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+
 
     Shader_Manager::load_from_name("skinned");
     draw_commands_skinned.reserve(MAX_DRAW_COMMANDS);
@@ -313,12 +315,12 @@ void Renderer::build_cluster_pass(Player& player) {
     cluster_build->use();
     cluster_ssbo.bind(1); // todo fix once
     
-    cluster_build->set_float("zNear", 1.0f);
-    cluster_build->set_float("zFar", FAR_PLANE);
+    cluster_build->set_float("zNear", 1.0f); // once
+    cluster_build->set_float("zFar", FAR_PLANE); // once (would have to change if changed)
     glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
     glm::mat4 inv_proj = glm::inverse(projection);
     cluster_build->set_mat4("inverseProjection", inv_proj);
-    cluster_build->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+    cluster_build->set_uvec3("gridSize", glm::uvec3(16, 9, 24)); // thnk about how to do x y
     cluster_build->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
 
     uint32_t groups_x = (16 + 7) / 8;
@@ -449,8 +451,8 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -466,7 +468,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
         shader->set_mat4("vp", cascade_mats[i]);
 
     #if BINDLESS
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
     #else
         for (size_t i = 0; i < draw_commands.size(); i++) {
             Draw_Elements_Indirect_Command cmd = draw_commands[i];
@@ -496,158 +498,158 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
     // atlas
 }
 
-void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_time) {
-    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-
-    draw_commands.clear();
-    per_object_data.clear();
-    uint32_t current_draw_count = 0;
-    draw_commands_blended.clear();
-    per_object_data_blended.clear();
-    blended_draw_command_indices.clear();
-    blended_draw_command_distances.clear();
-    uint32_t blended_draw_count = 0;
-
-    for (Entity& entity : scene.entities) {
-
-        Model mind = Model_Manager::get_model_ind(entity.model_id);
-
-        Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
-        debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
-
-        // if culled
-        if (!frustum.intersectsAABB(model_aabb, true))
-            continue;
-
-        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-            if (current_draw_count >= MAX_DRAW_COMMANDS) {
-                printf("Warning: Exceeded max draw commands!\n");
-                break;
-            }
-            Per_Object_Data obj_data;
-
-            obj_data.model_matrix = entity.get_model_matrix() * mind.m_meshes[i].transform;
-            Util::AABB obj_aabb = Util::transform_aabb(mind.m_meshes[i].aabb, entity.get_model_matrix());
-
-            if (!frustum.intersectsAABB(obj_aabb, true)) {
-                debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
-                continue;
-            }
-            debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(0.0f, 1.0f, 0.0f));
-
-            // if culled
-            // continue
-
-            Draw_Elements_Indirect_Command draw_command;
-            draw_command.count = mind.m_meshes[i].index_count;
-            draw_command.instance_count = 1;
-            draw_command.first_index = mind.m_meshes[i].base_index;
-            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-            draw_command.base_instance = current_draw_count;
-
-            obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-            const Material& mater = mind.m_meshes[i].material;
-            obj_data.albedo = mater.albedo;
-            obj_data.normal = mater.normal;
-            obj_data.met_rough = mater.met_rough;
-            obj_data.emissive = mater.emissive;
-            obj_data.amb_occ = mater.amb_occ;
-            obj_data.emissive_factor = mater.emissive_factor;
-            obj_data.metallic_factor = mater.metallic_factor; // 4
-            obj_data.roughness_factor = mater.roughness_factor; // 4
-            obj_data.base_color = mater.base_color;
-            obj_data.alpha_cutoff = mater.alpha_cutoff;
-
-            // if opaque / alpha mask
-            if (mater.blend_mode == Blend_Mode::disabled) {
-                draw_commands.push_back(draw_command);
-                per_object_data.push_back(obj_data);
-                current_draw_count++;
-            }
-            else { // assume non additive blending for now
-                draw_commands_blended.push_back(draw_command);
-                per_object_data_blended.push_back(obj_data);
-                blended_draw_command_indices.push_back(blended_draw_count);
-
-                glm::vec3 aabb_center = (mind.m_meshes[i].aabb.max + mind.m_meshes[i].aabb.min) * 0.5f;
-                glm::vec3 world_center = glm::vec3(obj_data.model_matrix * glm::vec4(aabb_center, 1.0f));
-                blended_draw_command_distances.push_back(glm::distance(player.camera.position, world_center));
-                blended_draw_count++;
-            }
-
-        }
-
-        // check if entity interescts each cascade
-        // add to cascade command buffer + per obj data
-    }
-
-    if (current_draw_count > 0) {
-        glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
-        glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
-    }
-
-    if (player.out_of_body) {
-        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE, Util::red);
-        // printf("out\n");
-    }
-
-    //
-    // skinned commands
-    //
-
-
-    draw_commands_skinned.clear();
-    per_object_data_skinned.clear();
-    current_draw_count = 0;
-    
-    for (uint32_t m = 0; m < Model_Manager::get_num_animated_models(); m++){
-        Animated_Model mind = Model_Manager::get_animated_model(m);
-        //debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
-
-        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-            Per_Object_Data obj_data = { 0 };
-
-            obj_data.model_matrix = glm::translate(mind.m_meshes[i].transform, glm::vec3(5.0, 0.0, 0.0));
-
-            Draw_Elements_Indirect_Command draw_command;
-            draw_command.count = mind.m_meshes[i].index_count;
-            draw_command.instance_count = 1;
-            draw_command.first_index = mind.m_meshes[i].base_index;
-            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-            draw_command.base_instance = current_draw_count;
-
-            draw_commands_skinned.push_back(draw_command);
-
-            //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
-            const Material& mater = mind.m_meshes[i].material;
-            obj_data.albedo = mater.albedo;
-            obj_data.normal = mater.normal;
-            obj_data.met_rough = mater.met_rough;
-            obj_data.emissive = mater.emissive;
-            obj_data.amb_occ = mater.amb_occ;
-            obj_data.emissive_factor = mater.emissive_factor;
-            obj_data.metallic_factor = mater.metallic_factor; // 4
-            obj_data.roughness_factor = mater.roughness_factor; // 4
-            obj_data.base_color = mater.base_color;
-            ////obj_data.alpha_cutoff = mater.alpha_cutoff;
-            //obj_data.alpha_cutoff = 0.5;
-
-            obj_data.bone_offset = mind.bone_offset;
-
-            per_object_data_skinned.push_back(obj_data);
-
-            current_draw_count++;
-        }
-    }
-
-    if (current_draw_count > 0) {
-        glNamedBufferSubData(draw_command_buffer_skinned, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands_skinned.data());
-        glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data_skinned.data());
-    }
-
-}
+//void Renderer::build_command_buffer(Player& player, Scene& scene, float delta_time) {
+//    Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.right, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
+//
+//    draw_commands.clear();
+//    per_object_data.clear();
+//    uint32_t current_draw_count = 0;
+//    draw_commands_blended.clear();
+//    per_object_data_blended.clear();
+//    blended_draw_command_indices.clear();
+//    blended_draw_command_distances.clear();
+//    uint32_t blended_draw_count = 0;
+//
+//    for (Entity& entity : scene.entities) {
+//
+//        Model mind = Model_Manager::get_model_ind(entity.model_id);
+//
+//        Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
+//        debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
+//
+//        // if culled
+//        if (!frustum.intersectsAABB(model_aabb, true))
+//            continue;
+//
+//        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+//            if (current_draw_count >= MAX_DRAW_COMMANDS) {
+//                printf("Warning: Exceeded max draw commands!\n");
+//                break;
+//            }
+//            Per_Object_Data obj_data;
+//
+//            obj_data.model_matrix = entity.get_model_matrix() * mind.m_meshes[i].transform;
+//            Util::AABB obj_aabb = Util::transform_aabb(mind.m_meshes[i].aabb, entity.get_model_matrix());
+//
+//            if (!frustum.intersectsAABB(obj_aabb, true)) {
+//                debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
+//                continue;
+//            }
+//            debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(0.0f, 1.0f, 0.0f));
+//
+//            // if culled
+//            // continue
+//
+//            Draw_Elements_Indirect_Command draw_command;
+//            draw_command.count = mind.m_meshes[i].index_count;
+//            draw_command.instance_count = 1;
+//            draw_command.first_index = mind.m_meshes[i].base_index;
+//            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+//            draw_command.base_instance = current_draw_count;
+//
+//            obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+//            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+//            const Material& mater = mind.m_meshes[i].material;
+//            obj_data.albedo = mater.albedo;
+//            obj_data.normal = mater.normal;
+//            obj_data.met_rough = mater.met_rough;
+//            obj_data.emissive = mater.emissive;
+//            obj_data.amb_occ = mater.amb_occ;
+//            obj_data.emissive_factor = mater.emissive_factor;
+//            obj_data.metallic_factor = mater.metallic_factor; // 4
+//            obj_data.roughness_factor = mater.roughness_factor; // 4
+//            obj_data.base_color = mater.base_color;
+//            obj_data.alpha_cutoff = mater.alpha_cutoff;
+//
+//            // if opaque / alpha mask
+//            if (mater.blend_mode == Blend_Mode::disabled) {
+//                draw_commands.push_back(draw_command);
+//                per_object_data.push_back(obj_data);
+//                opaque_draw_count++;
+//            }
+//            else { // assume non additive blending for now
+//                draw_commands_blended.push_back(draw_command);
+//                per_object_data_blended.push_back(obj_data);
+//                blended_draw_command_indices.push_back(blended_draw_count);
+//
+//                glm::vec3 aabb_center = (mind.m_meshes[i].aabb.max + mind.m_meshes[i].aabb.min) * 0.5f;
+//                glm::vec3 world_center = glm::vec3(obj_data.model_matrix * glm::vec4(aabb_center, 1.0f));
+//                blended_draw_command_distances.push_back(glm::distance(player.camera.position, world_center));
+//                blended_draw_count++;
+//            }
+//
+//        }
+//
+//        // check if entity interescts each cascade
+//        // add to cascade command buffer + per obj data
+//    }
+//
+//    if (current_draw_count > 0) {
+//        glNamedBufferSubData(draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * current_draw_count, draw_commands.data());
+//        glNamedBufferSubData(per_object_ssbo, 0, sizeof(Per_Object_Data) * current_draw_count, per_object_data.data());
+//    }
+//
+//    if (player.out_of_body) {
+//        debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE, Util::red);
+//        // printf("out\n");
+//    }
+//
+//    //
+//    // skinned commands
+//    //
+//
+//
+//    draw_commands_skinned.clear();
+//    per_object_data_skinned.clear();
+//    current_draw_count = 0;
+//    
+//    for (uint32_t m = 0; m < Model_Manager::get_num_animated_models(); m++){
+//        Animated_Model mind = Model_Manager::get_animated_model(m);
+//        //debug_renderer.add_bbox(mind.m_aabb.min, mind.m_aabb.max, glm::vec3(1.0f, 0.0f, 0.0f));
+//
+//        for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+//            Per_Object_Data obj_data = { 0 };
+//
+//            obj_data.model_matrix = glm::translate(mind.m_meshes[i].transform, glm::vec3(5.0, 0.0, 0.0));
+//
+//            Draw_Elements_Indirect_Command draw_command;
+//            draw_command.count = mind.m_meshes[i].index_count;
+//            draw_command.instance_count = 1;
+//            draw_command.first_index = mind.m_meshes[i].base_index;
+//            draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+//            draw_command.base_instance = current_draw_count;
+//
+//            draw_commands_skinned.push_back(draw_command);
+//
+//            //obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+//            //obj_data.color = glm::vec4(0.0, 0.25, 0.5, 0.75);
+//            const Material& mater = mind.m_meshes[i].material;
+//            obj_data.albedo = mater.albedo;
+//            obj_data.normal = mater.normal;
+//            obj_data.met_rough = mater.met_rough;
+//            obj_data.emissive = mater.emissive;
+//            obj_data.amb_occ = mater.amb_occ;
+//            obj_data.emissive_factor = mater.emissive_factor;
+//            obj_data.metallic_factor = mater.metallic_factor; // 4
+//            obj_data.roughness_factor = mater.roughness_factor; // 4
+//            obj_data.base_color = mater.base_color;
+//            ////obj_data.alpha_cutoff = mater.alpha_cutoff;
+//            //obj_data.alpha_cutoff = 0.5;
+//
+//            obj_data.bone_offset = mind.bone_offset;
+//
+//            per_object_data_skinned.push_back(obj_data);
+//
+//            current_draw_count++;
+//        }
+//    }
+//
+//    if (current_draw_count > 0) {
+//        glNamedBufferSubData(draw_command_buffer_skinned, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, draw_commands_skinned.data());
+//        glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * blended_draw_count, per_object_data_skinned.data());
+//    }
+//
+//}
 
 void Renderer::indirect_depth_prepass(Player& player) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
@@ -671,10 +673,10 @@ void Renderer::indirect_depth_prepass(Player& player) {
     glBindVertexArray(vao);
 
     // draw commands and transform
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
 
     glBindVertexArray(0);
 }
@@ -746,13 +748,13 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
     glBindVertexArray(vao);
 
     // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
 
     glBindVertexArray(0);
     //
@@ -789,11 +791,10 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
     glBindVertexArray(vao);
 
     // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_buffer);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, blended_object_ssbo);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_blended);
-
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_blended.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, blended_draw_count, 0);
 
     glBindVertexArray(0);
     glDepthMask(GL_TRUE);
@@ -874,18 +875,18 @@ void Renderer::sort_blended_draws() {
         });
 
     // order draw command per obj
-    uint32_t count = draw_commands_blended.size();
+    uint32_t count = blended_draw_commands.size();
     // TODO I HATE THIS FIND BETTER WAY
-    auto sorted_draw_commands = draw_commands_blended;
-    auto sorted_per_object_data = per_object_data_blended;
+    auto sorted_draw_commands = blended_draw_commands;
+    auto sorted_per_object_data = blended_object_data;
     for (uint32_t i = 0; i < count; ++i) {
-        draw_commands_blended[i] = sorted_draw_commands[blended_draw_command_indices[i]];
-        per_object_data_blended[i] = sorted_per_object_data[blended_draw_command_indices[i]];
+        blended_draw_commands[i] = sorted_draw_commands[blended_draw_command_indices[i]];
+        blended_object_data[i] = sorted_per_object_data[blended_draw_command_indices[i]];
     }
 
     if (count) {
-        glNamedBufferSubData(blended_draw_command_buffer, 0, sizeof(Draw_Elements_Indirect_Command) * count, draw_commands_blended.data());
-        glNamedBufferSubData(per_object_ssbo_blended, 0, sizeof(Per_Object_Data) * count, per_object_data_blended.data());
+        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * count, blended_draw_commands.data());
+        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * count, blended_object_data.data());
     }
 }
 
@@ -896,44 +897,44 @@ void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& part
         PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
         shadow_setup(player);
     }
-    {
-        PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
-        build_command_buffer(player, scene, delta_time);
-    }
+    //{
+    //    PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
+    //    build_command_buffer(player, scene, delta_time);
+    //}
     {
         PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
         if (shadows_enabled)
             shadow_pass(scene, player);
     }
-    {
-        PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
-        sort_blended_draws();
-    }
+    //{
+    //    PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
+    //    sort_blended_draws();
+    //}
     {
         PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
         if (use_depth_prepass)
             indirect_depth_prepass(player);
     }
-    {
-        PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-        if (forward_plus)
-            build_cluster_pass(player);
-    }
-    {
-        PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-        if (forward_plus)
-            cull_cluster_pass(player);
-    }
+    //{
+    //    PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+    //    if (forward_plus)
+    //        build_cluster_pass(player);
+    //}
+    //{
+    //    PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+    //    if (forward_plus)
+    //        cull_cluster_pass(player);
+    //}
     {
         PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
         if (ssao_enabled)
             ssao_pass(player);
     }
-    {
-        PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
-        render_indirect(player, scene); // opaque / mask pass
-        printf("draw");
-    }
+    //{
+    //    PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
+    //    render_indirect(player, scene); // opaque / mask pass
+    //    printf("draw");
+    //}
     {
         PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
         particle_pass(delta_time, particles, player);
@@ -1160,6 +1161,7 @@ void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const 
 
     glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
 
+    // todo combine
     shader->set_mat4("view", viewNoTranslation);
     shader->set_mat4("projection", projection);
 
@@ -1211,3 +1213,61 @@ void Renderer::shutdown() {
     glDeleteFramebuffers(1, &render_target);
     glDeleteVertexArrays(1, &quadVAO);
 }
+
+
+
+
+void Renderer::begin_frame() {
+    opaque_draw_commands.clear();
+    opaque_object_data.clear();
+    opaque_draw_count = 0;
+
+    blended_draw_commands.clear();
+    blended_object_data.clear();
+    blended_draw_command_indices.clear();
+    blended_draw_command_distances.clear();
+    blended_draw_count = 0;
+}
+
+void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb) {
+    // if opaque / alpha mask
+    // todo probably sort by shader for special effects?!
+    if (blend_mode == Blend_Mode::disabled) {
+        draw_command.base_instance = opaque_draw_count;
+        opaque_draw_commands.push_back(draw_command);
+        opaque_object_data.push_back(object_data);
+        opaque_draw_count++;
+    }
+    else { // assume non additive blending for now
+        draw_command.base_instance = blended_draw_count;
+        blended_draw_commands.push_back(draw_command);
+        blended_object_data.push_back(object_data);
+        blended_draw_command_indices.push_back(blended_draw_count);
+
+        glm::vec3 aabb_center = (aabb.max + aabb.min) * 0.5f;
+        glm::vec3 world_center = glm::vec3(object_data.model_matrix * glm::vec4(aabb_center, 1.0f));
+        blended_draw_command_distances.push_back(glm::distance(view_pos, world_center));
+        blended_draw_count++;
+    }
+}
+
+void Renderer::upload_render_commands() {
+    if (opaque_draw_count > 0) {
+        glNamedBufferSubData(opaque_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, opaque_draw_commands.data());
+        glNamedBufferSubData(opaque_object_ssbo, 0, sizeof(Per_Object_Data) * opaque_draw_count, opaque_object_data.data());
+    }
+
+    if (blended_draw_count > 0) {
+        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * blended_draw_count, blended_draw_commands.data());
+        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * blended_draw_count, blended_object_data.data());
+    }
+
+    // skinned draw count todo prob not will just be in normal buffers
+    //glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * blended_draw_count, per_object_data_skinned.data());
+
+}
+
+void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
+// todo probably move CSM to some kind of light system along with other lights
+int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
+

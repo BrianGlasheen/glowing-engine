@@ -128,6 +128,10 @@ public:
         return camera.get_view_matrix();
     }
 
+    glm::mat4 get_debug_view_matrix() const {
+        return debug_camera.get_view_matrix();
+    }
+
     glm::mat4 get_view_matrix() const {
         if (out_of_body)
             return debug_camera.get_view_matrix();

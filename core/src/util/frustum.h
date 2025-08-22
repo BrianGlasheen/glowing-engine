@@ -22,11 +22,7 @@ namespace Util {
     struct Frustum {
         Plane planes[6]; // left, right, bottom, top, near, far
 
-        Frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir, const glm::vec3& cameraUp, float fov, float aspect, float near, float far) 
-        {
-            glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
-            glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
-
+        Frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir, const glm::vec3& right, const glm::vec3& up, float fov, float aspect, float near, float far) {
             float halfVSide = far * tanf(fov * 0.5f);
             float halfHSide = halfVSide * aspect;
             glm::vec3 frontMultFar = far * cameraDir;
@@ -52,7 +48,7 @@ namespace Util {
             planes[3] = Plane(topNormal, -glm::dot(topNormal, cameraPos));
         }
 
-        bool intersectsAABB(const Util::AABB& aabb, bool infinite_far = false) {
+        bool intersectsAABB(const Util::AABB& aabb, bool infinite_far = false) const {
             return intersectsAABB(aabb.min, aabb.max, infinite_far);
         }
 
@@ -75,7 +71,6 @@ namespace Util {
         }
 
         bool intersectsFrustum(const Frustum& other_frustum) const {
-
 
         }
     };
