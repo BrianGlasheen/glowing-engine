@@ -22,6 +22,9 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/random.hpp"
 
+#include "dearimgui/imgui_impl_glfw.h"
+#include "dearimgui/imgui_impl_opengl3.h"
+
 #include <vector>
 
 namespace Glow {
@@ -75,6 +78,7 @@ namespace Glow {
 		Physics::init();
 		Model_Manager::init(std::string(init_info.model_base_path));
 
+		player.init(); // after physics
 		window.sync_callbacks(player, renderer, editor, editor_mode);
 
 		// bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
@@ -130,17 +134,17 @@ namespace Glow {
 		Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
 		scene.include(e232332232323);
 
-		Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0, 0.0f, 0.0f), glm::vec3(1.0f), "blendtest/glTF/AlphaBlendModeTest.gltf", false);
-		scene.include(e232lamp3322);
+		//Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0, 0.0f, 0.0f), glm::vec3(1.0f), "blendtest/glTF/AlphaBlendModeTest.gltf", false);
+		//scene.include(e232lamp3322);
 
-		Entity d12321313123(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CompareAlphaCoverage/glTF/CompareAlphaCoverage.gltf", false);
-		scene.include(d12321313123);
+		//Entity d12321313123(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CompareAlphaCoverage/glTF/CompareAlphaCoverage.gltf", false);
+		//scene.include(d12321313123);
 
 		Entity d12321313d123(glm::vec3(5.0f, 5.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
 		scene.include(d12321313d123);
 
-		Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
-		scene.include(d12321313d1233);
+		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
+		//scene.include(d12321313d1233);
 
 		for (int j = 0; j < 10; j++) {
 			printf("%d\n", j);
@@ -162,7 +166,7 @@ namespace Glow {
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
 		//model_handle raccoondddddd2 = Model_Manager::load_animated_model("tiger/scene.gltf");
 		//model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-		model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
+		//model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
 		//model_handle raccoon2333333 = Model_Manager::load_animated_model("m4a1/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
@@ -291,13 +295,19 @@ namespace Glow {
 			}
 
 			renderer.begin_frame(); 
+			Model_Manager::begin_animation_frame();
 
-			// build CSM mats
-			renderer.shadow_setup(view, inv_view);
+			{ // build CSM mats
+				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
+				renderer.shadow_setup(view, inv_view, aspect_ratio, player.camera.zoom);
+			}
 
 			// iterate entites
 			// per entity submit stuff to renderer, animation system, game logic systems
-			iterate_entities(scene, player.camera.position, aspect_ratio);
+			{
+				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
+				iterate_entities(scene, player.camera.position, aspect_ratio);
+			}
 
 			//{ // MOVE TO ITERATE ENTITIES
 			//	PROFILE_SCOPE_COLOR("scene dirty", legit::Colors::peterRiver);
@@ -308,6 +318,13 @@ namespace Glow {
 				PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
 				renderer.sort_blended_draws();
 			}
+			
+			// player submit render items
+			player.submit_animation_items();
+			player.submit_render_items(renderer);
+
+			// iterate particles + submit etc
+			// other cool things todo! B)
 
 			renderer.upload_render_commands();
 
@@ -323,8 +340,6 @@ namespace Glow {
 					renderer.cull_cluster_pass(view);// todo pass calc'd alre
 			}
 
-			// iterate particles + submit etc
-			// other cool things todo! B)
 
 			{
 				PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
@@ -337,7 +352,7 @@ namespace Glow {
 
 			{
 				PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
-				renderer.render_indirect(player, scene);
+				renderer.draw(scene, view, viewproj, player.camera.position, proj);
 			}
 
 			//{
@@ -351,7 +366,7 @@ namespace Glow {
 					renderer.bloom_pass();
 			}
 			if (renderer.do_draw_light_quads)
-				renderer.draw_light_quads(player);
+				renderer.draw_light_quads(proj, view);
 
 			renderer.render_skybox(scene.skybox, view, proj);
 
@@ -363,7 +378,7 @@ namespace Glow {
 			{
 				PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
 				if (player.key_toggles[(unsigned)'r'])
-					renderer.render_debug(player);
+					renderer.render_debug(view, proj);
 			}
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 
@@ -405,6 +420,7 @@ namespace Glow {
 			ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
 			ImGui::End();
 
+			player.debug_hud();
 			renderer.imgui_pass();
 
 			// collect memory stats

@@ -35,6 +35,7 @@ namespace Physics {
 
     JPH::BodyID add_box(const glm::vec3& pos, const glm::vec3& size, bool isStatic = false);
     JPH::BodyID add_sphere(const glm::vec3& pos, float radius, bool isStatic = false);
+    JPH::BodyID create_player_controller(); // todo paramaterize
     void remove_body(JPH::BodyID id);
 
     glm::vec3 get_body_position(JPH::BodyID id);
@@ -44,6 +45,7 @@ namespace Physics {
     glm::quat get_body_rotation(JPH::BodyID id);
     void set_body_rotation(JPH::BodyID id, const glm::quat& rot);
     bool is_active(JPH::BodyID id);
+    void add_impulse(JPH::BodyID id, JPH::Vec3 impulse);
 
     Util::AABB get_world_AABB(JPH::BodyID id);
     Util::OBB get_world_OBB(JPH::BodyID id);

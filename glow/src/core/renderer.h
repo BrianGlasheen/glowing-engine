@@ -14,8 +14,6 @@
 #include "asset/shader_manager.h"
 #include "asset/text.h"
 
-#include "player/player.h"
-
 // todo move to light class maybe, maybe not
 struct Cluster {
     glm::vec4 minPoint; // 16 bytes
@@ -51,6 +49,24 @@ struct Per_Object_Data {
     uint32_t bone_offset;
 };
 
+enum Render_Pass {
+    opaque_scene = 0, // depth pre pass can use these
+    blended_scene,
+    opaque_holding,
+    blended_holding,
+    CSM,
+    hud,
+    NUM_RENDER_PASSES
+};
+
+// todo add some kind of state for this!?
+struct Render_Command {
+    Draw_Elements_Indirect_Command command;
+    Per_Object_Data object_data;
+    Render_Pass pass;
+    // shader
+};
+
 class Renderer {
 public:
     Renderer() = default;
@@ -66,23 +82,27 @@ public:
     void init_shaders(); // todo!
 
     void setup_indirect(); // todo move to other func ^
-    void build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
-    void indirect_depth_prepass(Player& player);
-    void render_indirect(Player& player, Scene& scene); // todo rename
+    //void build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
+    void indirect_depth_prepass(const glm::mat4& viewproj);
     void sort_blended_draws();
 
     void build_cluster_pass(const glm::mat4& inv_proj);
     void cull_cluster_pass(const glm::mat4& view);
 
-    void shadow_setup(const glm::mat4& view, const glm::mat4& inv_view);
-    void shadow_pass(Scene& scene, const Player& player);
-    void render(Player& player, Scene& scene, float delta_time, SSBO& particles); // todo rm
-    void particle_pass(float delta_time, SSBO& particle_ssbo, Player& player);
-    void draw_light_quads(Player& player); // debug
+    void shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, const float& aspect_ratio, const float& zoom);
+    void shadow_pass(Scene& scene);
+
+    // todo grab random stuff from
+    //void render(Player& player, Scene& scene, float delta_time, SSBO& particles); // todo rm
+
+    void particle_pass(float delta_time, SSBO& particle_ssbo, const glm::mat4& proj, const glm::mat4& view);
+    
+    void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
     void bloom_pass();
-    void ssao_pass(Player& player);
+    void ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj);
     void composite();
-    void render_debug(Player& player);
+
+    void render_debug(const glm::mat4& view, const glm::mat4& proj);
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 
@@ -93,12 +113,16 @@ public:
 
     void shutdown();
 
-    void Renderer::begin_frame();
-    void submit_render_command(const Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb);
+    void begin_frame();
+    void submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb);
+    void submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data);
     void upload_render_commands();
+
     void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
     // todo probably move CSM to some kind of light system along with other lights
     int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
+
+    void draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj);
 
 
 // private:
@@ -174,11 +198,10 @@ public:
     std::vector<float> blended_draw_command_distances;
     uint32_t blended_draw_count;
 
-    uint32_t draw_command_buffer_skinned, per_object_ssbo_skinned;
-    std::vector<Draw_Elements_Indirect_Command> draw_commands_skinned;
-    std::vector<Per_Object_Data> per_object_data_skinned;
-    uint32_t bone = 0;
-
+    uint32_t skinned_draw_commands_ssbo, skinned_object_ssbo;
+    std::vector<Draw_Elements_Indirect_Command> skinned_draw_commands;
+    std::vector<Per_Object_Data> skinned_object_data;
+    uint32_t skinned_draw_count;
     // todo maybe blended skinned draws
 
     uint32_t quadVAO;

@@ -1831,7 +1831,7 @@ namespace Model_Manager {
         return m_indirect_models[idx];
     }
     
-    Animated_Model get_animated_model(uint32_t idx) {
+    Animated_Model& get_animated_model(uint32_t idx) {
         return m_animated_models[idx];
     }
 
@@ -2098,42 +2098,37 @@ namespace Model_Manager {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
 
-    static bool once = true;
     static uint32_t num_leafs = 0;
     static uint32_t n_cmds = 0;
+    std::vector<Animation_Command> cmds(0);
+
+    void begin_animation_frame() {
+        cmds.clear();
+        n_cmds = 0;
+        num_leafs = 0;
+    }
+
+    //void submit_animation_command(Animation_Command cmd) {
+    //    cmds.push_back(cmd);
+    //    n_cmds++;
+    //    num_leafs += cmd.leaf_count;
+    //}
+
+    void submit_animation_command(uint32_t model_id) {
+        Animated_Model& m = m_animated_models[model_id];
+        Animation a = g_animations[m.current_animation];
+
+        Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, a.base_bone_animation, a.bone_animation_count, a.duration, num_leafs };
+
+        cmds.push_back(cmd);
+        n_cmds++;
+        num_leafs += cmd.leaf_count;
+    }
 
     void update_bones_from_animation_compute(uint32_t animation_index, float time) {
         //const Animation& anim = g_animations[animation_index];
-
-        if (once) {
-            once = false;
-            std::vector<Animation_Command> cmds(0);
-
-            for (uint32_t i = 0; i < Model_Manager::get_num_animated_models(); i++) {
-                Animated_Model m = m_animated_models[i];
-
-                //printf("%s base anim %d, num animations %d\n", m.m_name.c_str(), m.base_animation, m.animation_count);
-
-                Animation a = g_animations[m.base_animation];
-
-                Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, a.base_bone_animation, a.bone_animation_count, a.duration, num_leafs };
-                cmds.push_back(cmd);
-
-                num_leafs += m.leaf_count;
-
-                // todo accumalte number of leafd nodes for dispatch
-                // thread leaf offset = accumulated - base_leaf base
-                n_cmds++;
-            }
-
-
+        if (n_cmds)
             glNamedBufferData(animation_commands, cmds.size() * sizeof(Animation_Command), cmds.data(), GL_DYNAMIC_DRAW);
-
-            for (uint32_t i = 0; i < g_animations.size(); i++) {
-                printf("%s: ", g_animation_names[i].c_str());
-                printf("%d | %d\n", g_animations[i].base_bone_animation, g_animations[i].bone_animation_count);
-            }
-        }
 
         //printf("animating for %d leafs\n", num_leafs);
 
@@ -2141,6 +2136,8 @@ namespace Model_Manager {
         skeleton->use();
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, animation_commands);
+
+        // can do all these once if doing gpu skeletal transforms
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, leaf_bones_ssbo);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bone_ssbo);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, skinned_bone_ssbo);

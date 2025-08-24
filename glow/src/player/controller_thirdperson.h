@@ -72,20 +72,20 @@ public:
     }
     
     virtual void process_input(GLFWwindow* window, float deltaTime, Scene& scene, Camera& camera, float& model_yaw) override {
-        //glm::vec3 movement(0.0f);
-        //if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        //    movement.z -= 1.0f;
-        //if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        //    movement.z += 0.5f; // Half speed backward
-        //if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        //    movement.x -= 1.0f;  // Strafe left
-        //if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        //    movement.x += 1.0f;  // Strafe right
+        glm::vec3 movement(0.0f);
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            movement.z -= 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            movement.z += 0.5f; // Half speed backward
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            movement.x -= 1.0f;  // Strafe left
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            movement.x += 1.0f;  // Strafe right
 
-        //// Normalize movement vector for diagonal movement
-        //bool is_moving = glm::length(movement) > 0.0f;
-        //if (is_moving)
-        //    movement = glm::normalize(movement);
+        ////// Normalize movement vector for diagonal movement
+        bool is_moving = glm::length(movement) > 0.0f;
+        if (is_moving)
+            movement = glm::normalize(movement);
 
         //// Handle jumping
         //if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
@@ -94,35 +94,36 @@ public:
         //}
 
         //// Convert movement direction to be relative to character facing direction (for WoW style)
-        //float character_yaw_radians = glm::radians(character_yaw);
-        //glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), character_yaw_radians, glm::vec3(0.0f, 1.0f, 0.0f));
-        //// Forward vector is based on character orientation
-        //glm::vec3 forward = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)); // Note: negative Z is forward
-        //glm::vec3 right = glm::vec3(rotationMatrix * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
-        //// Calculate world space movement vector
-        //glm::vec3 moveDir = forward * -movement.z + right * movement.x; // Note the negative for z
+        float character_yaw_radians = glm::radians(character_yaw);
+        glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), character_yaw_radians, glm::vec3(0.0f, 1.0f, 0.0f));
+        // Forward vector is based on character orientation
+        glm::vec3 forward = glm::vec3(rotationMatrix * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)); // Note: negative Z is forward
+        glm::vec3 right = glm::vec3(rotationMatrix * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+        // Calculate world space movement vector
+        glm::vec3 moveDir = forward * -movement.z + right * movement.x; // Note the negative for z
         //
         //// If moving, calculate the angle of movement for model orientation
-        //if (is_moving) {
-        //    // Calculate the movement angle in world space
-        //    movement_angle = glm::degrees(atan2(moveDir.x, moveDir.z));
+        if (is_moving) {
+            // Calculate the movement angle in world space
+            movement_angle = glm::degrees(atan2(moveDir.x, moveDir.z));
+        }
         //    // When right-click is held, character and model should face camera direction
-        //    if (!right_mouse_pressed) {
-        //        model_target_yaw = -movement_angle + 90;
-        //        // Smoothly interpolate model yaw towards target
-        //        float yaw_diff = model_target_yaw - model_yaw;
-        //        // Handle angle wrap-around
-        //        if (yaw_diff > 180.0f) yaw_diff -= 360.0f;
-        //        if (yaw_diff < -180.0f) yaw_diff += 360.0f;
-        //        // Apply smooth rotation to model_yaw
-        //        model_yaw += yaw_diff * MODEL_ROTATION_SPEED * deltaTime;
-        //        // Keep model_yaw in range [0, 360)
-        //        if (model_yaw < 0.0f) model_yaw += 360.0f;
-        //        if (model_yaw >= 360.0f) model_yaw -= 360.0f;
-        //    }
+        if (!right_mouse_pressed) {
+            model_target_yaw = -movement_angle + 90;
+            // Smoothly interpolate model yaw towards target
+            float yaw_diff = model_target_yaw - model_yaw;
+            // Handle angle wrap-around
+            if (yaw_diff > 180.0f) yaw_diff -= 360.0f;
+            if (yaw_diff < -180.0f) yaw_diff += 360.0f;
+            // Apply smooth rotation to model_yaw
+            model_yaw += yaw_diff * MODEL_ROTATION_SPEED * deltaTime;
+            // Keep model_yaw in range [0, 360)
+            if (model_yaw < 0.0f) model_yaw += 360.0f;
+            if (model_yaw >= 360.0f) model_yaw -= 360.0f;
+        }
         //}
         // Apply acceleration
-        //glm::vec3 acceleration = moveDir * ACCELERATION * deltaTime;
+        glm::vec3 acceleration = moveDir * deltaTime;
         //player_physics.velocity.x += acceleration.x;
         //player_physics.velocity.z += acceleration.z;
         
@@ -139,9 +140,10 @@ public:
             //player_physics.velocity.x *= scale;
             //player_physics.velocity.z *= scale;
         //}
+        camera.position += acceleration;
         
         // Smoothly interpolate camera distance for zoom
-        //current_camera_distance = glm::mix(current_camera_distance, target_camera_distance, deltaTime * CAMERA_SMOOTHING);
+        current_camera_distance = glm::mix(current_camera_distance, target_camera_distance, deltaTime * CAMERA_SMOOTHING);
     }
     
     virtual void update_camera(Camera& camera, bool crouched, float player_height) override {

@@ -6,25 +6,27 @@
 
 #include <core/audio.h>
 #include <core/physics.h>
+#include "asset/model_manager.h"
 
 enum class Weapon_Id {
-    M4A1,
     GLOCK,
-    KNIFE,
-    SHOTGUN,
-    SNIPER,
+    //KNIFE,
+    //SHOTGUN,
+    //SNIPER,
+    BOW,
     NONE
 };
 
 class Weapon {
 public:
-    // Visual properties
+    float wep_scale;
     glm::vec3 wep_pos;      // Current position
-    glm::vec3 min_pos;      // Hip fire position
-    glm::vec3 ads_pos;      // Aim down sight position
-    glm::vec3 sprint_pos;   // Sprinting position
     glm::vec3 wep_rot;      // Rotation
-    float ads_speed;        // ADS transition speed
+    
+    //glm::vec3 min_pos;      // Hip fire position
+    //glm::vec3 ads_pos;      // Aim down sight position
+    //glm::vec3 sprint_pos;   // Sprinting position
+    //float ads_speed;        // ADS transition speed
     
     // Gameplay properties
     Weapon_Id id;           // Weapon identifier
@@ -55,15 +57,17 @@ public:
 
     bool is_automatic;
     bool prev_firing;
+
+    model_handle model_id;
     
     // Constructor for default empty weapon
     Weapon() 
         : wep_pos(glm::vec3(0.0f)),
-          min_pos(glm::vec3(0.0f)),
-          ads_pos(glm::vec3(0.0f)),
-          sprint_pos(glm::vec3(0.0f)),
+          //min_pos(glm::vec3(0.0f)),
+          //ads_pos(glm::vec3(0.0f)),
+          //sprint_pos(glm::vec3(0.0f)),
           wep_rot(glm::vec3(0.0f)),
-          ads_speed(0.0f),
+          //ads_speed(0.0f),
           id(Weapon_Id::NONE),
           name("none"),
           sound_file(""),
@@ -89,11 +93,14 @@ public:
         //weapon.model.load_model("../resources/models/glock/glock.gltf");
         weapon.id = Weapon_Id::GLOCK;
         weapon.name = "glock";
-        weapon.min_pos = glm::vec3(0.4f, -0.4f, -1.3f);
-        weapon.wep_pos = weapon.min_pos;
-        weapon.ads_pos = glm::vec3(-0.0001f, -0.4f, -1.0f);
-        weapon.sprint_pos = glm::vec3(0.6f, -0.2f, -1.2f);
-        weapon.ads_speed = 25.0f;
+        //weapon.min_pos = glm::vec3(0.4f, -0.4f, -1.3f);
+        //weapon.wep_pos = weapon.min_pos;
+        weapon.wep_pos = glm::vec3(0.0f, -1.72, -1.7);
+        weapon.wep_rot = glm::vec3(113.0f);
+        weapon.wep_scale = 1.0f;
+        //weapon.ads_pos = glm::vec3(-0.0001f, -0.4f, -1.0f);
+        //weapon.sprint_pos = glm::vec3(0.6f, -0.2f, -1.2f);
+        //weapon.ads_speed = 25.0f;
         weapon.sound_file = "glock.wav";
         weapon.sound_dry = "glock_dry.wav";
         weapon.sound_volume = 0.07f;
@@ -106,6 +113,37 @@ public:
         weapon.shake_decay = 12.0f;
         weapon.is_automatic = false;
         weapon.prev_firing = false;
+        //weapon.model_id = Model_Manager::load_animated_model("pistol4/scene.gltf");
+        weapon.model_id = Model_Manager::load_animated_model_cgltf("pistol5/rig.gltf");
+        return weapon;
+    }
+
+    static Weapon BOW() {
+        Weapon weapon;
+        //weapon.model.load_model("../resources/models/glock/glock.gltf");
+        weapon.id = Weapon_Id::BOW;
+        weapon.name = "bow";
+        //weapon.min_pos = glm::vec3(0.4f, -0.4f, -1.3f);
+        weapon.wep_pos = glm::vec3(-1.72f, -7.182f, -4.36f);
+        weapon.wep_rot = glm::vec3(-171.0f);
+        weapon.wep_scale = .097f;
+        //weapon.ads_pos = glm::vec3(-0.0001f, -0.4f, -1.0f);
+        //weapon.sprint_pos = glm::vec3(0.6f, -0.2f, -1.2f);
+        //weapon.ads_speed = 25.0f;
+        weapon.sound_file = "bow_shoot.mp3 ";
+        weapon.sound_dry = "glock_dry.wav";
+        weapon.sound_volume = 0.7f;
+        weapon.cooldown = 2.0f;
+        weapon.magazine_size = 1;
+        weapon.current_ammo = 25;
+        weapon.reserve_ammo = 51;
+        weapon.reload_time = 1.8f;
+        weapon.shake_intensity = 0.03f;
+        weapon.shake_decay = 12.0f;
+        weapon.is_automatic = false;
+        weapon.prev_firing = false;
+        //weapon.model_id = Model_Manager::load_animated_model("pistol4/scene.gltf");
+        weapon.model_id = Model_Manager::load_animated_model_cgltf("bow/scene.gltf");
         return weapon;
     }
 
@@ -122,13 +160,19 @@ public:
     // float last_shot_time = 0.0f; 
     
     // Update weapon position and state
-    void update(float deltaTime, bool ads_requested, bool firing, bool reload_requested, bool sprinting, glm::vec3 pos, glm::vec3 facing) {
+    void update(float deltaTime, bool firing, bool reload_requested, bool sprinting, glm::vec3 pos, glm::vec3 facing) {
+
+        // pullout
+        // fire
+        // run
+        // etc
+        
         // Update cooldown timer
         last_shot_time += deltaTime;
         
         // Track state
         is_sprinting = sprinting;
-        is_ads = ads_requested && !is_sprinting; // Can't ADS while sprinting
+        //is_ads = ads_requested && !is_sprinting; // Can't ADS while sprinting
         
         // Handle reloading state
         if (is_reloading) {
@@ -141,14 +185,14 @@ public:
         }
         
         // Determine target position based on state
-        glm::vec3 target_pos;
-        if (is_sprinting) {
-            target_pos = sprint_pos;
-        } else if (is_ads) {
-            target_pos = ads_pos;
-        } else {
-            target_pos = min_pos;
-        }
+        //glm::vec3 target_pos;
+        //if (is_sprinting) {
+        //    target_pos = sprint_pos;
+        //} else if (is_ads) {
+        //    target_pos = ads_pos;
+        //} else {
+        //    target_pos = min_pos;
+        //}
         
         // Firing logic: check automatic vs semi-automatic
         if (firing) {
@@ -189,7 +233,7 @@ public:
         }
         
         // Smooth transition to target position
-        wep_pos = glm::mix(wep_pos, target_pos, deltaTime * ads_speed);
+        //wep_pos = glm::mix(wep_pos, target_pos, deltaTime * ads_speed);
         
         // Gradually reset rotation (if there was recoil)
         if (wep_rot.x > 0.0f) {
@@ -238,6 +282,16 @@ public:
         
         is_reloading = false;
         reload_timer = 0.0f;
+    }
+
+    glm::mat4 get_model_matrix() const {
+        glm::mat4 model_matrix(1.0f);
+
+        glm::mat4 translation = glm::translate(glm::mat4(1.0f), wep_pos);
+        glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(wep_rot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 scaling = glm::scale(glm::mat4(1.0f), glm::vec3(wep_scale));
+
+        return translation * rot * scaling;
     }
     
     // Get current reload progress (0.0 to 1.0)

@@ -1,49 +1,26 @@
-#ifndef CONTROLLER_FPS_H
-#define CONTROLLER_FPS_H
-
-#include "core/opengl.h"
-
-#include "glm/glm.hpp"
+#pragma once
 
 #include "core/camera.h"
 #include "core/scene.h"
 
-class Controller_fps : public Controller {
-public:
-    float lastX = 0.0f;
-    float lastY = 0.0f;
-         
-    Controller_fps() = default;
+#include "glm/glm.hpp"
 
-    // glm::vec3 wep_pos = glm::vec3(0.6f, -0.5f, -1.6f);  M4A1
-    // glm::vec3 min_pos = wep_pos;
-    // glm::vec3 ads_pos = glm::vec3(-0.0001f, -.45f, -1.2f);
-    // glm::vec3 wep_rot = glm::vec3(0.0f);
-    // float ads_speed = 20.0f;
-    // int holding = 0;
-    // int rounds_per_min = 700;
-    // float weapon_sound_cooldown = 0.07f; 
-    // float last_shot_time = 0.0f; 
-    
-    bool key_toggles[256] = {false};
+namespace FPS_Controller {
 
-    virtual void mouse_callback(GLFWwindow* window, Camera& camera, double xpos, double ypos, float& model_yaw) override {
-        float xoffset = xpos - lastX;
-        float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-        lastX = xpos;
-        lastY = ypos;
-        camera.process_mouse_movement(xoffset, yoffset); // todo change to controller processess
+    void mouse_callback(GLFWwindow* window, Camera& camera, double xpos, double ypos, float& model_yaw) {
+        camera.process_mouse_movement(xpos, ypos);
+        // add weapon logic?
     }
 
-    virtual void scroll_callback(GLFWwindow* window, Camera& camera, double xoffset, double yoffset) override {
+    void scroll_callback(GLFWwindow* window, Camera& camera, double xoffset, double yoffset) {
         camera.process_mouse_scroll(static_cast<float>(yoffset));
     }
 
-    virtual void char_callback(GLFWwindow* window, uint32_t key) override{
-        key_toggles[key] = !key_toggles[key];
+    void char_callback(GLFWwindow* window, uint32_t key) {
+        //key_toggles[key] = !key_toggles[key];
     }
 
-    virtual void process_input(GLFWwindow* window, float deltaTime, Scene& scene, Camera& camera, float& model_yaw) override {
+    void process_input(GLFWwindow* window, float deltaTime, Scene& scene, Camera& camera, float& model_yaw, JPH::BodyID physics_id) {
         //// Check for sprinting
         glm::vec3 movement(0.0f);
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -71,15 +48,22 @@ public:
         //    player_physics.velocity.y = JUMP_FORCE;
         //    player_physics.isOnGround = false;
         //}
+        glm::vec3 currentVelocity = Physics::get_body_velocity(physics_id);
+        glm::vec3 newVelocity(movement.x, currentVelocity.y, movement.z);
+
+        Physics::set_body_velocity(physics_id, newVelocity);
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            camera.position += glm::vec3(0.0f, 1.0f, 0.0f);
+            //camera.position += glm::vec3(0.0f, 1.0f, 0.0f);
+
+            JPH::Vec3 jumpVelocity(0, 150.0f, 0); // jump impulse
+            Physics::add_impulse(physics_id, jumpVelocity);
             /*player_physics.velocity.y = JUMP_FORCE;
             player_physics.isOnGround = false;*/
         }
 
         if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
-            camera.position -= glm::vec3(0.0f, 1.0f, 0.0f);
+            //camera.position -= glm::vec3(0.0f, 1.0f, 0.0f);
             /*player_physics.velocity.y = JUMP_FORCE;
             player_physics.isOnGround = false;*/
         }
@@ -90,7 +74,10 @@ public:
         glm::vec3 right = glm::normalize(glm::cross(forward, camera.world_up));
         glm::vec3 acceleration = forward * movement.z + right * movement.x;
 
-        camera.position += acceleration;
+        //camera.position += acceleration;
+        camera.position = Physics::get_body_position(physics_id) + glm::vec3(0.0f, 1.5f, 0.0f);
+
+        //printf("%f, %f, %f\n", camera.position.x, camera.position.y, camera.position.z);
         
         // Apply sprint boost if sprinting
         //float speed_multiplier = is_sprinting ? 1.5f : 1.0f;
@@ -117,10 +104,10 @@ public:
         model_yaw = camera.yaw;
     }
     
-    virtual void update_camera(Camera& camera, bool crouched, float player_height) override {
+    void update_camera(Camera& camera, bool crouched, float player_height) {
     }
 
-    virtual void draw_hud(Shader& shader) const override {
+    void draw_hud(Shader& shader) {
         //if (!active_weapon) return;
         
         //active_weapon->model.draw(shader);
@@ -129,16 +116,16 @@ public:
         // }
     }
 
-    virtual glm::vec3 get_weapon_position() const override {
+    glm::vec3 get_weapon_position() {
         //return active_weapon->wep_pos;
         return glm::vec3(0.0f);
     }
-    virtual glm::vec3 get_weapon_rotation() const {
+    glm::vec3 get_weapon_rotation() {
         //return active_weapon->wep_rot;
         return glm::vec3(0.0f);
     }
     
-    virtual void debug_hud(ImGuiIO& io) override {
+    //void debug_hud(ImGuiIO& io) {
         //Weapon* current_weapon = active_weapon;
 
         //ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 210, io.DisplaySize.y - 60));
@@ -157,6 +144,5 @@ public:
         //}
 
         //ImGui::End();
-    }
+    //}
 };
-#endif

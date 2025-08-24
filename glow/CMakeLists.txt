@@ -35,8 +35,8 @@ include_directories(
 
 set(SOURCES
     ext/stb_image_impl.cpp
-    src/main.cpp
-    src/glow.cpp
+    "src/main.cpp"
+    "src/glow.cpp"
     
     "src/asset/compute_shader.cpp"
     "src/asset/crosshair.cpp"
@@ -61,6 +61,8 @@ set(SOURCES
     "src/core/scene.cpp"
     "src/core/ssbo.cpp"
     "src/core/window.cpp"
+
+    "src/player/player.cpp"
 
     "ext/glad/glad.c"
     "ext/dearimgui/imgui.cpp"

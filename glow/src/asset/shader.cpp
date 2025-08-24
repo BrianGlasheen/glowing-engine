@@ -97,6 +97,9 @@ void Shader::set_int(const std::string& name, int value) const {
 void Shader::set_uint(const std::string& name, unsigned int value) const {
     glUniform1ui(glGetUniformLocation(ID, name.c_str()), value);
 }
+void Shader::set_uint64(const std::string& name, uint64_t value) {
+    glUniformHandleui64ARB(glGetUniformLocation(ID, name.c_str()), value);
+}
 void Shader::set_float(const std::string& name, float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }

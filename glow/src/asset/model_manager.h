@@ -65,7 +65,7 @@ namespace Model_Manager {
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
     Model get_model_ind(uint32_t idx);
-    Animated_Model get_animated_model(uint32_t idx);
+    Animated_Model& get_animated_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
 
     void setup_buffers();
@@ -78,6 +78,11 @@ namespace Model_Manager {
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
     void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
 
+
+
+    void begin_animation_frame();
+    //void submit_animation_command(Animation_Command cmd);
+    void submit_animation_command(uint32_t model_id);
     void update_bones_from_animation_compute(uint32_t animation_index, float time);
 
     uint32_t get_bone_ssbo();

@@ -24,6 +24,8 @@ public:
     float mouse_sensitivity;
     float zoom;
 
+    float lastX = 800, lastY = 450; // todo constructor arg
+
     // constructor with vectors
     Camera(glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f), 
            glm::vec3 world_up_ = glm::vec3(0.0f, 1.0f, 0.0f), 
@@ -77,7 +79,12 @@ public:
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
-    void process_mouse_movement(float xoffset, float yoffset, bool constrainpitch = true) {
+    void process_mouse_movement(double xpos, double ypos, bool constrainpitch = true) {
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos;
+        lastX = xpos;
+        lastY = ypos;
+
         xoffset *= mouse_sensitivity;
         yoffset *= mouse_sensitivity;
         yaw   += xoffset;

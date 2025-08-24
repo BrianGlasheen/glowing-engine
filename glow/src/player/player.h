@@ -1,19 +1,16 @@
 #pragma once
 
-#include <memory>
 #include <unordered_map>
-
-#include "controller.h"
-#include "controller_fps.h"
-#include "controller_thirdperson.h"
-#include "controller_plane.h"
 
 #include "core/camera.h"
 #include "core/physics.h"
 #include "core/scene.h"
 #include "player/weapon.h"
+#include "core/renderer.h"
 
-enum class ControllerType { FPS, THIRDPERSON, PLANE };
+#include <Jolt/Physics/Character/Character.h>
+
+enum class ControllerType { FPS, THIRDPERSON, PLANE, NUM_CONTROLLER };
 
 class Player {
 public:
@@ -23,11 +20,21 @@ public:
     Camera debug_camera;
     bool out_of_body = false;
 
-    std::unordered_map<ControllerType, std::unique_ptr<Controller>> controllers;
-    Controller* controller;
+    ControllerType active_controller;
 
     std::unordered_map<Weapon_Id, std::unique_ptr<Weapon>> weapons;
     Weapon* active_weapon;
+
+    JPH::BodyID physics_id;
+
+    //Character			mAnimatedCharacter;
+
+    // Player input
+    //Vec3					mControlInput = Vec3::sZero();
+    //bool					mJump = false;
+    //bool					mWasJump = false;
+    //bool					mSwitchStance = false;
+    //bool					mWasSwitchStance = false;
 
     // Hands hands; // (   ͡°   ͜ʖ    ͡°   )
 
@@ -42,209 +49,32 @@ public:
 
     // Model wep;
 
-    Player() : camera(glm::vec3(0.0f, player_height, 0.0f)), debug_camera(glm::vec3(0.0f, player_height, 0.0f)), controller() {
-        controllers[ControllerType::FPS] = std::make_unique<Controller_fps>();
-        controllers[ControllerType::THIRDPERSON] = std::make_unique<Controller_thirdperson>();
-        //controllers[ControllerType::PLANE] = std::make_unique<Controller_plane>();
-        controller = controllers[ControllerType::FPS].get();
+    Player();
+    void init();
 
-        weapons[Weapon_Id::GLOCK] = std::make_unique<Weapon>(Weapon::GLOCK());
-        // weapons[Weapon_Id::NONE] = std::make_unique<Weapon>(Weapon::NONE());
-        active_weapon = weapons[Weapon_Id::GLOCK].get();
-    }
+    void controller_step(GLFWwindow* window, float deltaTime, Scene& scene);
 
-    void controller_step(GLFWwindow* window, float deltaTime, Scene& scene) {
-        poll_player(window, scene);
-        if (out_of_body) {
-            controller->process_input(window, deltaTime, scene, debug_camera, model_yaw);
-            //controller->update_camera(camera, crouched, player_height);
-        }
-        else {
-            controller->process_input(window, deltaTime, scene, camera, model_yaw);
-        }
+    void submit_animation_items();
+    void submit_render_items(Renderer& renderer);
 
-        // yanked from process input function of player controller, todo refactor ?
-        Weapon* current_weapon = active_weapon;
-        if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-            // reset reload timer
-            active_weapon = weapons[Weapon_Id::M4A1].get();
-        }
-        else if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
-            // reset reload timer of held
-            active_weapon = weapons[Weapon_Id::GLOCK].get();
-        }
+    void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+    void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+    void char_callback(GLFWwindow* window, uint32_t key);
 
-        bool ads_active = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
-        bool firing = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-        bool reload_requested = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
-        bool is_sprinting = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
-        current_weapon->update(deltaTime, ads_active, firing, reload_requested, is_sprinting, camera.position, camera.front);
-    }
-
-    void mouse_callback(GLFWwindow* window, double xpos, double ypos) { // need these guys to pass camera
-        //if (!key_toggles[(unsigned)'q'])
-        if (!out_of_body && !key_toggles[(unsigned)'q'])
-            controller->mouse_callback(window, camera, xpos, ypos, model_yaw);
-        else // out of body
-            controller->mouse_callback(window, debug_camera, xpos, ypos, model_yaw);
-    }
+    glm::mat4 get_model_matrix();
+    float get_camera_zoom() const;
+    glm::mat4 get_body_view_matrix() const;
+    glm::mat4 get_debug_view_matrix() const;
+    glm::mat4 get_view_matrix() const;
+    glm::vec3 get_view_position() const;
     
-    void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-        controller->scroll_callback(window, camera, xoffset, yoffset);
-    }
-
-    void char_callback(GLFWwindow* window, uint32_t key) {
-        key_toggles[key] = !key_toggles[key]; // set this key in our player key toggles
-        process_player_toggles(window); // run through local stuff based on these keytoggles
-        controller->char_callback(window, key); // set controller key toggles
-
-        if (key == 'b')
-            out_of_body = !out_of_body;
-    }
-
-    glm::mat4 get_model_matrix() {
-        glm::mat4 model = glm::mat4(1.0f);
-        //model = glm::translate(model, position);
-        //model = glm::rotate(model, -glm::radians(model_yaw - 90), glm::vec3(0, 1, 0));
-        //model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1, 0, 0));
-        return model;
-    }
-
-    float get_camera_zoom() const {
-        if (out_of_body)
-            return debug_camera.zoom;
-        else
-            return camera.zoom;
-    }
-
-    //Camera& active_camera() {
-    //    if (out_of_body)
-    //        return debug_camera;
-    //    else
-    //        return camera;
-    //}
-
-    glm::mat4 get_body_view_matrix() const {
-        return camera.get_view_matrix();
-    }
-
-    glm::mat4 get_debug_view_matrix() const {
-        return debug_camera.get_view_matrix();
-    }
-
-    glm::mat4 get_view_matrix() const {
-        if (out_of_body)
-            return debug_camera.get_view_matrix();
-        else
-            return camera.get_view_matrix();
-    }
-
-    glm::vec3 get_view_position() const {
-        if (out_of_body)
-            return camera.position;
-        else
-            return debug_camera.position;
-    }
-    
-    void debug_hud() {
-        ImGui::Begin("Weapon");
-        ImGui::End();
-    }
+    void debug_hud();
 
 private:
     // key toggle state that is more specific to the idea of a player than a controller
     // think noclip mode vs plane throttle
-    void process_player_toggles(GLFWwindow* window) { 
-        // T
-        // TOGGLE WIREFRAME
-        if (key_toggles[(unsigned)'t'])
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        // R
-        // TOGGLE MOUSE
-        // if (!key_toggles[(unsigned)'q'])
-        //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        // else
-        //     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
-        if (key_toggles[(unsigned)'i']) {
-            printf("[CONTROLLER] setting fps \n");
-            controller = controllers[ControllerType::FPS].get();
-            key_toggles[(unsigned)'i'] = false;
-        }
-        if (key_toggles[(unsigned)'o']) {
-            printf("[CONTROLLER] setting third person\n");
-            controller = controllers[ControllerType::THIRDPERSON].get();
-            key_toggles[(unsigned)'o'] = false;
-        }
-        if (key_toggles[(unsigned)'p']) {
-            printf("[CONTROLLER] setting plane\n");
-            controller = controllers[ControllerType::PLANE].get();
-            key_toggles[(unsigned)'p'] = false;
-        }
-    }
+    void process_player_toggles(GLFWwindow* window);
     // stuff we're polling for every frame that wouldnt be captured by a keycallback
     // maybe can breakup into 'meta player' vs physics/game state?
-    void poll_player(GLFWwindow* window, Scene& scene) {
-        // CTRL + C
-        // CLOSE WINDOW
-        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
-        // ^ example meta player control ^
-        //            vs
-        // v    game state control      v
-        crouched = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
-
-        /*  if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-              player_physics.position.x += camera.front.x * 15.0f;
-              player_physics.position.y += camera.front.y * 8.0f;
-              player_physics.position.z += camera.front.z * 15.0f;
-              dashing = true;
-          } else {
-              dashing = false;
-          }*/
-
-        bool f1_is_pressed = (glfwGetKey(window, GLFW_KEY_F1) == GLFW_PRESS);
-        if (f1_is_pressed && !f1_was_pressed) {
-            // spawn glock
-            Audio::play_audio("beep.wav", 0.1f);
-            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "glock", true);
-            scene.include(e);
-        }
-
-        //if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS) {
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("deagle", camera.position + camera.front * 5.0f, true, glm::vec3(0.05f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
-
-        //if (glfwGetKey(window, GLFW_KEY_F4) == GLFW_PRESS) {
-        //    Audio::play_audio("beep.wav", 0.1f);
-        //    Entity e("sword", camera.position + camera.front * 5.0f, true, glm::vec3(1.0f), 0.1f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-        //    scene.include(e);
-        //}
-
-        if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
-            Audio::play_audio("beep.wav", 0.1f);
-            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
-            scene.include(e);
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS) {
-            Audio::play_audio("beep.wav", 0.1f);
-            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "link", true);
-            scene.include(e);
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS) {
-            Audio::play_audio("beep.wav", 0.1f);
-            Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "fuzziebox", true);
-            scene.include(e);
-        }
-
-        if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS) {
-            Physics::optimize_broad_phase();
-        }
-    }
+    void poll_player(GLFWwindow* window, Scene& scene);
 };

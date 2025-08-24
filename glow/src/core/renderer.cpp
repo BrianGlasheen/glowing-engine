@@ -208,14 +208,13 @@ void Renderer::setup_indirect() {
 
 
     Shader_Manager::load_from_name("skinned");
-    draw_commands_skinned.reserve(MAX_DRAW_COMMANDS);
-    per_object_data_skinned.reserve(MAX_DRAW_COMMANDS);
+    skinned_draw_commands.reserve(MAX_DRAW_COMMANDS);
+    skinned_object_data.reserve(MAX_DRAW_COMMANDS);
 
-    glCreateBuffers(1, &draw_command_buffer_skinned);
-    glNamedBufferStorage(draw_command_buffer_skinned, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
-
-    glCreateBuffers(1, &per_object_ssbo_skinned);
-    glNamedBufferStorage(per_object_ssbo_skinned, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &skinned_draw_commands_ssbo);
+    glNamedBufferStorage(skinned_draw_commands_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &skinned_object_ssbo);
+    glNamedBufferStorage(skinned_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 void Renderer::setup_ssao() {
@@ -339,16 +338,14 @@ void Renderer::cull_cluster_pass(const glm::mat4& view) {
     cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view) {
+void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, const float& aspect_ratio, const float& zoom) {
     glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::normalize(SUN_DIR), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    //float ar = (float)scr_width / (float)scr_height;
     //float tanHalfVFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
-    //float tanHalfHFOV = tanHalfVFOV * ar;
+    //float tanHalfHFOV = tanHalfVFOV * aspect_ratio;
 
-    float ar = (float)scr_height / (float)scr_width;
-    float tanHalfHFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
-    float tanHalfVFOV = tanf(glm::radians((player.camera.zoom * ar) / 2.0f));
+    float tanHalfHFOV = tanf(glm::radians(zoom / 2.0f));
+    float tanHalfVFOV = tanf(glm::radians((zoom * aspect_ratio) / 2.0f));
 
     //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
 
@@ -430,7 +427,7 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view) {
     }
 }
 
-void Renderer::shadow_pass(Scene& scene, const Player& player) {
+void Renderer::shadow_pass(Scene& scene) {
 
     //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
 
@@ -646,7 +643,7 @@ void Renderer::shadow_pass(Scene& scene, const Player& player) {
 //
 //}
 
-void Renderer::indirect_depth_prepass(Player& player) {
+void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -655,10 +652,6 @@ void Renderer::indirect_depth_prepass(Player& player) {
     glDepthFunc(GL_GREATER);
     glDepthMask(GL_TRUE);
     glClear(GL_DEPTH_BUFFER_BIT);
-
-    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
-    glm::mat4 view = player.get_view_matrix();
-    glm::mat4 viewproj = projection * view;
 
     Shader* shader = Shader_Manager::get_shader("indirect_depth_prepass");
     shader->use();
@@ -676,7 +669,7 @@ void Renderer::indirect_depth_prepass(Player& player) {
     glBindVertexArray(0);
 }
 
-void Renderer::render_indirect(Player& player, Scene& scene) {
+void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
     // DRAW
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
@@ -695,10 +688,6 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
         glDepthMask(GL_TRUE);
     }
 
-    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
-    glm::mat4 view = player.get_view_matrix();
-    glm::mat4 viewproj = projection * view;
-
     Shader* shader = Shader_Manager::get_shader("indirect");
     shader->use();
     //glStencilMask(0x00);
@@ -710,12 +699,12 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
 
     shader->set_bool("blend", false);
 
-    shader->set_vec3("view_pos", player.camera.position);
+    shader->set_vec3("view_pos", view_pos);
     shader->set_int("num_lights", num_lights);
     shader->set_bool("forward_plus", forward_plus);
     shader->set_float("zNear", 1.0f);
     shader->set_float("zFar", FAR_PLANE);
-    shader->set_mat4("viewMatrix", player.get_view_matrix());
+    shader->set_mat4("viewMatrix", view);
     shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
     shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
 
@@ -757,19 +746,19 @@ void Renderer::render_indirect(Player& player, Scene& scene) {
     //
     shader = Shader_Manager::get_shader("skinned");
     shader->use();
-    shader->set_mat4("vp", viewproj);
-    shader->set_uint("bone", bone);
+    shader->set_mat4("vp", proj);
+    //shader->set_uint("bone", bone);
     //printf("bone: %d\n", bone);
 
     vao = Model_Manager::get_rigged_vao();
     glBindVertexArray(vao);
 
     // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, draw_command_buffer_skinned);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, skinned_draw_commands_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_object_ssbo);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, draw_commands_skinned.size(), 0);
+    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, skinned_draw_commands.size(), 0);
 
     glBindVertexArray(0);
 
@@ -885,118 +874,116 @@ void Renderer::sort_blended_draws() {
     }
 }
 
-void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
-    printf("start");
-    // begin frame
-    {
-        PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-        shadow_setup(player);
-    }
-    //{
-    //    PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
-    //    build_command_buffer(player, scene, delta_time);
-    //}
-    {
-        PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
-        if (shadows_enabled)
-            shadow_pass(scene, player);
-    }
-    //{
-    //    PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
-    //    sort_blended_draws();
-    //}
-    {
-        PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
-        if (use_depth_prepass)
-            indirect_depth_prepass(player);
-    }
-    //{
-    //    PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-    //    if (forward_plus)
-    //        build_cluster_pass(player);
-    //}
-    //{
-    //    PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-    //    if (forward_plus)
-    //        cull_cluster_pass(player);
-    //}
-    {
-        PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
-        if (ssao_enabled)
-            ssao_pass(player);
-    }
-    //{
-    //    PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
-    //    render_indirect(player, scene); // opaque / mask pass
-    //    printf("draw");
-    //}
-    {
-        PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
-        particle_pass(delta_time, particles, player);
-    }
-    // post process pass theoretically
-    {
-        PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
-        if (bloom_enabled)
-            bloom_pass();
-    }
-    if (do_draw_light_quads)
-        draw_light_quads(player);
+//void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
+//    printf("start");
+//    // begin frame
+//    {
+//        PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
+//        //shadow_setup(/*player*/);
+//    }
+//    //{
+//    //    PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
+//    //    build_command_buffer(player, scene, delta_time);
+//    //}
+//    {
+//        PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
+//        if (shadows_enabled)
+//            shadow_pass(scene, player);
+//    }
+//    //{
+//    //    PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
+//    //    sort_blended_draws();
+//    //}
+//    {
+//        PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
+//        if (use_depth_prepass)
+//            indirect_depth_prepass(player);
+//    }
+//    //{
+//    //    PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+//    //    if (forward_plus)
+//    //        build_cluster_pass(player);
+//    //}
+//    //{
+//    //    PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+//    //    if (forward_plus)
+//    //        cull_cluster_pass(player);
+//    //}
+//    {
+//        PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
+//        if (ssao_enabled)
+//            ssao_pass(player);
+//    }
+//    //{
+//    //    PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
+//    //    render_indirect(player, scene); // opaque / mask pass
+//    //    printf("draw");
+//    //}
+//    {
+//        PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
+//        particle_pass(delta_time, particles, player);
+//    }
+//    // post process pass theoretically
+//    {
+//        PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
+//        if (bloom_enabled)
+//            bloom_pass();
+//    }
+//    if (do_draw_light_quads)
+//        draw_light_quads(player);
+//
+//    render_skybox(scene.skybox, player.get_view_matrix(), player.camera.get_projection((float)scr_height / (float) scr_height));
+//
+//    {
+//        PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
+//        composite();
+//    }
+//
+//    {
+//        PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
+//        if (player.key_toggles[(unsigned)'r'])
+//            render_debug(player);
+//    }
+//
+//    if (player.key_toggles['l']) {
+//        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+//        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
+//        shader->use();
+//
+//        glDisable(GL_DEPTH_TEST);
+//        Texture_Manager::bind_array(csm_texture, 0);
+//
+//        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+//            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
+//            int x = i * (quad_size + 10);
+//            int y = scr_height - quad_size - 10;
+//
+//            glViewport(x, y, quad_size, quad_size);
+//
+//            shader->set_float("cascade_layer", (float)i);
+//
+//            glBindVertexArray(quadVAO);
+//            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+//        }
+//
+//        glBindVertexArray(0); // unbind quad
+//    }
+//    // end frame
+//    printf("end");
+//}
 
-    render_skybox(scene.skybox, player.get_view_matrix(), player.camera.get_projection((float)scr_height / (float) scr_height));
-
-    {
-        PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
-        composite();
-    }
-
-    {
-        PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-        if (player.key_toggles[(unsigned)'r'])
-            render_debug(player);
-    }
-
-    if (player.key_toggles['l']) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
-        shader->use();
-
-        glDisable(GL_DEPTH_TEST);
-        Texture_Manager::bind_array(csm_texture, 0);
-
-        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
-            int x = i * (quad_size + 10);
-            int y = scr_height - quad_size - 10;
-
-            glViewport(x, y, quad_size, quad_size);
-
-            shader->set_float("cascade_layer", (float)i);
-
-            glBindVertexArray(quadVAO);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        }
-
-        glBindVertexArray(0); // unbind quad
-    }
-    // end frame
-    printf("end");
-}
-
-void Renderer::render_debug(Player& player) {
+void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj) {
     Shader* shader = Shader_Manager::get_shader("debug");
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     //glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
-    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height, player.get_camera_zoom());
 
-    shader->set_mat4("projection", projection);
-    glm::mat4 view = player.get_view_matrix();
+    shader->set_mat4("projection", proj);
     shader->set_mat4("view", view);
 
-    debug_renderer.render(shader, projection, view, num_lights);
+    debug_renderer.render(shader, proj, view, num_lights);
 }
 
-void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& player) {
+void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, const glm::mat4& proj, const glm::mat4& view) {
     // todo holy hell
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
@@ -1026,12 +1013,10 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
-    glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height, player.get_camera_zoom());
-
     Shader* shader = Shader_Manager::get_shader("particle");
     shader->use();
-    shader->set_mat4("view", player.get_view_matrix());
-    shader->set_mat4("projection", projection);
+    shader->set_mat4("view", view);
+    shader->set_mat4("projection", proj);
     particle_ssbo.bind(0);
     glBindVertexArray(quadVAO);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, MAX_PARTICLES);
@@ -1039,19 +1024,17 @@ void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, Player& play
     //glEnable(GL_DEPTH_TEST);
 }
 
-void Renderer::draw_light_quads(Player& player) {
+void Renderer::draw_light_quads(const glm::mat4& proj, const glm::mat4& view) {
     //glDisable(GL_DEPTH_TEST);
     glEnable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
-    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
-
     Shader* shader = Shader_Manager::get_shader("light_quad_debug");
         
     shader->use();
-    shader->set_mat4("view", player.get_view_matrix());
-    shader->set_mat4("projection", projection);
+    shader->set_mat4("view", view);
+    shader->set_mat4("projection", proj);
 
     light_ssbo.bind(0);
 
@@ -1103,7 +1086,7 @@ void Renderer::bloom_pass() {
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
-void Renderer::ssao_pass(Player& player) {
+void Renderer::ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj) {
     Compute_Shader* ssao = Shader_Manager::get_compute("ssao");
 
     ssao->use();
@@ -1114,10 +1097,8 @@ void Renderer::ssao_pass(Player& player) {
     //glBindImageTexture(2, Texture_Manager::get_ogl_id(ssao_texture), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R8);
     glBindImageTexture(2, Texture_Manager::get_ogl_id(ssao_texture), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
 
-    glm::mat4 projection = player.camera.get_projection((float)scr_width / (float)scr_height, player.get_camera_zoom());
-
-    ssao->set_mat4("projection", projection);
-    ssao->set_mat4("inverse_projection", glm::inverse(projection));
+    ssao->set_mat4("projection", proj);
+    ssao->set_mat4("inverse_projection", inv_proj);
     ssao->set_vec2("screen_size", glm::vec2(scr_width, scr_height));
     ssao->set_float("radius", ssao_radius);
     ssao->set_float("bias", ssao_bias);
@@ -1209,9 +1190,6 @@ void Renderer::shutdown() {
     glDeleteVertexArrays(1, &quadVAO);
 }
 
-
-
-
 void Renderer::begin_frame() {
     opaque_draw_commands.clear();
     opaque_object_data.clear();
@@ -1222,6 +1200,10 @@ void Renderer::begin_frame() {
     blended_draw_command_indices.clear();
     blended_draw_command_distances.clear();
     blended_draw_count = 0;
+
+    skinned_draw_commands.clear();
+    skinned_object_data.clear();
+    skinned_draw_count = 0;
 }
 
 void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb) {
@@ -1246,6 +1228,13 @@ void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command
     }
 }
 
+void Renderer::submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data) {
+    draw_command.base_instance = skinned_draw_count;
+    skinned_draw_commands.push_back(draw_command);
+    skinned_object_data.push_back(object_data);
+    skinned_draw_count++;
+}
+
 void Renderer::upload_render_commands() {
     if (opaque_draw_count > 0) {
         glNamedBufferSubData(opaque_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, opaque_draw_commands.data());
@@ -1255,6 +1244,11 @@ void Renderer::upload_render_commands() {
     if (blended_draw_count > 0) {
         glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * blended_draw_count, blended_draw_commands.data());
         glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * blended_draw_count, blended_object_data.data());
+    }
+
+    if (skinned_draw_count > 0) {
+        glNamedBufferSubData(skinned_draw_commands_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * skinned_draw_count, skinned_draw_commands.data());
+        glNamedBufferSubData(skinned_object_ssbo, 0, sizeof(Per_Object_Data) * skinned_draw_count, skinned_object_data.data());
     }
 
     // skinned draw count todo prob not will just be in normal buffers

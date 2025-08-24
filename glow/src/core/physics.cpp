@@ -19,6 +19,10 @@
 //#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Character/CharacterBase.h>
+
 using namespace JPH;
 using namespace JPH::literals;
 
@@ -315,6 +319,33 @@ namespace Physics {
         return body_id;
     }
 
+    JPH::BodyID create_player_controller() {
+        float totalHeight = 1.8f;
+        float radius = 0.3f;
+        float halfCylinderHeight = (totalHeight - 2.0f * radius) * 0.5f;
+
+        CapsuleShapeSettings capsuleSettings(halfCylinderHeight, radius);
+        ShapeSettings::ShapeResult shapeResult = capsuleSettings.Create();
+        /*if (shapeResult.HasError()) {
+            return;
+        }*/
+        RefConst<Shape> capsuleShape = shapeResult.Get();
+
+        JPH::BodyCreationSettings bodySettings(
+            capsuleShape,
+            JPH::Vec3(0, 25, 0), // initial position
+            JPH::Quat::sIdentity(),
+            JPH::EMotionType::Dynamic,
+            Layers::MOVING
+        );
+
+        BodyInterface& bodyInterface = g_state.physicsSystem->GetBodyInterface();
+        JPH::BodyID id = bodyInterface.CreateAndAddBody(bodySettings, EActivation::Activate);
+
+        return id;
+    }
+
+
     void remove_body(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         body_interface.RemoveBody(id);
@@ -358,6 +389,12 @@ namespace Physics {
     bool is_active(JPH::BodyID id) {
         BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
         return body_interface.IsActive(id);
+    }
+
+    void add_impulse(JPH::BodyID id, JPH::Vec3 impulse) {
+        BodyInterface& body_interface = g_state.physicsSystem->GetBodyInterface();
+        body_interface.AddImpulse(id, impulse);
+        printf("Impulse applied successfully!\n");
     }
 
 
