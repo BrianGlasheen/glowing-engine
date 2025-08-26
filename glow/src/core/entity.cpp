@@ -150,6 +150,8 @@ void Entity::check_moved() {
             // todo add scale
         }
     }
+
+    // todo could script movement
     is_dirty = false;
 }
 

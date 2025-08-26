@@ -30,25 +30,6 @@ struct Draw_Elements_Indirect_Command {
     uint32_t  base_instance;
 };
 
-struct Per_Object_Data {
-    glm::mat4 model_matrix; // 64
-    glm::mat4 normal_matrix; // 64
-    glm::vec4 base_color;
-    glm::vec4 emissive_factor; // 16
-
-    uint64_t albedo; // 8
-    uint64_t normal; // 8    
-    uint64_t met_rough; // 8
-    uint64_t emissive; // 8
-    uint64_t amb_occ;
-    uint64_t padding;
-
-    float alpha_cutoff;
-    float metallic_factor; // 4
-    float roughness_factor; // 4
-    uint32_t bone_offset;
-};
-
 enum Render_Pass {
     opaque_scene = 0, // depth pre pass can use these
     blended_scene,
@@ -124,6 +105,7 @@ public:
 
     void draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj);
 
+    void compute_cull_draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj, uint32_t entity_buffer, uint32_t mesh_buffer, uint32_t num_meshes, uint32_t per_obj_gpu);
 
 // private:
 
@@ -203,6 +185,8 @@ public:
     std::vector<Per_Object_Data> skinned_object_data;
     uint32_t skinned_draw_count;
     // todo maybe blended skinned draws
+
+    uint32_t compute_culled_commands, num_compute_culled_commands;
 
     uint32_t quadVAO;
 };

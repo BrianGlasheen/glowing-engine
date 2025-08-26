@@ -56,7 +56,7 @@ uniform mat4 vp;
 
 void main() {
     #if BINDLESS
-        Per_Object_Data obj_data = per_object_data[gl_DrawID];
+        Per_Object_Data obj_data = per_object_data[gl_BaseInstance];
     #else
         Per_Object_Data obj_data = per_object_data[draw_id];
     #endif

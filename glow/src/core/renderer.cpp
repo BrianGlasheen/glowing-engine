@@ -133,6 +133,8 @@ int Renderer::init() {
     Shader_Manager::load_compute("bloomup");
     Shader_Manager::load_compute("particle2");
 
+    Shader_Manager::load_compute("cull_mesh");
+
     debug_renderer.init();
 
     setup_ssao();
@@ -194,6 +196,14 @@ void Renderer::setup_indirect() {
     glNamedBufferStorage(opaque_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
     glCreateBuffers(1, &opaque_object_ssbo);
     glNamedBufferStorage(opaque_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    // // // 
+    glCreateBuffers(1, &compute_culled_commands);
+    glNamedBufferStorage(compute_culled_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    glCreateBuffers(1, &num_compute_culled_commands);
+    glNamedBufferStorage(num_compute_culled_commands, 4, 0, GL_DYNAMIC_STORAGE_BIT);
+    // // //
 
     blended_draw_commands.reserve(MAX_DRAW_COMMANDS);
     blended_object_data.reserve(MAX_DRAW_COMMANDS);
@@ -462,25 +472,25 @@ void Renderer::shadow_pass(Scene& scene) {
     #if BINDLESS
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
     #else
-        for (size_t i = 0; i < draw_commands.size(); i++) {
-            Draw_Elements_Indirect_Command cmd = draw_commands[i];
-            Per_Object_Data pod = per_object_data[i];
+        //for (size_t i = 0; i < draw_commands.size(); i++) {
+        //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
+        //    Per_Object_Data pod = per_object_data[i];
 
-            //Texture_Manager::bind(pod.albedo, 0);
-            //Texture_Manager::bind(pod.normal, 1);
-            //Texture_Manager::bind(pod.met_rough, 2);
-            //Texture_Manager::bind(pod.emissive, 3);
-            //Texture_Manager::bind(pod.amb_occ, 4);
-            shader->set_uint("draw_id", i);
+        //    //Texture_Manager::bind(pod.albedo, 0);
+        //    //Texture_Manager::bind(pod.normal, 1);
+        //    //Texture_Manager::bind(pod.met_rough, 2);
+        //    //Texture_Manager::bind(pod.emissive, 3);
+        //    //Texture_Manager::bind(pod.amb_occ, 4);
+        //    shader->set_uint("draw_id", i);
 
-            glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-                cmd.count,
-                GL_UNSIGNED_INT,
-                (void*)(cmd.first_index * sizeof(uint32_t)),
-                cmd.instance_count,
-                cmd.base_vertex,
-                cmd.base_instance);
-        }
+        //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+        //        cmd.count,
+        //        GL_UNSIGNED_INT,
+        //        (void*)(cmd.first_index * sizeof(uint32_t)),
+        //        cmd.instance_count,
+        //        cmd.base_vertex,
+        //        cmd.base_instance);
+        //}
     #endif
     }
 
@@ -669,6 +679,128 @@ void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
     glBindVertexArray(0);
 }
 
+void Renderer::compute_cull_draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj, uint32_t entity_buffer, uint32_t mesh_buffer, uint32_t num_meshes, uint32_t per_obj_gpu) {
+    // bind cull shader
+    Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
+    c_shader->use();
+    // bind buffers
+
+    // draw command buffer 0
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, compute_culled_commands);
+    // draw count buffer 1
+    GLuint zero = 0;
+    glNamedBufferSubData(num_compute_culled_commands, 0, sizeof(GLuint), &zero);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, num_compute_culled_commands);
+    // entities buffer 2
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, entity_buffer);
+    // meshes buffer 3
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, mesh_buffer);
+
+    // set cull uinforms
+    float frustum[4];
+    float tanHalfFovX = 1.0f / proj[0][0];  // proj[0][0] = p00
+    float tanHalfFovY = 1.0f / proj[1][1];  // proj[1][1] = p11
+    frustum[0] = tanHalfFovX;
+    frustum[1] = 1.0f;
+    frustum[2] = tanHalfFovY;
+    frustum[3] = 1.0f;
+
+    c_shader->set_uint("num_meshes", num_meshes);
+    c_shader->set_mat4("view", view);
+    c_shader->set_float("frustum[0]", frustum[0]);
+    c_shader->set_float("frustum[1]", frustum[1]);
+    c_shader->set_float("frustum[2]", frustum[2]);
+    c_shader->set_float("frustum[3]", frustum[3]);
+
+    c_shader->set_float("znear", 1.0f);
+    c_shader->set_float("zfar", 10000.0f);
+    //uniform bool infinite_far;
+    
+    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT |
+        GL_BUFFER_UPDATE_BARRIER_BIT);
+    //dispatch
+    // barrier
+
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+    glViewport(0, 0, scr_width, scr_height);
+    glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
+
+    glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
+    if (use_depth_prepass) {
+        // after pre pass set this state
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDepthFunc(GL_GEQUAL); // fragments at same depth pass
+        glDepthMask(GL_FALSE); // dont write depth, unnecessary
+    }
+    else {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDepthFunc(GL_GREATER);
+        glDepthMask(GL_TRUE);
+    }
+
+    Shader* shader = Shader_Manager::get_shader("indirect");
+    shader->use();
+    //glStencilMask(0x00);
+
+    scene.skybox.bind(9);
+    shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
+
+    shader->set_mat4("vp", viewproj);
+
+    shader->set_bool("blend", false);
+
+    shader->set_vec3("view_pos", view_pos);
+    shader->set_int("num_lights", num_lights);
+    shader->set_bool("forward_plus", forward_plus);
+    shader->set_float("zNear", 1.0f);
+    shader->set_float("zFar", FAR_PLANE);
+    shader->set_mat4("viewMatrix", view);
+    shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+    shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
+
+    shader->set_bool("ssao_enabled", ssao_enabled);
+
+    shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
+    shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
+    shader->set_int("num_cascades", NUM_CASCADE);
+    shader->set_vec3("directional_light_direction", SUN_DIR);
+    shader->set_vec3("directional_light_color", glm::vec3(1.0f));
+    shader->set_float("directional_light_intensity", sun_strength);
+
+    Texture_Manager::bind(ssao_texture, 0); // todo once
+    Texture_Manager::bind_array(csm_texture, 1); // todo once
+
+    glDisable(GL_BLEND);
+
+    uint32_t vao = Model_Manager::get_big_vao();
+    glBindVertexArray(vao);
+
+    // draw commands and transform
+
+    //GLuint count;
+    //glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
+    //glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
+    //printf("Draw count: %u\n", count);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_obj_gpu);
+    cluster_ssbo.bind(1);
+    light_ssbo.bind(2);
+
+    glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, compute_culled_commands);
+
+    glMultiDrawElementsIndirectCount(
+        GL_TRIANGLES,
+        GL_UNSIGNED_INT,
+        (void*)0,                             // indirect offset
+        (GLintptr)0,                          // offset in the count buffer
+        4000,                                 // maximum draws
+        sizeof(Draw_Elements_Indirect_Command)  // stride
+    );
+
+    glBindVertexArray(0);
+}
+
 void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
     // DRAW
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
@@ -784,69 +916,69 @@ void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewpr
     glDepthMask(GL_TRUE);
 
 #else
-    uint32_t vao = Model_Manager::get_big_vao();
-    glBindVertexArray(vao);
+    //uint32_t vao = Model_Manager::get_big_vao();
+    //glBindVertexArray(vao);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-    cluster_ssbo.bind(1);
-    light_ssbo.bind(2);
-    Texture_Manager::bind(ssao_texture, 0);
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+    //cluster_ssbo.bind(1);
+    //light_ssbo.bind(2);
+    //Texture_Manager::bind(ssao_texture, 0);
 
-    for (size_t i = 0; i < draw_commands.size(); i++) {
-        Draw_Elements_Indirect_Command cmd = draw_commands[i];
-        Per_Object_Data pod = per_object_data[i];
+    //for (size_t i = 0; i < draw_commands.size(); i++) {
+    //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
+    //    Per_Object_Data pod = per_object_data[i];
 
-        Texture_Manager::bind(pod.albedo, 0);
-        Texture_Manager::bind(pod.normal, 1);
-        Texture_Manager::bind(pod.met_rough, 2);
-        Texture_Manager::bind(pod.emissive, 3);
-        Texture_Manager::bind(pod.amb_occ, 4);
-        shader->set_uint("draw_id", i);
+    //    Texture_Manager::bind(pod.albedo, 0);
+    //    Texture_Manager::bind(pod.normal, 1);
+    //    Texture_Manager::bind(pod.met_rough, 2);
+    //    Texture_Manager::bind(pod.emissive, 3);
+    //    Texture_Manager::bind(pod.amb_occ, 4);
+    //    shader->set_uint("draw_id", i);
 
-        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-                                            cmd.count,
-                                            GL_UNSIGNED_INT,
-                                            (void*)(cmd.first_index * sizeof(uint32_t)),
-                                            cmd.instance_count,
-                                            cmd.base_vertex,
-                                            cmd.base_instance);
-    }
-    glBindVertexArray(0);
-    /////////////////////////////////////////////////////////////////////////////////////////////////
-    shader = Shader_Manager::get_shader("skinned");
-    shader->use();
-    shader->set_mat4("vp", viewproj);
-    shader->set_uint("bone", bone);
-    //printf("bone: %d\n", bone);
+    //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+    //                                        cmd.count,
+    //                                        GL_UNSIGNED_INT,
+    //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
+    //                                        cmd.instance_count,
+    //                                        cmd.base_vertex,
+    //                                        cmd.base_instance);
+    //}
+    //glBindVertexArray(0);
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+    //shader = Shader_Manager::get_shader("skinned");
+    //shader->use();
+    //shader->set_mat4("vp", viewproj);
+    //shader->set_uint("bone", bone);
+    ////printf("bone: %d\n", bone);
 
-    vao = Model_Manager::get_rigged_vao();
-    glBindVertexArray(vao);
+    //vao = Model_Manager::get_rigged_vao();
+    //glBindVertexArray(vao);
 
-    // draw commands and transform
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+    //// draw commands and transform
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-    for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
-        Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
-        Per_Object_Data pod = per_object_data_skinned[i];
+    //for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
+    //    Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
+    //    Per_Object_Data pod = per_object_data_skinned[i];
 
-        Texture_Manager::bind(pod.albedo, 0);
-        Texture_Manager::bind(pod.normal, 1);
-        Texture_Manager::bind(pod.met_rough, 2);
-        Texture_Manager::bind(pod.emissive, 3);
-        Texture_Manager::bind(pod.amb_occ, 4);
-        shader->set_uint("draw_id", i);
+    //    Texture_Manager::bind(pod.albedo, 0);
+    //    Texture_Manager::bind(pod.normal, 1);
+    //    Texture_Manager::bind(pod.met_rough, 2);
+    //    Texture_Manager::bind(pod.emissive, 3);
+    //    Texture_Manager::bind(pod.amb_occ, 4);
+    //    shader->set_uint("draw_id", i);
 
-        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-                                            cmd.count,
-                                            GL_UNSIGNED_INT,
-                                            (void*)(cmd.first_index * sizeof(uint32_t)),
-                                            cmd.instance_count,
-                                            cmd.base_vertex,
-                                            cmd.base_instance);
-    }
+    //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+    //                                        cmd.count,
+    //                                        GL_UNSIGNED_INT,
+    //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
+    //                                        cmd.instance_count,
+    //                                        cmd.base_vertex,
+    //                                        cmd.base_instance);
+    //}
 
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 #endif
 
 }

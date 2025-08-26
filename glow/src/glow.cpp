@@ -62,6 +62,8 @@ namespace Glow {
 	Scene scene; //.todo move lights here?
 	ImGuiUtils::ProfilerGraph gpuGraph(300);
 
+	bool compute_culling = true;
+
 	bool init(const Glow_Init_Info& init_info) {
 		if (window.init(init_info.width, init_info.height, init_info.window_name))
 			return -1;
@@ -95,7 +97,7 @@ namespace Glow {
 
 		//Model_Manager::upload_data();
 		//printf(loaded ? "good\n" : "bad\n");
-		scene.load_skybox("sky");
+		scene.init("sky");
 
 		model_handle plane = Model_Manager::load_model("plane.obj");
 		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -212,6 +214,7 @@ namespace Glow {
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
 		renderer.setup_indirect();
+		scene.upload_buffers();
 
 		// Setup Dear ImGui context
 		IMGUI_CHECKVERSION();
@@ -352,7 +355,10 @@ namespace Glow {
 
 			{
 				PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
-				renderer.draw(scene, view, viewproj, player.camera.position, proj);
+				if (compute_culling)
+					renderer.compute_cull_draw(scene, view, viewproj, player.camera.position, proj, scene.gpu_entity_ssbo, scene.gpu_mesh_ssbo, scene.gpu_meshes.size(), scene.per_mesh_ssbo);
+				else
+					renderer.draw(scene, view, viewproj, player.camera.position, proj);
 			}
 
 			//{
@@ -408,6 +414,7 @@ namespace Glow {
 			ImGui::NewFrame();
 
 			ImGui::Begin("particle");
+			ImGui::Checkbox("compute culling", &compute_culling);     
 			ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
 			ImGui::SliderFloat3("acceleration dir", &renderer.acceleration_direction.x, -1.0f, 1.0f);
 			ImGui::SliderFloat("acceleration mag", &renderer.acceleration_force, -17.0f, 19.0f);

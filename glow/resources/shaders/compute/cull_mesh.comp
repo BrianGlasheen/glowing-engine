@@ -1,0 +1,95 @@
+#version 460
+layout(local_size_x = 64) in;
+
+struct Draw_Elements_Indirect_Command {
+    uint count;
+    uint instance_count;
+    uint first_index;
+    int	 base_vertex;
+    uint base_instance;
+};
+
+struct GPU_Entity { // todo can maybe just be pos
+    mat4 transform;
+};
+
+struct GPU_Mesh {
+    int base_vertex;
+    uint vertex_count;
+    uint base_index;
+    uint index_count;
+    vec4 bounding_sphere; // assume sphere is 
+    uint entity_index;
+    uint padding[3];
+};
+
+layout(std430, binding = 0) buffer Draw_Commands {
+    Draw_Elements_Indirect_Command draw_commands[];
+};
+
+layout(std430, binding = 1) buffer Draw_Command_Count {
+    uint draw_count;
+};
+
+layout(std430, binding = 2) buffer Entities {
+    GPU_Entity entities[];
+};
+
+layout(std430, binding = 3) buffer Meshes {
+    GPU_Mesh meshes[];
+};
+
+uniform uint num_meshes;
+uniform mat4 view;
+uniform float frustum[4];
+float znear;
+float zfar;
+uniform bool infinite_far;
+// frustum stuff
+// max meshes
+
+bool visible(uint index) {
+	//grab sphere cull data from the object buffer
+	vec4 sphereBounds = meshes[index].bounding_sphere;
+
+	vec3 center = sphereBounds.xyz;
+	center += entities[meshes[index].entity_index].transform[3].xyz;
+
+	center = (view * vec4(center,1.f)).xyz;
+	float radius = sphereBounds.w;
+
+	bool visible = true;
+
+	//frustrum culling
+	visible = visible && center.z * frustum[1] - abs(center.x) * frustum[0] > -radius;
+	visible = visible && center.z * frustum[3] - abs(center.y) * frustum[2] > -radius;
+
+	//if(cullData.distCull != 0) { // the near/far plane culling uses camera space Z directly
+	//visible = visible && center.z + radius > znear && center.z - radius < zfar;
+	//}
+
+	visible = visible; // || cullData.cullingEnabled == 0;
+
+	return visible;
+}
+
+void main() {
+	uint gID = gl_GlobalInvocationID.x;
+
+	if(gID < num_meshes) {
+
+		if(visible(gID)) {
+			uint index = atomicAdd(draw_count, 1);
+
+            Draw_Elements_Indirect_Command draw_command;
+            GPU_Mesh mesh = meshes[gID];
+            draw_command.count = mesh.index_count;
+            draw_command.instance_count = 1;
+            draw_command.first_index = mesh.base_index;
+            draw_command.base_vertex = mesh.base_vertex;
+            draw_command.base_instance = gID;
+        
+            draw_commands[index] = draw_command;
+        }
+	}
+}

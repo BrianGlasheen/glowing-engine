@@ -24,6 +24,8 @@ struct Mesh {
 	glm::mat4 transform; // relative to parent
 
 	Material material;
+
+	glm::vec4 bounding_sphere;
 };
 
 class Model {
@@ -35,7 +37,12 @@ public:
 		calculate_aabb();
 	}
 
-	void add_mesh(const Mesh& mesh) {
+	void add_mesh(Mesh& mesh) {
+		glm::vec3 center = (mesh.aabb.min + mesh.aabb.max) * 0.5f;
+		glm::vec3 extent = (mesh.aabb.max - mesh.aabb.min) * 0.5f;
+		float radius = glm::length(extent);
+		mesh.bounding_sphere = glm::vec4(center, radius);
+
 		m_meshes.push_back(mesh);
 	}
 
@@ -47,10 +54,15 @@ public:
 			if (mesh.aabb.min.y < m_aabb.min.y) m_aabb.min.y = mesh.aabb.min.y;
 			if (mesh.aabb.min.z < m_aabb.min.z) m_aabb.min.z = mesh.aabb.min.z;
 
-			if (mesh.aabb.max.x > m_aabb.max.x) m_aabb.max.x = mesh.aabb.max.x;			
+			if (mesh.aabb.max.x > m_aabb.max.x) m_aabb.max.x = mesh.aabb.max.x;
 			if (mesh.aabb.max.y > m_aabb.max.y) m_aabb.max.y = mesh.aabb.max.y;
 			if (mesh.aabb.max.z > m_aabb.max.z) m_aabb.max.z = mesh.aabb.max.z;
 		}
+
+		//glm::vec3 center = (m_aabb.min + m_aabb.max) * 0.5f;
+		//glm::vec3 extent = (m_aabb.max - m_aabb.min) * 0.5f;
+		//float radius = glm::length(extent);
+		//m_bounding_sphere = glm::vec4(center, radius);
 	}
 
 	Util::AABB get_aabb() {
@@ -63,4 +75,5 @@ public:
 	// todo maybe huge buffer of all meshes or something
 	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;
+	glm::vec4 m_bounding_sphere;
 };

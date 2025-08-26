@@ -1,19 +1,36 @@
-#ifndef SCENE_H
-#define SCENE_H
-
-#include <vector>
-#include <string>
+#pragma once
 
 #include "core/entity.h"
 #include "asset/skybox.h"
+
+#include "core/opengl.h"
+
+#include <vector>
+#include <string>
+#include <cstdint>
+
+struct GPU_Entity { // todo can maybe just be pos
+    glm::mat4 transform;
+};
+
+struct GPU_Mesh {
+    int32_t base_vertex;
+    uint32_t vertex_count;
+    uint32_t base_index;
+    uint32_t index_count;
+    glm::vec4 bounding_sphere; // assume sphere is 
+    uint32_t entity_index;
+    uint32_t padding[3];
+};
 
 class Scene {
 public:
     Scene();
     ~Scene();
 
-    void load_skybox(const std::string& path);
+    void init(const std::string& path);
     void include(Entity ntitty);
+    void upload_buffers();
     void update_dirty();
     // returns the number of hits
     //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
@@ -21,5 +38,9 @@ public:
     std::vector<Entity> entities;
     std::vector<Entity> timed_entities;
     Skybox skybox;
+
+    uint32_t gpu_mesh_ssbo, gpu_entity_ssbo, per_mesh_ssbo;
+    std::vector<GPU_Mesh> gpu_meshes;
+    std::vector<GPU_Entity> gpu_entities;
+    std::vector<Per_Object_Data> per_mesh_data;
 };
-#endif
