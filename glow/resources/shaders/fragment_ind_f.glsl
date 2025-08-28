@@ -21,7 +21,7 @@ struct Cluster {
     vec4 minPoint;
     vec4 maxPoint;
     uint count;
-    uint lightIndices[199];
+    uint lightIndices[99];
 };
 
 layout(std430, binding = 1) restrict buffer clusterSSBO {
@@ -385,8 +385,9 @@ void main() {
 
     float ssao_val = 1.0;
     //if (ssao_enabled) {
-    //    vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
-    //    ssao_val = texture(ssao, screenUV).r;
+        vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+        ssao_val = texture(ssao, screenUV).r;
+        ssao_val = 0.0;
     //}
 
     vec3 ambient = vec3(ambient_light) * albedo * ao * ssao_val;

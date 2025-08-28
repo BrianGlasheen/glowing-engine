@@ -11,9 +11,12 @@
 
 struct GPU_Entity { // todo can maybe just be pos
     glm::mat4 transform;
+    uint32_t is_dirty;
+    uint32_t padding[3];
 };
 
 struct GPU_Mesh {
+    glm::mat4 transform;
     int32_t base_vertex;
     uint32_t vertex_count;
     uint32_t base_index;
@@ -29,7 +32,7 @@ public:
     ~Scene();
 
     void init(const std::string& path);
-    void include(Entity ntitty);
+    void include(Entity& ntitty);
     void upload_buffers();
     void update_dirty();
     // returns the number of hits

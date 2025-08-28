@@ -77,4 +77,6 @@ private:
     // stuff we're polling for every frame that wouldnt be captured by a keycallback
     // maybe can breakup into 'meta player' vs physics/game state?
     void poll_player(GLFWwindow* window, Scene& scene);
+
+    void move_debug_camera(GLFWwindow* window, Camera& camera);
 };

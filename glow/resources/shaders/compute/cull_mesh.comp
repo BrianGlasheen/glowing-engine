@@ -1,4 +1,7 @@
 #version 460
+
+#extension GL_ARB_gpu_shader_int64: enable
+
 layout(local_size_x = 64) in;
 
 struct Draw_Elements_Indirect_Command {
@@ -11,16 +14,38 @@ struct Draw_Elements_Indirect_Command {
 
 struct GPU_Entity { // todo can maybe just be pos
     mat4 transform;
+    uint is_dirty;
+    uint padding[3];
 };
 
 struct GPU_Mesh {
+    mat4 transform;
     int base_vertex;
     uint vertex_count;
     uint base_index;
     uint index_count;
-    vec4 bounding_sphere; // assume sphere is 
+    vec4 bounding_sphere; // maybe use transform for some
     uint entity_index;
     uint padding[3];
+};
+
+struct Per_Object_Data {
+    mat4 model_matrix;
+    mat4 normal_matrix;
+    vec4 base_color;
+    vec4 emissive_factor;
+    
+    uint64_t albedo;
+    uint64_t normal;
+    uint64_t met_rough;
+    uint64_t emissive;
+    uint64_t amb_occ;
+    uint64_t padding;
+
+    float alpha_cutoff;
+    float metallic_factor; // 4
+    float roughness_factor; // 4
+    uint bone_offset; // todo remove
 };
 
 layout(std430, binding = 0) buffer Draw_Commands {
@@ -39,11 +64,15 @@ layout(std430, binding = 3) buffer Meshes {
     GPU_Mesh meshes[];
 };
 
+layout(std430, binding = 4) buffer Per_Mesh_Data {
+    Per_Object_Data per_mesh_data[];
+};
+
 uniform uint num_meshes;
 uniform mat4 view;
 uniform float frustum[4];
-float znear;
-float zfar;
+//float znear = -.5;
+//float zfar = 10000;
 uniform bool infinite_far;
 // frustum stuff
 // max meshes
@@ -60,16 +89,12 @@ bool visible(uint index) {
 
 	bool visible = true;
 
-	//frustrum culling
+	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
 	visible = visible && center.z * frustum[1] - abs(center.x) * frustum[0] > -radius;
 	visible = visible && center.z * frustum[3] - abs(center.y) * frustum[2] > -radius;
-
-	//if(cullData.distCull != 0) { // the near/far plane culling uses camera space Z directly
-	//visible = visible && center.z + radius > znear && center.z - radius < zfar;
-	//}
-
-	visible = visible; // || cullData.cullingEnabled == 0;
-
+	// the near/far plane culling uses camera space Z directly
+    visible = visible && -center.z + radius > .1 && -center.z - radius < 1000;
+	// visible = visible; // || cullData.cullingEnabled == 0;
 	return visible;
 }
 
@@ -77,12 +102,33 @@ void main() {
 	uint gID = gl_GlobalInvocationID.x;
 
 	if(gID < num_meshes) {
+    
+        GPU_Mesh mesh = meshes[gID];
+        uint entity_idx = meshes[gID].entity_index;
+        
+        if (entities[entity_idx].is_dirty != 0) {
+            mat4 model_matrix = entities[entity_idx].transform * mesh.transform;
+            per_mesh_data[gID].model_matrix = model_matrix;
 
+            // check non uniform 
+            // if needs normal mat
+            mat3 upper3x3 = mat3(model_matrix);
+            mat3 normal_mat3 = transpose(inverse(upper3x3));
+            per_mesh_data[gID].normal_matrix = mat4(normal_mat3);
+            // else
+            // normal <- model
+
+            per_mesh_data[gID].emissive_factor = vec4(4.0);
+        } else {
+            per_mesh_data[gID].emissive_factor = vec4(0.0);
+        }
+
+        // cull view frustum if has flag
+        // todo could maybe do lod-ing?
 		if(visible(gID)) {
 			uint index = atomicAdd(draw_count, 1);
 
             Draw_Elements_Indirect_Command draw_command;
-            GPU_Mesh mesh = meshes[gID];
             draw_command.count = mesh.index_count;
             draw_command.instance_count = 1;
             draw_command.first_index = mesh.base_index;
@@ -91,5 +137,12 @@ void main() {
         
             draw_commands[index] = draw_command;
         }
+
+        // cull animated against frustum if has flag
+            // submit animation command (if gpu animation)
+            // submit draw command
+        
+        // cull CSM frustums if has flag
+        // todo maybe lod here?
 	}
 }

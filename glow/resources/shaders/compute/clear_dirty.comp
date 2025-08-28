@@ -1,0 +1,22 @@
+#version 460
+layout(local_size_x = 64) in;
+
+struct GPU_Entity {
+    mat4 transform;
+    uint is_dirty;
+    uint padding[3];
+};
+
+layout(std430, binding = 2) buffer Entities {
+    GPU_Entity entities[];
+};
+
+uniform uint num_entities;
+
+void main() {
+    uint gID = gl_GlobalInvocationID.x;
+    
+    if (gID < num_entities) {
+        entities[gID].is_dirty = 0;
+    }
+}

@@ -87,6 +87,10 @@ void Compute_Shader::set_float(const std::string& name, float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
 
+void Compute_Shader::set_float_array(const std::string& name, const float* floats, uint32_t count) const {
+    glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, floats);
+}
+
 void Compute_Shader::set_vec2(const std::string& name, const glm::vec2& value) const {
     glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }

@@ -1,4 +1,4 @@
-#version 460 core
+/*#version 460 core
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -54,9 +54,9 @@ void main() {
     vec2 uv = (vec2(coord) + 0.5) / screen_size;
     
     float center_depth = texture(depth_texture, uv).r;
-    imageStore(ssao_output, coord, vec4(vec3(center_depth), 1.0));
+    //imageStore(ssao_output, coord, vec4(vec3(center_depth), 1.0));
     //imageStore(ssao_output, coord, vec4(vec3(1.0, 0.0, 0.0), 1.0));
-    return;
+    //return;
     
     if (center_depth <= min_depth) {
         imageStore(ssao_output, coord, vec4(1.0));
@@ -67,8 +67,9 @@ void main() {
     vec3 normal = reconstruct_normal(uv);
     normal = normal * .5 + .5;
 
-    imageStore(ssao_output, coord, vec4(normal, 1.0));
-    return;
+    //imageStore(ssao_output, coord, vec4(normal, 1.0));
+    //return;
+
     
     // SSAO calculation
     vec2 noise_scale = screen_size / 4.0; // Assuming 4x4 noise texture
@@ -78,7 +79,15 @@ void main() {
     vec3 tangent = normalize(random_vec - normal * dot(random_vec, normal));
     vec3 bitangent = cross(normal, tangent);
     mat3 tbn = mat3(tangent, bitangent, normal);
-    
+
+    vec3 debug_color = vec3(0.0);
+    for (int i = 0; i < min(sample_count, 64); ++i) {
+        vec3 sample_dir = normalize(tbn * samples[i]);
+        debug_color += abs(sample_dir) * 0.125;
+    }
+    imageStore(ssao_output, coord, vec4(debug_color, 1.0));
+    return ;
+
     float occlusion = 0.0;
     int valid_samples = 0;
     
@@ -112,8 +121,8 @@ void main() {
         // Check if sample is occluded
         // In view space, Z is negative (camera looks down -Z)
         // If sample_view_pos.z > sample_pos.z, the surface is closer to camera than our sample
-        float depth_diff = sample_view_pos.z - sample_pos.z;
         
+        float depth_diff = sample_pos.z - sample_view_pos.z;
         if (depth_diff > bias) {
             occlusion += range_check;
         }
@@ -130,4 +139,92 @@ void main() {
     ao = pow(ao, power);
     
     imageStore(ssao_output, coord, vec4(ao, ao, ao, 1.0));
+}*/
+
+#version 460 core
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0) uniform sampler2D depth_texture;
+layout(binding = 1) uniform sampler2D noise_texture;
+layout(binding = 2, rgba8) uniform writeonly image2D ssao_output;
+
+uniform mat4 projection;
+uniform mat4 inverse_projection;
+uniform vec2 screen_size;
+
+uniform float radius;
+uniform float bias;
+uniform int sample_count;
+uniform vec3 samples[64];
+uniform float min_depth;
+uniform float power;
+
+vec3 getViewPos(vec2 uv) {
+    // Read reverse-Z depth
+    float z = texture(depth_texture, uv).r; // 1 at near, 0 at far
+    // Convert to NDC space
+    float ndc_z = z * 2.0 - 1.0; // map [0,1] to [-1,1] (note reverse Z)
+    // Reconstruct clip-space position
+    vec4 clip_pos = vec4(uv * 2.0 - 1.0, ndc_z, 1.0);
+    // Transform to view space
+    vec4 view_pos = inverse_projection * clip_pos;
+    return view_pos.xyz / view_pos.w;
+}
+
+vec3 getNormal(vec2 uv) {
+    // Approximate normal from depth
+    float z = texture(depth_texture, uv).r;
+    vec3 pos = getViewPos(uv);
+
+    vec2 offset = vec2(1.0) / screen_size;
+
+    vec3 pos_dx = getViewPos(uv + vec2(offset.x, 0.0));
+    vec3 pos_dy = getViewPos(uv + vec2(0.0, offset.y));
+
+    vec3 normal = normalize(cross(pos_dy - pos, pos_dx - pos));
+    return normal;
+}
+
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= int(screen_size.x) || pixel.y >= int(screen_size.y)) return;
+
+    vec2 uv = (vec2(pixel) + 0.5) / screen_size;
+
+    vec3 frag_pos = getViewPos(uv);
+    vec3 normal = getNormal(uv);
+
+    vec3 random_vec = normalize(texture(noise_texture, uv * screen_size / 4.0).xyz * 2.0 - 1.0);
+
+    vec3 tangent = normalize(random_vec - normal * dot(random_vec, normal));
+    vec3 bitangent = cross(normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, normal);
+
+    float occlusion = 0.0;
+    for (int i = 0; i < sample_count; ++i) {
+        vec3 sample_vec = TBN * samples[i];
+        sample_vec = frag_pos + sample_vec * radius;
+
+        // Project sample to screen
+        vec4 offset = projection * vec4(sample_vec, 1.0);
+        offset.xyz /= offset.w;
+        vec2 sample_uv = offset.xy * 0.5 + 0.5;
+
+        if (sample_uv.x < 0.0 || sample_uv.x > 1.0 || sample_uv.y < 0.0 || sample_uv.y > 1.0)
+            continue;
+
+        float sample_depth = texture(depth_texture, sample_uv).r;
+        float sample_view_z = getViewPos(sample_uv).z;
+
+        // Reverse-Z comparison
+        if (sample_view_z >= sample_vec.z + bias) {
+            occlusion += 1.0;
+        }
+    }
+
+    occlusion = 1.0 - (occlusion / float(sample_count));
+    occlusion = pow(max(occlusion, 0.0), power);
+
+    imageStore(ssao_output, pixel, vec4(vec3(occlusion), 1.0));
 }

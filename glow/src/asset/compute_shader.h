@@ -22,6 +22,7 @@ public:
     void set_int(const std::string& name, int value) const;
     void set_uint(const std::string& name, uint32_t value) const;
     void set_float(const std::string& name, float value) const;
+    void set_float_array(const std::string& name, const float* floats, uint32_t count) const;
     void set_vec2(const std::string& name, const glm::vec2& value) const;
     void set_vec2(const std::string& name, float x, float y) const;
     void set_vec3(const std::string& name, const glm::vec3& value) const;

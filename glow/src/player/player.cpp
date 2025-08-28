@@ -23,6 +23,11 @@ void Player::init() {
 void Player::controller_step(GLFWwindow* window, float deltaTime, Scene& scene) {
     poll_player(window, scene);
 
+    if (out_of_body) {
+        move_debug_camera(window, debug_camera);
+        return;
+    }
+
     switch (active_controller) {
         //using enum ControllerType; c++ 20 bruh
         case ControllerType::FPS:
@@ -109,15 +114,22 @@ void Player::submit_render_items(Renderer& renderer) {
 }
 
 void Player::mouse_callback(GLFWwindow* window, double xpos, double ypos) { // need these guys to pass camera
-    //if (!key_toggles[(unsigned)'q'])
+    if (key_toggles[(unsigned)'q'])
+        return;
+
     //if (!out_of_body && !key_toggles[(unsigned)'q'])
     //    controller->mouse_callback(window, camera, xpos, ypos, model_yaw);
     //else // out of body
     //    controller->mouse_callback(window, debug_camera, xpos, ypos, model_yaw);
-    switch (active_controller) {
+    if (!out_of_body) {
+        switch (active_controller) {
         case ControllerType::FPS:
             FPS_Controller::mouse_callback(window, camera, xpos, ypos, model_yaw);
             break;
+        }
+    }
+    else {
+        debug_camera.process_mouse_movement(xpos, ypos);
     }
 }
 
@@ -282,4 +294,37 @@ void Player::poll_player(GLFWwindow* window, Scene& scene) {
     if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS) {
         Physics::optimize_broad_phase();
     }
+}
+
+void Player::move_debug_camera(GLFWwindow* window, Camera& camera) {
+    glm::vec3 movement(0.0f);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        movement.z += 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        movement.z -= 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        movement.x -= 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        movement.x += 1.0f;
+
+    if (glm::length(movement) > 0.0f)
+        movement = glm::normalize(movement);
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        movement *= 10.0f;
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        camera.position += glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
+        camera.position -= glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    // Convert camera-relative movement to world space
+    glm::vec3 forward = glm::normalize(glm::vec3(camera.front.x, 0.0f, camera.front.z));
+    glm::vec3 right = glm::normalize(glm::cross(forward, camera.world_up));
+    glm::vec3 acceleration = forward * movement.z + right * movement.x;
+
+    camera.position += acceleration;
 }

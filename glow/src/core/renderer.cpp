@@ -71,6 +71,9 @@ int Renderer::init() {
     //glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
     //glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
+
+    // TODO MOVE TO SCENE
+    // PULL LIGHTS FROM MODELS AS WELL
     // LIGHTs
     lights.reserve(1000);
     for (int i = 0; i < 1000; i++) {
@@ -90,9 +93,11 @@ int Renderer::init() {
         lights.emplace_back(point_light2);
     }
 
+    // MOVE TO SCENE
     light_ssbo.init();
     light_ssbo.set_data(sizeof(GPU_Light) * 1000, lights.data(), GL_DYNAMIC_DRAW);
 
+    // clusters prob stay here
     cluster_ssbo.init();
     cluster_ssbo.set_data(sizeof(Cluster) * 16 * 9 * 24, nullptr, GL_STATIC_COPY);
 
@@ -106,7 +111,7 @@ int Renderer::init() {
     Shader_Manager::load_from_name("quad");
 
     Texture_Manager::init();
-    setup_buffers();
+    setup_buffers(); // todo maybe idk organize
 
     Shader_Manager::load_from_name("particle");
     Shader_Manager::load_from_name("depth_prepass");
@@ -134,10 +139,11 @@ int Renderer::init() {
     Shader_Manager::load_compute("particle2");
 
     Shader_Manager::load_compute("cull_mesh");
+    Shader_Manager::load_compute("clear_dirty");
 
     debug_renderer.init();
 
-    setup_ssao();
+    setup_ssao(); // organize
 
     //glGenFramebuffers(1, &csm_fbo);
     //csm_texture = Texture_Manager::create_2d_array_texture(2048, 2048, 4);
@@ -152,6 +158,7 @@ int Renderer::init() {
     //}
     //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // organize, maybe scene should control params for CSM
     glGenFramebuffers(1, &csm_fbo);
     csm_texture = Texture_Manager::create_2d_array_texture(2048, 2048, NUM_CASCADE);
     glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
@@ -165,10 +172,11 @@ int Renderer::init() {
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
     csm_draw_commands.resize(NUM_CASCADE);
     csm_per_object_data.resize(NUM_CASCADE);
-    
+    // todo maybe move to scene
+
+
     Shader_Manager::load_from_paths("fullscreen_texture", "quad_v.glsl", "quad_texture.glsl");
 
     return 0;
@@ -184,6 +192,8 @@ void Renderer::resize(const int width, const int height) {
     Texture_Manager::resize(bright_texture, scr_width, scr_height, 6);
     Texture_Manager::resize(ssao_texture, scr_width, scr_height);
     Texture_Manager::resize(depth_texture, scr_width, scr_height);
+
+    // update per shader "constant-ish" uniforms (screen size, etc)
 }
 
 void Renderer::setup_indirect() {
@@ -216,10 +226,12 @@ void Renderer::setup_indirect() {
     glNamedBufferStorage(blended_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 
-
+    // #if COMPUTE_SKINNG load skinned compute shader (does boen transformation)
     Shader_Manager::load_from_name("skinned");
     skinned_draw_commands.reserve(MAX_DRAW_COMMANDS);
     skinned_object_data.reserve(MAX_DRAW_COMMANDS);
+
+    // todo add actual skinning compute shader
 
     glCreateBuffers(1, &skinned_draw_commands_ssbo);
     glNamedBufferStorage(skinned_draw_commands_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -228,7 +240,6 @@ void Renderer::setup_indirect() {
 }
 
 void Renderer::setup_ssao() {
-    std::vector<glm::vec3> samples;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
@@ -323,7 +334,7 @@ void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
     Compute_Shader* cluster_build = Shader_Manager::get_compute("cluster");
     cluster_build->use();
     cluster_ssbo.bind(1); // todo fix once
-    
+
     cluster_build->set_float("zNear", 1.0f); // once
     cluster_build->set_float("zFar", FAR_PLANE); // once (would have to change if changed)
     cluster_build->set_mat4("inverseProjection", inv_proj);
@@ -332,7 +343,9 @@ void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
 
     uint32_t groups_x = (16 + 7) / 8;
     uint32_t groups_y = (9 + 7) / 8;
-    cluster_build->dispatch_and_wait(16, 9, 24, GL_SHADER_STORAGE_BARRIER_BIT);
+    uint32_t groups_z = (24 + 7) / 8;
+
+    cluster_build->dispatch_and_wait(1, 1, 24, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void Renderer::cull_cluster_pass(const glm::mat4& view) {
@@ -679,11 +692,18 @@ void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
     glBindVertexArray(0);
 }
 
-void Renderer::compute_cull_draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj, uint32_t entity_buffer, uint32_t mesh_buffer, uint32_t num_meshes, uint32_t per_obj_gpu) {
+void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj) {
+    ////
+    ////     move to func!!!!
+    ////
+    //// 
     // bind cull shader
     Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
     c_shader->use();
     // bind buffers
+    
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
 
     // draw command buffer 0
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, compute_culled_commands);
@@ -692,35 +712,57 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::mat4& view, const glm:
     glNamedBufferSubData(num_compute_culled_commands, 0, sizeof(GLuint), &zero);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, num_compute_culled_commands);
     // entities buffer 2
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, entity_buffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
     // meshes buffer 3
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, mesh_buffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, scene.gpu_mesh_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, scene.per_mesh_ssbo);
 
     // set cull uinforms
+
+    glm::mat4 projectionT = glm::transpose(cull_proj);
+    glm::vec4 frustumX = normalize_plane(projectionT[3] + projectionT[0]); // x + w < 0
+    glm::vec4 frustumY = normalize_plane(projectionT[3] + projectionT[1]); // y + w < 0
+
     float frustum[4];
-    float tanHalfFovX = 1.0f / proj[0][0];  // proj[0][0] = p00
-    float tanHalfFovY = 1.0f / proj[1][1];  // proj[1][1] = p11
-    frustum[0] = tanHalfFovX;
-    frustum[1] = 1.0f;
-    frustum[2] = tanHalfFovY;
-    frustum[3] = 1.0f;
+    frustum[0] = frustumX.x;
+    frustum[1] = frustumX.z;
+    frustum[2] = frustumY.y;
+    frustum[3] = frustumY.z;
 
+    //printf("Projection[0][0]: %f, [1][1]: %f\n", cull_proj[0][0], cull_proj[1][1]);
+    //printf("Frustum values: [%f, %f, %f, %f]\n", frustum[0], frustum[1], frustum[2], frustum[3]);
+
+    uint32_t num_meshes = (uint32_t)scene.gpu_meshes.size();
     c_shader->set_uint("num_meshes", num_meshes);
-    c_shader->set_mat4("view", view);
-    c_shader->set_float("frustum[0]", frustum[0]);
-    c_shader->set_float("frustum[1]", frustum[1]);
-    c_shader->set_float("frustum[2]", frustum[2]);
-    c_shader->set_float("frustum[3]", frustum[3]);
-
-    c_shader->set_float("znear", 1.0f);
-    c_shader->set_float("zfar", 10000.0f);
+    c_shader->set_mat4("view", cull_view);
+    c_shader->set_float_array("frustum", frustum, 4);
+    //c_shader->set_float("znear", 1.0f);
+    //c_shader->set_float("zfar", 10000.0f);
     //uniform bool infinite_far;
     
-    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT |
-        GL_BUFFER_UPDATE_BARRIER_BIT);
+    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
     //dispatch
     // barrier
 
+        ////
+    ////     move to func!!!!
+    //// 
+    
+    // clear dirty flag for entities -> dont recompute mesh model matrix / normal matrix if entity doesnt move!
+    c_shader = Shader_Manager::get_compute("clear_dirty");
+    c_shader->use();
+
+    uint32_t num_entities = scene.gpu_entities.size();
+    c_shader->set_uint("num_entities", num_entities);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
+
+    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+
+    ////
+////     move to func!!!!
+////
+//// 
+    // DRAW
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -741,6 +783,8 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::mat4& view, const glm:
     Shader* shader = Shader_Manager::get_shader("indirect");
     shader->use();
     //glStencilMask(0x00);
+    Texture_Manager::bind(ssao_texture, 0); // todo once
+    Texture_Manager::bind_array(csm_texture, 1); // todo once
 
     scene.skybox.bind(9);
     shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
@@ -778,15 +822,14 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::mat4& view, const glm:
     // draw commands and transform
 
     //GLuint count;
-    //glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
+    glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
     //glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
-    //printf("Draw count: %u\n", count);
+    //printf("Draw count: %u / %u\n", count, num_meshes);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_obj_gpu);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
 
-    glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, compute_culled_commands);
 
     glMultiDrawElementsIndirectCount(
@@ -1104,6 +1147,32 @@ void Renderer::sort_blended_draws() {
 //    printf("end");
 //}
 
+void Renderer::debug_cascades() {
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
+        shader->use();
+
+        glDisable(GL_DEPTH_TEST);
+        Texture_Manager::bind_array(csm_texture, 0);
+
+        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
+            int x = i * (quad_size + 10);
+            int y = scr_height - quad_size - 10;
+
+            glViewport(x, y, quad_size, quad_size);
+
+            shader->set_float("cascade_layer", (float)i);
+
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        glBindVertexArray(0); // unbind quad
+
+}
+
 void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj) {
     Shader* shader = Shader_Manager::get_shader("debug");
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
@@ -1220,7 +1289,6 @@ void Renderer::bloom_pass() {
 
 void Renderer::ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj) {
     Compute_Shader* ssao = Shader_Manager::get_compute("ssao");
-
     ssao->use();
 
     Texture_Manager::bind(depth_texture, 0); // todo maybe dont need to
@@ -1237,6 +1305,8 @@ void Renderer::ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj) {
     ssao->set_int("sample_count", ssao_samples);
     ssao->set_float("min_depth", min_depth);
     ssao->set_float("power", power);
+    for (uint32_t i = 0; i < samples.size(); i++)
+        ssao->set_vec3("samples[" + std::to_string(i) + "]", samples[i]);
 
     ssao->dispatch_and_wait((scr_width + 15) / 16, (scr_height + 15) / 16, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     //glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -1392,3 +1462,6 @@ void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Obje
 // todo probably move CSM to some kind of light system along with other lights
 int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
 
+glm::vec4 Renderer::normalize_plane(glm::vec4 p) {
+    return p / glm::length(glm::vec3(p));
+}

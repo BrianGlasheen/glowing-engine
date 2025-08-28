@@ -19,7 +19,7 @@ struct Cluster {
     glm::vec4 minPoint; // 16 bytes
     glm::vec4 maxPoint; // 16 (32)
     uint32_t count;     // 4 (36)
-    uint32_t* lightIndices[199]; // 396 (432 / 16 = 27)
+    uint32_t* lightIndices[99]; // 396 (432 / 16 = 27)
 };
 
 struct Draw_Elements_Indirect_Command {
@@ -105,7 +105,11 @@ public:
 
     void draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj);
 
-    void compute_cull_draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj, uint32_t entity_buffer, uint32_t mesh_buffer, uint32_t num_meshes, uint32_t per_obj_gpu);
+    void compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj);
+
+    void debug_cascades();
+
+    glm::vec4 normalize_plane(glm::vec4 p);
 
 // private:
 
@@ -189,4 +193,6 @@ public:
     uint32_t compute_culled_commands, num_compute_culled_commands;
 
     uint32_t quadVAO;
+
+    std::vector<glm::vec3> samples;
 };

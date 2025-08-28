@@ -86,7 +86,7 @@ namespace Glow {
 		// bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("ABeautifulGame/glTF/ABeautifulGame.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("bistro/Scene.gltf");
-		//bool loaded = Model_Manager::load_model_indirect("emeraldsquare/Scene.gltf");
+
 		//bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("track/scene.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("plane.obj");
@@ -148,7 +148,7 @@ namespace Glow {
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		for (int j = 0; j < 10; j++) {
+		for (int j = 0; j < 100; j++) {
 			printf("%d\n", j);
 			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
 			scene.include(dsadasdasdasda);
@@ -192,10 +192,10 @@ namespace Glow {
 		//model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
 
 		{
-			//glm::vec3 pos = glm::vec3(0.0f);
-			//glm::vec3 scale = glm::vec3(10.0f);
-			//Entity e5555(pos, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale, "Sponza/glTF/Sponza.gltf", false);
-			//scene.include(e5555);
+			glm::vec3 pos2 = glm::vec3(0.0f);
+			glm::vec3 scale2 = glm::vec3(10.0f);
+			Entity e5555(pos2, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale2, "Sponza/glTF/Sponza.gltf", false);
+			scene.include(e5555);
 		   /* model_handle car232323 = Model_Manager::load_model("911-2");
 			pos = glm::vec3(-3.0f, 0.0f, -3.0f);
 			scale = glm::vec3(1.0f);
@@ -204,11 +204,14 @@ namespace Glow {
 			//Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
 			//scene.include(gsdgfsd);
 
-			//Entity fdfsdfsdfsdfsdf("skyloft", glm::vec3(0.0f, 0.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-			//scene.include(fdfsdfsdfsdfsdf);
+			model_handle sl = Model_Manager::load_model("skyloft/scene.gltf");
+			Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
+			scene.include(fsfsfsf);
+
+		//model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
 			//model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-			//Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+			//Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), loaded, false);
 			//scene.include(sadasd23232323232332323);
 		}
 
@@ -282,34 +285,52 @@ namespace Glow {
 				Physics::update(); // default 1/60 delta time
 			}
 
+			{
+				PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
+				scene.update_dirty();
+			}
+
 			// grab per frame values
 			float aspect_ratio = (float)renderer.scr_width / (float)renderer.scr_height;
 
-			glm::mat4 view = player.get_view_matrix();
-			glm::mat4 proj = player.camera.get_projection(aspect_ratio);
-			glm::mat4 viewproj = proj * view;
-			glm::mat4 inv_view = glm::inverse(view);
-			glm::mat4 inv_proj = glm::inverse(proj);
+			// against these no matter what
+			glm::mat4 player_view = player.get_body_view_matrix();
+			glm::mat4 player_proj = player.camera.get_projection(aspect_ratio);
+			glm::mat4 player_viewproj = player_proj * player_view;
+			glm::mat4 player_inv_view = glm::inverse(player_view);
+			glm::mat4 player_inv_proj = glm::inverse(player_proj);
 
-			glm::mat4 debug_view, debug_proj;
+			// but sometimes we want to see culling results from third person
+			glm::vec3 view_pos;
+			glm::mat4 active_view, active_proj, active_viewproj, active_inv_view, active_inv_proj;
 			if (player.out_of_body) {
-				debug_view = player.get_debug_view_matrix();
-				debug_proj = player.debug_camera.get_projection(aspect_ratio);
+				active_view = player.get_debug_view_matrix();
+				active_proj = player.debug_camera.get_projection(aspect_ratio);
+				view_pos = player.debug_camera.position;
 			}
+			else {
+				active_view = player_view;
+				active_proj = player_proj;
+				view_pos = player.camera.position;
+			}
+			active_viewproj = active_proj * active_view;
+			active_inv_view = glm::inverse(active_view);
+			active_inv_proj = glm::inverse(active_proj);
 
 			renderer.begin_frame(); 
 			Model_Manager::begin_animation_frame();
 
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-				renderer.shadow_setup(view, inv_view, aspect_ratio, player.camera.zoom);
+				renderer.shadow_setup(player_view, player_inv_view, aspect_ratio, player.camera.zoom);
 			}
 
 			// iterate entites
 			// per entity submit stuff to renderer, animation system, game logic systems
 			{
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-				iterate_entities(scene, player.camera.position, aspect_ratio);
+				if (!compute_culling)
+					iterate_entities(scene, player.camera.position, aspect_ratio);
 			}
 
 			//{ // MOVE TO ITERATE ENTITIES
@@ -334,16 +355,19 @@ namespace Glow {
 			{
 				PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
 				if (renderer.forward_plus)
-					renderer.build_cluster_pass(inv_proj); // todo pass calc'd already
+					renderer.build_cluster_pass(active_inv_proj); // todo pass calc'd already
 			}
 
 			{
 				PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
 				if (renderer.forward_plus)
-					renderer.cull_cluster_pass(view);// todo pass calc'd alre
+					renderer.cull_cluster_pass(active_view);// todo pass calc'd alre
 			}
-
-
+			{
+				PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
+				if (renderer.ssao_enabled)
+					renderer.ssao_pass(active_proj, active_inv_proj);
+			}
 			{
 				PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
 				Model_Manager::update_bones_from_animation_compute(0, current_time);
@@ -356,9 +380,9 @@ namespace Glow {
 			{
 				PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
 				if (compute_culling)
-					renderer.compute_cull_draw(scene, view, viewproj, player.camera.position, proj, scene.gpu_entity_ssbo, scene.gpu_mesh_ssbo, scene.gpu_meshes.size(), scene.per_mesh_ssbo);
+					renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj);
 				else
-					renderer.draw(scene, view, viewproj, player.camera.position, proj);
+					renderer.draw(scene, player_view, active_viewproj, player.camera.position, active_proj);
 			}
 
 			//{
@@ -372,9 +396,9 @@ namespace Glow {
 					renderer.bloom_pass();
 			}
 			if (renderer.do_draw_light_quads)
-				renderer.draw_light_quads(proj, view);
+				renderer.draw_light_quads(player_proj, player_view);
 
-			renderer.render_skybox(scene.skybox, view, proj);
+			renderer.render_skybox(scene.skybox, player_view, player_proj);
 
 			{
 				PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
@@ -384,10 +408,11 @@ namespace Glow {
 			{
 				PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
 				if (player.key_toggles[(unsigned)'r'])
-					renderer.render_debug(view, proj);
+					renderer.render_debug(active_view, active_proj);
 			}
 			//renderer.render(player, scene, delta_time, particle_ssbo);
-
+			if (player.key_toggles['l'])
+				renderer.debug_cascades();
 
 			//if (!(frame++ % 10)) {
 			//    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
@@ -446,6 +471,7 @@ namespace Glow {
 		}
 	}
 
+	// todo nuke function
 	void iterate_entities(Scene& scene, const glm::vec3& view_pos, const float& aspect_ratio) {
 		float FAR_PLAN_MOVE_ME_LATER = 1000.0;
 		Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.right, player.camera.up, glm::radians(player.camera.zoom), aspect_ratio, 0.1f, FAR_PLAN_MOVE_ME_LATER);
