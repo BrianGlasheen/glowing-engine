@@ -94,7 +94,7 @@ public:
 
     void shutdown();
 
-    void begin_frame();
+    void begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj);
     void submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb);
     void submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data);
     void upload_render_commands();
@@ -190,7 +190,8 @@ public:
     uint32_t skinned_draw_count;
     // todo maybe blended skinned draws
 
-    uint32_t compute_culled_commands, num_compute_culled_commands;
+    uint32_t compute_culled_commands, csm_commands;
+    uint32_t num_commands; // ssbo for ^ ^
 
     uint32_t quadVAO;
 

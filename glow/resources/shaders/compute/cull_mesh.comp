@@ -54,6 +54,7 @@ layout(std430, binding = 0) buffer Draw_Commands {
 
 layout(std430, binding = 1) buffer Draw_Command_Count {
     uint draw_count;
+    uint csm_draw_count;
 };
 
 layout(std430, binding = 2) buffer Entities {
@@ -66,6 +67,10 @@ layout(std430, binding = 3) buffer Meshes {
 
 layout(std430, binding = 4) buffer Per_Mesh_Data {
     Per_Object_Data per_mesh_data[];
+};
+
+layout(std430, binding = 5) buffer CSM_Draw_Commands {
+    Draw_Elements_Indirect_Command csm_draw_commands[];
 };
 
 uniform uint num_meshes;
@@ -136,6 +141,7 @@ void main() {
             draw_command.base_instance = gID;
         
             draw_commands[index] = draw_command;
+
         }
 
         // cull animated against frustum if has flag
@@ -143,6 +149,17 @@ void main() {
             // submit draw command
         
         // cull CSM frustums if has flag
-        // todo maybe lod here?
+        if (true) {
+            uint index = atomicAdd(csm_draw_count, 1);
+
+            Draw_Elements_Indirect_Command draw_command;
+            draw_command.count = mesh.index_count;
+            draw_command.instance_count = 1;
+            draw_command.first_index = mesh.base_index;
+            draw_command.base_vertex = mesh.base_vertex;
+            draw_command.base_instance = gID;
+        
+            csm_draw_commands[index] = draw_command;
+        }
 	}
 }

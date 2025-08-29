@@ -192,10 +192,10 @@ namespace Glow {
 		//model_handle raccoon = Model_Manager::load_rigged_model("oddish/scene.gltf");
 
 		{
-			glm::vec3 pos2 = glm::vec3(0.0f);
-			glm::vec3 scale2 = glm::vec3(10.0f);
-			Entity e5555(pos2, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale2, "Sponza/glTF/Sponza.gltf", false);
-			scene.include(e5555);
+			//glm::vec3 pos2 = glm::vec3(0.0f);
+			//glm::vec3 scale2 = glm::vec3(10.0f);
+			//Entity e5555(pos2, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), scale2, "Sponza/glTF/Sponza.gltf", false);
+			//scene.include(e5555);
 		   /* model_handle car232323 = Model_Manager::load_model("911-2");
 			pos = glm::vec3(-3.0f, 0.0f, -3.0f);
 			scale = glm::vec3(1.0f);
@@ -279,6 +279,8 @@ namespace Glow {
 			last_frame = current_time;
 
 			//if (!editor_mode) {
+			
+			// todo this controller step will also update holding / player viewmodel visibility stuff like that
 			player.controller_step(window.get_window(), delta_time, scene);
 			{
 				PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
@@ -317,8 +319,8 @@ namespace Glow {
 			active_inv_view = glm::inverse(active_view);
 			active_inv_proj = glm::inverse(active_proj);
 
-			renderer.begin_frame(); 
-			Model_Manager::begin_animation_frame();
+			renderer.begin_frame(scene, player_view, player_proj); // pass scene
+			Model_Manager::begin_animation_frame(); 
 
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
@@ -328,29 +330,24 @@ namespace Glow {
 			// iterate entites
 			// per entity submit stuff to renderer, animation system, game logic systems
 			{
-				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-				if (!compute_culling)
-					iterate_entities(scene, player.camera.position, aspect_ratio);
+				//PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
+				//if (!compute_culling)
+				//	iterate_entities(scene, player.camera.position, aspect_ratio);
 			}
 
-			//{ // MOVE TO ITERATE ENTITIES
-			//	PROFILE_SCOPE_COLOR("scene dirty", legit::Colors::peterRiver);
-			//	scene.update_dirty();
-			//}
-
 			{
-				PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
-				renderer.sort_blended_draws();
+				//PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
+				//renderer.sort_blended_draws();
 			}
 			
 			// player submit render items
-			player.submit_animation_items();
-			player.submit_render_items(renderer);
+			//player.submit_animation_items();
+			//player.submit_render_items(renderer);
 
 			// iterate particles + submit etc
 			// other cool things todo! B)
 
-			renderer.upload_render_commands();
+			//renderer.upload_render_commands();
 
 			{
 				PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
@@ -373,9 +370,12 @@ namespace Glow {
 				Model_Manager::update_bones_from_animation_compute(0, current_time);
 
 			}
-			//printf("ct: %f\n", current_time);
-
-			// render scene
+			// compute skin rigged models -> main buffer
+			
+			{
+				PROFILE_SCOPE_COLOR("CSM shadow pass", legit::Colors::sunFlower);
+				renderer.shadow_pass(scene);
+			}
 
 			{
 				PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
@@ -472,68 +472,68 @@ namespace Glow {
 	}
 
 	// todo nuke function
-	void iterate_entities(Scene& scene, const glm::vec3& view_pos, const float& aspect_ratio) {
-		float FAR_PLAN_MOVE_ME_LATER = 1000.0;
-		Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.right, player.camera.up, glm::radians(player.camera.zoom), aspect_ratio, 0.1f, FAR_PLAN_MOVE_ME_LATER);
+	//void iterate_entities(Scene& scene, const glm::vec3& view_pos, const float& aspect_ratio) {
+	//	float FAR_PLAN_MOVE_ME_LATER = 1000.0;
+	//	Util::Frustum frustum(player.camera.position, player.camera.front, player.camera.right, player.camera.up, glm::radians(player.camera.zoom), aspect_ratio, 0.1f, FAR_PLAN_MOVE_ME_LATER);
 
-		for (Entity& entity : scene.entities) {
+	//	for (Entity& entity : scene.entities) {
 
-			// check if entity is dirty
-			// recompute transform
+	//		// check if entity is dirty
+	//		// recompute transform
 
-			// todo store model aabb in entity so dont have to fetch from model manager unless intersects
-			Model mind = Model_Manager::get_model_ind(entity.model_id);
-			Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
+	//		// todo store model aabb in entity so dont have to fetch from model manager unless intersects
+	//		Model mind = Model_Manager::get_model_ind(entity.model_id);
+	//		Util::AABB model_aabb = Util::transform_aabb(mind.m_aabb, entity.get_model_matrix());
 
-			// test against player view frustum
-			bool inf_far = true;
-			if (frustum.intersectsAABB(model_aabb, inf_far)) {
-				renderer.debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
+	//		// test against player view frustum
+	//		bool inf_far = true;
+	//		//if (frustum.intersectsAABB(model_aabb, inf_far)) {
+	//			renderer.debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 1.0f, 1.0f));
 
-				for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
-					Per_Object_Data obj_data;
+	//			for (uint32_t i = 0; i < mind.m_meshes.size(); i++) {
+	//				Per_Object_Data obj_data;
 
-					obj_data.model_matrix = entity.get_model_matrix() * mind.m_meshes[i].transform;
-					Util::AABB obj_aabb = Util::transform_aabb(mind.m_meshes[i].aabb, entity.get_model_matrix());
+	//				obj_data.model_matrix = entity.get_model_matrix() * mind.m_meshes[i].transform;
+	//				Util::AABB obj_aabb = Util::transform_aabb(mind.m_meshes[i].aabb, entity.get_model_matrix());
 
-					if (!frustum.intersectsAABB(obj_aabb, true)) {
-						renderer.debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
-						continue;
-					}
-					renderer.debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(0.0f, 1.0f, 0.0f));
+	//				if (!frustum.intersectsAABB(obj_aabb, true)) {
+	//					renderer.debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
+	//					continue;
+	//				}
+	//				renderer.debug_renderer.add_bbox(obj_aabb.min, obj_aabb.max, glm::vec3(0.0f, 1.0f, 0.0f));
 
-					Draw_Elements_Indirect_Command draw_command;
-					draw_command.count = mind.m_meshes[i].index_count;
-					draw_command.instance_count = 1;
-					draw_command.first_index = mind.m_meshes[i].base_index;
-					draw_command.base_vertex = mind.m_meshes[i].base_vertex;
-					// renderer will set draw_command.base_instance for correct blend mode
+	//				Draw_Elements_Indirect_Command draw_command;
+	//				draw_command.count = mind.m_meshes[i].index_count;
+	//				draw_command.instance_count = 1;
+	//				draw_command.first_index = mind.m_meshes[i].base_index;
+	//				draw_command.base_vertex = mind.m_meshes[i].base_vertex;
+	//				// renderer will set draw_command.base_instance for correct blend mode
 
-					obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-					const Material& mater = mind.m_meshes[i].material;
-					obj_data.albedo = mater.albedo;
-					obj_data.normal = mater.normal;
-					obj_data.met_rough = mater.met_rough;
-					obj_data.emissive = mater.emissive;
-					obj_data.amb_occ = mater.amb_occ;
-					obj_data.emissive_factor = mater.emissive_factor;
-					obj_data.metallic_factor = mater.metallic_factor; // 4
-					obj_data.roughness_factor = mater.roughness_factor; // 4
-					obj_data.base_color = mater.base_color;
-					obj_data.alpha_cutoff = mater.alpha_cutoff;
+	//				obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+	//				const Material& mater = mind.m_meshes[i].material;
+	//				obj_data.albedo = mater.albedo;
+	//				obj_data.normal = mater.normal;
+	//				obj_data.met_rough = mater.met_rough;
+	//				obj_data.emissive = mater.emissive;
+	//				obj_data.amb_occ = mater.amb_occ;
+	//				obj_data.emissive_factor = mater.emissive_factor;
+	//				obj_data.metallic_factor = mater.metallic_factor; // 4
+	//				obj_data.roughness_factor = mater.roughness_factor; // 4
+	//				obj_data.base_color = mater.base_color;
+	//				obj_data.alpha_cutoff = mater.alpha_cutoff;
 
-					renderer.submit_render_command(draw_command, obj_data, mater.blend_mode, view_pos, obj_aabb);
-				}
-			}
-			else {
-				renderer.debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
-			}
+	//				renderer.submit_render_command(draw_command, obj_data, mater.blend_mode, view_pos, obj_aabb);
+	//			}
+	//		//}
+	//		//else {
+	//		//	renderer.debug_renderer.add_bbox(model_aabb.min, model_aabb.max, glm::vec3(1.0f, 0.0f, 1.0f));
+	//		//}
 
-			// test against shadow cascades
-			// check if entity interescts each cascade
-			// add to cascade command buffer + per obj data
-		}
-	}
+	//		// test against shadow cascades
+	//		// check if entity interescts each cascade
+	//		// add to cascade command buffer + per obj data
+	//	}
+	//}
 
 	void shutdown() {
 		ImGui_ImplOpenGL3_Shutdown();

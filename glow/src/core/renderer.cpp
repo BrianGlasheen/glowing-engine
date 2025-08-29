@@ -209,10 +209,13 @@ void Renderer::setup_indirect() {
 
     // // // 
     glCreateBuffers(1, &compute_culled_commands);
-    glNamedBufferStorage(compute_culled_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(compute_culled_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);    
+    
+    glCreateBuffers(1, &csm_commands);
+    glNamedBufferStorage(csm_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
-    glCreateBuffers(1, &num_compute_culled_commands);
-    glNamedBufferStorage(num_compute_culled_commands, 4, 0, GL_DYNAMIC_STORAGE_BIT);
+    glCreateBuffers(1, &num_commands);
+    glNamedBufferStorage(num_commands, sizeof(uint32_t) * 2, 0, GL_DYNAMIC_STORAGE_BIT);
     // // //
 
     blended_draw_commands.reserve(MAX_DRAW_COMMANDS);
@@ -451,9 +454,7 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
 }
 
 void Renderer::shadow_pass(Scene& scene) {
-
     //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
-
     Shader* shader = Shader_Manager::get_shader("indirect_depth_prepass");
     shader->use();
 
@@ -462,12 +463,17 @@ void Renderer::shadow_pass(Scene& scene) {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_GREATER);
     glDepthMask(GL_TRUE);
-
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
+    glBindBuffer(GL_PARAMETER_BUFFER, num_commands);
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, csm_commands);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
+
+    //GLuint csm_count;
+    //glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
+    //printf("CSM Draw count: %u\n", csm_count);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -483,7 +489,16 @@ void Renderer::shadow_pass(Scene& scene) {
         shader->set_mat4("vp", cascade_mats[i]);
 
     #if BINDLESS
-        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
+        //glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
+
+        glMultiDrawElementsIndirectCount(
+            GL_TRIANGLES,
+            GL_UNSIGNED_INT,
+            (void*)0,                             // indirect offset
+            (GLintptr)4,                          // offset in the count buffer
+            4000,                                 // maximum draws
+            sizeof(Draw_Elements_Indirect_Command)  // stride
+        );
     #else
         //for (size_t i = 0; i < draw_commands.size(); i++) {
         //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
@@ -693,76 +708,6 @@ void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
 }
 
 void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj) {
-    ////
-    ////     move to func!!!!
-    ////
-    //// 
-    // bind cull shader
-    Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
-    c_shader->use();
-    // bind buffers
-    
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-
-    // draw command buffer 0
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, compute_culled_commands);
-    // draw count buffer 1
-    GLuint zero = 0;
-    glNamedBufferSubData(num_compute_culled_commands, 0, sizeof(GLuint), &zero);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, num_compute_culled_commands);
-    // entities buffer 2
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
-    // meshes buffer 3
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, scene.gpu_mesh_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, scene.per_mesh_ssbo);
-
-    // set cull uinforms
-
-    glm::mat4 projectionT = glm::transpose(cull_proj);
-    glm::vec4 frustumX = normalize_plane(projectionT[3] + projectionT[0]); // x + w < 0
-    glm::vec4 frustumY = normalize_plane(projectionT[3] + projectionT[1]); // y + w < 0
-
-    float frustum[4];
-    frustum[0] = frustumX.x;
-    frustum[1] = frustumX.z;
-    frustum[2] = frustumY.y;
-    frustum[3] = frustumY.z;
-
-    //printf("Projection[0][0]: %f, [1][1]: %f\n", cull_proj[0][0], cull_proj[1][1]);
-    //printf("Frustum values: [%f, %f, %f, %f]\n", frustum[0], frustum[1], frustum[2], frustum[3]);
-
-    uint32_t num_meshes = (uint32_t)scene.gpu_meshes.size();
-    c_shader->set_uint("num_meshes", num_meshes);
-    c_shader->set_mat4("view", cull_view);
-    c_shader->set_float_array("frustum", frustum, 4);
-    //c_shader->set_float("znear", 1.0f);
-    //c_shader->set_float("zfar", 10000.0f);
-    //uniform bool infinite_far;
-    
-    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
-    //dispatch
-    // barrier
-
-        ////
-    ////     move to func!!!!
-    //// 
-    
-    // clear dirty flag for entities -> dont recompute mesh model matrix / normal matrix if entity doesnt move!
-    c_shader = Shader_Manager::get_compute("clear_dirty");
-    c_shader->use();
-
-    uint32_t num_entities = scene.gpu_entities.size();
-    c_shader->set_uint("num_entities", num_entities);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
-
-    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
-
-    ////
-////     move to func!!!!
-////
-//// 
-    // DRAW
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -819,18 +764,15 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    // draw commands and transform
-
     //GLuint count;
-    glBindBuffer(GL_PARAMETER_BUFFER, num_compute_culled_commands);
     //glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
     //printf("Draw count: %u / %u\n", count, num_meshes);
-
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, compute_culled_commands);
+    glBindBuffer(GL_PARAMETER_BUFFER, num_commands);
 
     glMultiDrawElementsIndirectCount(
         GL_TRIANGLES,
@@ -1026,28 +968,28 @@ void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewpr
 
 }
 
-void Renderer::sort_blended_draws() {
-    // sort draw commands by center of aabb
-    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
-        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
-            return distances[d1] > distances[d2];
-        });
-
-    // order draw command per obj
-    uint32_t count = blended_draw_commands.size();
-    // TODO I HATE THIS FIND BETTER WAY
-    auto sorted_draw_commands = blended_draw_commands;
-    auto sorted_per_object_data = blended_object_data;
-    for (uint32_t i = 0; i < count; ++i) {
-        blended_draw_commands[i] = sorted_draw_commands[blended_draw_command_indices[i]];
-        blended_object_data[i] = sorted_per_object_data[blended_draw_command_indices[i]];
-    }
-
-    if (count) {
-        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * count, blended_draw_commands.data());
-        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * count, blended_object_data.data());
-    }
-}
+//void Renderer::sort_blended_draws() { // todo move to gpu?
+//    // sort draw commands by center of aabb
+//    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
+//        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
+//            return distances[d1] > distances[d2];
+//        });
+//
+//    // order draw command per obj
+//    uint32_t count = blended_draw_commands.size();
+//    // TODO I HATE THIS FIND BETTER WAY
+//    auto sorted_draw_commands = blended_draw_commands;
+//    auto sorted_per_object_data = blended_object_data;
+//    for (uint32_t i = 0; i < count; ++i) {
+//        blended_draw_commands[i] = sorted_draw_commands[blended_draw_command_indices[i]];
+//        blended_object_data[i] = sorted_per_object_data[blended_draw_command_indices[i]];
+//    }
+//
+//    if (count) {
+//        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * count, blended_draw_commands.data());
+//        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * count, blended_object_data.data());
+//    }
+//}
 
 //void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
 //    printf("start");
@@ -1392,75 +1334,126 @@ void Renderer::shutdown() {
     glDeleteVertexArrays(1, &quadVAO);
 }
 
-void Renderer::begin_frame() {
-    opaque_draw_commands.clear();
+void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj) {
+    opaque_draw_commands.clear(); // todo will be all gpu
     opaque_object_data.clear();
     opaque_draw_count = 0;
 
-    blended_draw_commands.clear();
+    blended_draw_commands.clear(); // todo will be all gpu
     blended_object_data.clear();
     blended_draw_command_indices.clear();
     blended_draw_command_distances.clear();
     blended_draw_count = 0;
 
-    skinned_draw_commands.clear();
+    skinned_draw_commands.clear(); // todo will be all gpu
     skinned_object_data.clear();
     skinned_draw_count = 0;
+
+    // dispatch main update + culling shader
+    // fills all render commands for meshes in scene
+    Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
+    c_shader->use();
+    // bind buffers
+
+    GLuint zero = 0;
+    glNamedBufferSubData(num_commands, 0, sizeof(GLuint), &zero); // clear draw cmds
+    glNamedBufferSubData(num_commands, 4, sizeof(GLuint), &zero); // clear num csm commands
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // barrier for entity updates
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, compute_culled_commands);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, num_commands);
+    // entities buffer 2
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
+    // meshes buffer 3
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, scene.gpu_mesh_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, scene.per_mesh_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, csm_commands);
+
+    // set cull uinforms
+    glm::mat4 projectionT = glm::transpose(cull_proj);
+    glm::vec4 frustumX = normalize_plane(projectionT[3] + projectionT[0]); // x + w < 0
+    glm::vec4 frustumY = normalize_plane(projectionT[3] + projectionT[1]); // y + w < 0
+
+    float frustum[4];
+    frustum[0] = frustumX.x;
+    frustum[1] = frustumX.z;
+    frustum[2] = frustumY.y;
+    frustum[3] = frustumY.z;
+    //printf("Projection[0][0]: %f, [1][1]: %f\n", cull_proj[0][0], cull_proj[1][1]);
+    //printf("Frustum values: [%f, %f, %f, %f]\n", frustum[0], frustum[1], frustum[2], frustum[3]);
+    uint32_t num_meshes = (uint32_t)scene.gpu_meshes.size();
+    c_shader->set_uint("num_meshes", num_meshes);
+    c_shader->set_mat4("view", cull_view);
+    c_shader->set_float_array("frustum", frustum, 4);
+    //c_shader->set_float("znear", 1.0f);
+    //c_shader->set_float("zfar", 10000.0f);
+    //uniform bool infinite_far;
+    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
+    // todo move somewhere else idk
+    c_shader = Shader_Manager::get_compute("clear_dirty");
+    c_shader->use();
+
+    uint32_t num_entities = scene.gpu_entities.size();
+    c_shader->set_uint("num_entities", num_entities);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
+
+    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb) {
-    // if opaque / alpha mask
-    // todo probably sort by shader for special effects?!
-    if (blend_mode == Blend_Mode::disabled) {
-        draw_command.base_instance = opaque_draw_count;
-        opaque_draw_commands.push_back(draw_command);
-        opaque_object_data.push_back(object_data);
-        opaque_draw_count++;
-    }
-    else { // assume non additive blending for now
-        draw_command.base_instance = blended_draw_count;
-        blended_draw_commands.push_back(draw_command);
-        blended_object_data.push_back(object_data);
-        blended_draw_command_indices.push_back(blended_draw_count);
+//void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb) {
+//    // if opaque / alpha mask
+//    // todo probably sort by shader for special effects?!
+//    if (blend_mode == Blend_Mode::disabled) {
+//        draw_command.base_instance = opaque_draw_count;
+//        opaque_draw_commands.push_back(draw_command);
+//        opaque_object_data.push_back(object_data);
+//        opaque_draw_count++;
+//    }
+//    else { // assume non additive blending for now
+//        draw_command.base_instance = blended_draw_count;
+//        blended_draw_commands.push_back(draw_command);
+//        blended_object_data.push_back(object_data);
+//        blended_draw_command_indices.push_back(blended_draw_count);
+//
+//        glm::vec3 aabb_center = (aabb.max + aabb.min) * 0.5f;
+//        glm::vec3 world_center = glm::vec3(object_data.model_matrix * glm::vec4(aabb_center, 1.0f));
+//        blended_draw_command_distances.push_back(glm::distance(view_pos, world_center));
+//        blended_draw_count++;
+//    }
+//}
 
-        glm::vec3 aabb_center = (aabb.max + aabb.min) * 0.5f;
-        glm::vec3 world_center = glm::vec3(object_data.model_matrix * glm::vec4(aabb_center, 1.0f));
-        blended_draw_command_distances.push_back(glm::distance(view_pos, world_center));
-        blended_draw_count++;
-    }
-}
+//void Renderer::submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data) {
+//    draw_command.base_instance = skinned_draw_count;
+//    skinned_draw_commands.push_back(draw_command);
+//    skinned_object_data.push_back(object_data);
+//    skinned_draw_count++;
+//}
 
-void Renderer::submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data) {
-    draw_command.base_instance = skinned_draw_count;
-    skinned_draw_commands.push_back(draw_command);
-    skinned_object_data.push_back(object_data);
-    skinned_draw_count++;
-}
+//void Renderer::upload_render_commands() {
+//    if (opaque_draw_count > 0) {
+//        glNamedBufferSubData(opaque_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, opaque_draw_commands.data());
+//        glNamedBufferSubData(opaque_object_ssbo, 0, sizeof(Per_Object_Data) * opaque_draw_count, opaque_object_data.data());
+//    }
+//
+//    if (blended_draw_count > 0) {
+//        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * blended_draw_count, blended_draw_commands.data());
+//        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * blended_draw_count, blended_object_data.data());
+//    }
+//
+//    if (skinned_draw_count > 0) {
+//        glNamedBufferSubData(skinned_draw_commands_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * skinned_draw_count, skinned_draw_commands.data());
+//        glNamedBufferSubData(skinned_object_ssbo, 0, sizeof(Per_Object_Data) * skinned_draw_count, skinned_object_data.data());
+//    }
+//
+//    // skinned draw count todo prob not will just be in normal buffers
+//    //glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * blended_draw_count, per_object_data_skinned.data());
+//
+//}
 
-void Renderer::upload_render_commands() {
-    if (opaque_draw_count > 0) {
-        glNamedBufferSubData(opaque_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, opaque_draw_commands.data());
-        glNamedBufferSubData(opaque_object_ssbo, 0, sizeof(Per_Object_Data) * opaque_draw_count, opaque_object_data.data());
-    }
-
-    if (blended_draw_count > 0) {
-        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * blended_draw_count, blended_draw_commands.data());
-        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * blended_draw_count, blended_object_data.data());
-    }
-
-    if (skinned_draw_count > 0) {
-        glNamedBufferSubData(skinned_draw_commands_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * skinned_draw_count, skinned_draw_commands.data());
-        glNamedBufferSubData(skinned_object_ssbo, 0, sizeof(Per_Object_Data) * skinned_draw_count, skinned_object_data.data());
-    }
-
-    // skinned draw count todo prob not will just be in normal buffers
-    //glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * blended_draw_count, per_object_data_skinned.data());
-
-}
-
-void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
-// todo probably move CSM to some kind of light system along with other lights
-int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
+//void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
+//// todo probably move CSM to some kind of light system along with other lights
+//int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
 
 glm::vec4 Renderer::normalize_plane(glm::vec4 p) {
     return p / glm::length(glm::vec3(p));

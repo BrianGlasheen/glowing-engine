@@ -86,31 +86,31 @@ void Player::submit_render_items(Renderer& renderer) {
     glm::vec3 feet = camera.position - player_height;
     renderer.debug_renderer.add_bbox(feet + glm::vec3(0.1f), feet - glm::vec3(0.1f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
-    for (const Animated_Mesh& mesh : model.m_meshes) {
-        Draw_Elements_Indirect_Command cmd{ 0 };
-        cmd.count = mesh.index_count;
-        cmd.instance_count = 1;
-        cmd.first_index = mesh.base_index;
-        cmd.base_vertex = mesh.base_vertex;
+    //Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
+    //for (const Animated_Mesh& mesh : model.m_meshes) {
+    //    Draw_Elements_Indirect_Command cmd{ 0 };
+    //    cmd.count = mesh.index_count;
+    //    cmd.instance_count = 1;
+    //    cmd.first_index = mesh.base_index;
+    //    cmd.base_vertex = mesh.base_vertex;
 
-        Per_Object_Data obj_data;
-        obj_data.model_matrix = active_weapon->get_model_matrix();
-        obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-        const Material& mater = mesh.material;
-        obj_data.albedo = mater.albedo;
-        obj_data.normal = mater.normal;
-        obj_data.met_rough = mater.met_rough;
-        obj_data.emissive = mater.emissive;
-        obj_data.amb_occ = mater.amb_occ;
-        obj_data.emissive_factor = mater.emissive_factor;
-        obj_data.metallic_factor = mater.metallic_factor; // 4
-        obj_data.roughness_factor = mater.roughness_factor; // 4
-        obj_data.base_color = mater.base_color;
-        obj_data.alpha_cutoff = mater.alpha_cutoff;
+    //    Per_Object_Data obj_data;
+    //    obj_data.model_matrix = active_weapon->get_model_matrix();
+    //    obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+    //    const Material& mater = mesh.material;
+    //    obj_data.albedo = mater.albedo;
+    //    obj_data.normal = mater.normal;
+    //    obj_data.met_rough = mater.met_rough;
+    //    obj_data.emissive = mater.emissive;
+    //    obj_data.amb_occ = mater.amb_occ;
+    //    obj_data.emissive_factor = mater.emissive_factor;
+    //    obj_data.metallic_factor = mater.metallic_factor; // 4
+    //    obj_data.roughness_factor = mater.roughness_factor; // 4
+    //    obj_data.base_color = mater.base_color;
+    //    obj_data.alpha_cutoff = mater.alpha_cutoff;
 
-        renderer.submit_animated_render_command(cmd, obj_data);
-    }
+    //    renderer.submit_animated_render_command(cmd, obj_data);
+    //}
 }
 
 void Player::mouse_callback(GLFWwindow* window, double xpos, double ypos) { // need these guys to pass camera
