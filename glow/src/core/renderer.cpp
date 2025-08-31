@@ -164,7 +164,7 @@ int Renderer::init() {
     glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
-    glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, Texture_Manager::get_ogl_id(csm_texture), 0);
     int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "ERROR::FRAMEBUFFER:: CSM FBO is not complete!";
@@ -416,18 +416,18 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
             max = glm::max(max, corner);
         }
 
-        glm::vec3 box_size = glm::vec3(max) - glm::vec3(min);
+        //glm::vec3 box_size = glm::vec3(max) - glm::vec3(min);
 
-        float texel_size_x = box_size.x / 2048;
-        float texel_size_y = box_size.y / 2048;
-        min.x = floor(min.x / texel_size_x) * texel_size_x;
-        min.y = floor(min.y / texel_size_y) * texel_size_y;
-        
-        max.x = min.x + box_size.x;
-        max.y = min.y + box_size.y;
+        //float texel_size_x = box_size.x / 2048;
+        //float texel_size_y = box_size.y / 2048;
+        //min.x = floor(min.x / texel_size_x) * texel_size_x;
+        //min.y = floor(min.y / texel_size_y) * texel_size_y;
+        //
+        //max.x = min.x + box_size.x;
+        //max.y = min.y + box_size.y;
 
-        max += 5.0f;
-        min -= 5.0f;
+        //max += 5.0f;
+        //min -= 5.0f;
 
         //min *= 1.5;
         //max *= 1.5;
@@ -455,6 +455,15 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
 
 void Renderer::shadow_pass(Scene& scene) {
     //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
+
+
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    glFinish();
+
+    GLuint csm_count;
+    glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
+    printf("CSM Draw count: %u\n", csm_count);
+
     Shader* shader = Shader_Manager::get_shader("indirect_depth_prepass");
     shader->use();
 
@@ -463,7 +472,6 @@ void Renderer::shadow_pass(Scene& scene) {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_GREATER);
     glDepthMask(GL_TRUE);
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
@@ -471,9 +479,7 @@ void Renderer::shadow_pass(Scene& scene) {
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, csm_commands);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
 
-    //GLuint csm_count;
-    //glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
-    //printf("CSM Draw count: %u\n", csm_count);
+    glDisable(GL_BLEND);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -499,6 +505,8 @@ void Renderer::shadow_pass(Scene& scene) {
             4000,                                 // maximum draws
             sizeof(Draw_Elements_Indirect_Command)  // stride
         );
+
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     #else
         //for (size_t i = 0; i < draw_commands.size(); i++) {
         //    Draw_Elements_Indirect_Command cmd = draw_commands[i];

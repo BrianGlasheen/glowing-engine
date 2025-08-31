@@ -259,6 +259,7 @@ void Player::poll_player(GLFWwindow* window, Scene& scene) {
         Audio::play_audio("beep.wav", 0.1f);
         Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "glock", true);
         scene.include(e);
+        scene.upload_buffers();
     }
 
     //if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS) {
@@ -275,20 +276,23 @@ void Player::poll_player(GLFWwindow* window, Scene& scene) {
 
     if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
         Audio::play_audio("beep.wav", 0.1f);
-        Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22", true);
+        Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
         scene.include(e);
+        scene.upload_buffers();
     }
 
     if (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS) {
         Audio::play_audio("beep.wav", 0.1f);
         Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "link", true);
         scene.include(e);
+        scene.upload_buffers();
     }
 
     if (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS) {
         Audio::play_audio("beep.wav", 0.1f);
         Entity e(camera.position + camera.front * 5.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "fuzziebox", true);
         scene.include(e);
+        scene.upload_buffers();
     }
 
     if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS) {

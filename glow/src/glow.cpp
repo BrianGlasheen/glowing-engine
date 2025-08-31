@@ -319,7 +319,10 @@ namespace Glow {
 			active_inv_view = glm::inverse(active_view);
 			active_inv_proj = glm::inverse(active_proj);
 
-			renderer.begin_frame(scene, player_view, player_proj); // pass scene
+			{ // build CSM mats
+				PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
+				renderer.begin_frame(scene, player_view, player_proj); // pass scene
+			}
 			Model_Manager::begin_animation_frame(); 
 
 			{ // build CSM mats
