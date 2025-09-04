@@ -42,7 +42,7 @@ uniform mat4 vp;
 
 void main() {
     #if BINDLESS
-        gl_Position = vp * per_object_data[gl_DrawID].model_matrix * vec4(aPos, 1.0);
+        gl_Position = vp * per_object_data[gl_BaseInstance].model_matrix * vec4(aPos, 1.0);
     #else
         gl_Position = vp * per_object_data[draw_id].model_matrix * vec4(aPos, 1.0);
     #endif
