@@ -18,6 +18,7 @@ Scene::~Scene() {}
 
 void Scene::init(const std::string& path) {
     skybox.load(path);
+    terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
 
     // gen buffers
     glCreateBuffers(1, &gpu_mesh_ssbo);

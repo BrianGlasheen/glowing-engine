@@ -12,27 +12,27 @@
 #include <iostream>
 #include <string.h>
 
-bool Shader::init(const char* vertexPath, const char* fragmentPath) {
+bool Shader::init(const char* vertex_path, const char* fragment_path) {
     // 1. retrieve the vertex/fragment source code from filePath
-    std::string vertexCode, fragmentCode;
-    std::ifstream vShaderFile, fShaderFile;
+    std::string vertex_code, fragment_code;
+    std::ifstream vertex_file, fragment_file;
     // ensure ifstream objects can throw exceptions:
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    vertex_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fragment_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     try {
         // open files
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
-        std::stringstream vShaderStream, fShaderStream;
+        vertex_file.open(vertex_path);
+        fragment_file.open(fragment_path);
+        std::stringstream vertex_stream, fragment_stream;
         // read file's buffer contents into streams
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
+        vertex_stream << vertex_file.rdbuf();
+        fragment_stream << fragment_file.rdbuf();
         // close file handlers
-        vShaderFile.close();
-        fShaderFile.close();
+        vertex_file.close();
+        fragment_file.close();
         // convert stream into string
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
+        vertex_code = vertex_stream.str();
+        fragment_code = fragment_stream.str();
     }
     catch (std::ifstream::failure& e) {
         std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
@@ -40,25 +40,25 @@ bool Shader::init(const char* vertexPath, const char* fragmentPath) {
 
     size_t offset = strlen("#define BINDLESS") + 1; // number
 
-    size_t v_bindless_pos = vertexCode.find("#define BINDLESS");
+    size_t v_bindless_pos = vertex_code.find("#define BINDLESS");
     if (v_bindless_pos != std::string::npos) {
-        #if BINDLESS
-            vertexCode[v_bindless_pos + offset] = '1';
-        #else
-            vertexCode[v_bindless_pos + offset] = '0';
-        #endif
+#if BINDLESS
+        vertex_code[v_bindless_pos + offset] = '1';
+#else
+        vertex_code[v_bindless_pos + offset] = '0';
+#endif
     }
-    size_t f_bindless_pos = fragmentCode.find("#define BINDLESS");
+    size_t f_bindless_pos = fragment_code.find("#define BINDLESS");
     if (f_bindless_pos != std::string::npos) {
-        #if BINDLESS
-            fragmentCode[f_bindless_pos + offset] = '1';
-        #else
-            fragmentCode[f_bindless_pos + offset] = '0';
-        #endif
+#if BINDLESS
+        fragment_code[f_bindless_pos + offset] = '1';
+#else
+        fragment_code[f_bindless_pos + offset] = '0';
+#endif
     }
 
-    const char* vShaderCode = vertexCode.c_str();
-    const char* fShaderCode = fragmentCode.c_str();
+    const char* vShaderCode = vertex_code.c_str();
+    const char* fShaderCode = fragment_code.c_str();
     // 2. compile shaders
     uint32_t vertex, fragment;
     // vertex shader
@@ -83,6 +83,102 @@ bool Shader::init(const char* vertexPath, const char* fragmentPath) {
 
     return true;
 }
+
+bool Shader::init(const char* vertexPath, const char* fragmentPath,
+    const char* tessControlPath, const char* tessEvalPath) {
+    // 1. retrieve the shader source code from filePaths
+    std::string vertex_code, fragment_code, tess_control_code, tess_eval_code;
+    std::ifstream vertex_file, fragment_file, tc_file, te_file;
+
+    // ensure ifstream objects can throw exceptions:
+    vertex_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fragment_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    tc_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    te_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+        // open files
+        vertex_file.open(vertexPath);
+        fragment_file.open(fragmentPath);
+        tc_file.open(tessControlPath);
+        te_file.open(tessEvalPath);
+
+        std::stringstream vertex_stream, fragment_stream, tc_stream, te_stream;
+
+        // read file's buffer contents into streams
+        vertex_stream << vertex_file.rdbuf();
+        fragment_stream << fragment_file.rdbuf();
+        tc_stream << tc_file.rdbuf();
+        te_stream << te_file.rdbuf();
+
+        // close file handlers
+        vertex_file.close();
+        fragment_file.close();
+        tc_file.close();
+        te_file.close();
+
+        // convert stream into string
+        vertex_code = vertex_stream.str();
+        fragment_code = fragment_stream.str();
+        tess_control_code = tc_stream.str();
+        tess_eval_code = te_stream.str();
+    }
+    catch (std::ifstream::failure& e) {
+        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
+        return false;
+    }
+
+    const char* vShaderCode = vertex_code.c_str();
+    const char* fShaderCode = fragment_code.c_str();
+    const char* tcShaderCode = tess_control_code.c_str();
+    const char* teShaderCode = tess_eval_code.c_str();
+
+    // 2. compile shaders
+    uint32_t vertex, fragment, tessControl, tessEval;
+
+    // vertex shader
+    vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vShaderCode, NULL);
+    glCompileShader(vertex);
+    check_compile_errors(vertex, "VERTEX");
+
+    // tessellation control shader
+    tessControl = glCreateShader(GL_TESS_CONTROL_SHADER);
+    glShaderSource(tessControl, 1, &tcShaderCode, NULL);
+    glCompileShader(tessControl);
+    check_compile_errors(tessControl, "TESS_CONTROL");
+
+    // tessellation evaluation shader
+    tessEval = glCreateShader(GL_TESS_EVALUATION_SHADER);
+    glShaderSource(tessEval, 1, &teShaderCode, NULL);
+    glCompileShader(tessEval);
+    check_compile_errors(tessEval, "TESS_EVAL");
+
+    // fragment shader
+    fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fShaderCode, NULL);
+    glCompileShader(fragment);
+    check_compile_errors(fragment, "FRAGMENT");
+
+    // shader Program
+    ID = glCreateProgram();
+    glAttachShader(ID, vertex);
+    glAttachShader(ID, tessControl);
+    glAttachShader(ID, tessEval);
+    glAttachShader(ID, fragment);
+    glLinkProgram(ID);
+
+    check_compile_errors(ID, "PROGRAM");
+
+    // delete the shaders as they're linked into our program now
+    glDeleteShader(vertex);
+    glDeleteShader(tessControl);
+    glDeleteShader(tessEval);
+    glDeleteShader(fragment);
+
+    return true;
+}
+
 
 void Shader::use() const {
     glUseProgram(ID);

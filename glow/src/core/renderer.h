@@ -107,7 +107,7 @@ public:
 
     void compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj);
 
-    void debug_cascades();
+    void debug_cascades(Scene& scene);
 
     glm::vec4 normalize_plane(glm::vec4 p);
 
@@ -146,6 +146,8 @@ public:
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
     //uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
+
+    uint32_t terrain_draw_type = 0;
 
     uint32_t render_target, render_depth_buffer;
     texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture;

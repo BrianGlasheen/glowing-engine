@@ -30,6 +30,7 @@ namespace Texture_Manager {
         //stbi_set_flip_vertically_on_load(true);
         texture_handle zero = load_from_path("../resources/textures/missing.png");
         assert(!textures.empty());
+        // todo set basepath
     }
 
     void cleanup() {
@@ -76,7 +77,6 @@ namespace Texture_Manager {
                 stbi_image_free(data);
                 return 0;
             }
-
 
             glBindTexture(GL_TEXTURE_2D, texture_id);
             glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
@@ -354,6 +354,40 @@ namespace Texture_Manager {
         textures.push_back(texture_id);
         paths.push_back("2d"); // todo maybe change if multiple of these
         return textures.size() - 1;
+    }
+
+    texture_handle load_heightmap(const std::string& name) {
+        uint32_t texture_id = 0;
+
+        int width, height, nrComponents;
+        float* data = stbi_loadf(name.c_str(), &width, &height, &nrComponents, 1);
+
+        if (data) {
+            glGenTextures(1, &texture_id);
+            glBindTexture(GL_TEXTURE_2D, texture_id);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, data);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            stbi_image_free(data);
+
+            textures.push_back(texture_id);
+            //paths.push_back(file_path);
+            std::cout << "[TEXTURE] heightmap loaded: " << name << std::endl;
+            return textures.size() - 1;
+        }
+        else {
+            std::cout << "heightmap texture failed to load: " << name << std::endl;
+            const char* reason = stbi_failure_reason();
+               std::cerr << "Failed to load heightmap: " << reason << std::endl;
+            stbi_image_free(data);
+            assert(false);
+            return 0;
+        }
     }
 
     void bind(texture_handle texture_id, uint32_t texture_unit) {

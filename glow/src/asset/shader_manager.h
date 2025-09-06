@@ -16,8 +16,12 @@ struct Shader_Data {
     Shader shader;
     std::string vertex_name;
     std::string fragment_name;
+    std::string tess_control_name = "";
+    std::string tess_eval_name = "";
     fs::file_time_type vertex_last_modified;
     fs::file_time_type fragment_last_modified;
+    fs::file_time_type tess_control_last_modified;
+    fs::file_time_type tess_eval_last_modified;
 };
 
 struct Compute_Data {
@@ -31,7 +35,11 @@ namespace Shader_Manager {
 
     void load_from_paths(const std::string& name, const std::string& vertex_name, const std::string& fragment_name);
     void load_from_name(const std::string& shader_name);
+    
     void load_compute(const std::string& shader_name);
+
+    void load_tesselation(const std::string& shader_name);
+    void load_tesselation(const std::string& name, const std::string& vertex_name, const std::string& fragment_name, const std::string& tess_control_name, const std::string& tess_eval_name);
 
     Shader* get_shader(const std::string& name);
     Compute_Shader* get_compute(const std::string& name);

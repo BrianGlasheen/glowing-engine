@@ -179,6 +179,8 @@ int Renderer::init() {
 
     Shader_Manager::load_from_paths("fullscreen_texture", "quad_v.glsl", "quad_texture.glsl");
 
+    Shader_Manager::load_tesselation("terrain");
+
     return 0;
 }
 
@@ -426,8 +428,8 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
         //max.x = min.x + box_size.x;
         //max.y = min.y + box_size.y;
 
-        //max += 5.0f;
-        //min -= 5.0f;
+        max += 5.0f;
+        min -= 5.0f;
 
         //min *= 1.5;
         //max *= 1.5;
@@ -455,14 +457,9 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
 
 void Renderer::shadow_pass(Scene& scene) {
     //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
-
-
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
-    glFinish();
-
-    GLuint csm_count;
-    glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
-    printf("CSM Draw count: %u\n", csm_count);
+    //GLuint csm_count;
+    //glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
+    //printf("CSM Draw count: %u\n", csm_count);
 
     Shader* shader = Shader_Manager::get_shader("indirect_depth_prepass");
     shader->use();
@@ -792,6 +789,34 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     );
 
     glBindVertexArray(0);
+
+    shader = Shader_Manager::get_shader("terrain");
+    shader->use();
+    shader->set_mat4("vp", viewproj);
+    shader->set_mat4("view", view);
+    Texture_Manager::bind(scene.terrain.heightmap, 0);
+    Texture_Manager::bind(scene.terrain.heightmap_texture, 1);
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+    glBindVertexArray(scene.terrain.vao);
+
+    if (terrain_draw_type == 0 || terrain_draw_type == 2) {
+        shader->set_bool("lines", false);
+        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+    }
+    if (terrain_draw_type == 1) {
+        shader->set_bool("lines", true);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+    if (terrain_draw_type == 2) {
+        shader->set_bool("lines", true);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+    glBindVertexArray(0);
 }
 
 void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
@@ -999,105 +1024,7 @@ void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewpr
 //    }
 //}
 
-//void Renderer::render(Player& player, Scene& scene, float delta_time, SSBO& particles) {
-//    printf("start");
-//    // begin frame
-//    {
-//        PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-//        //shadow_setup(/*player*/);
-//    }
-//    //{
-//    //    PROFILE_SCOPE_COLOR("build commands", legit::Colors::wisteria);
-//    //    build_command_buffer(player, scene, delta_time);
-//    //}
-//    {
-//        PROFILE_SCOPE_COLOR("shadows", legit::Colors::pomegranate);
-//        if (shadows_enabled)
-//            shadow_pass(scene, player);
-//    }
-//    //{
-//    //    PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
-//    //    sort_blended_draws();
-//    //}
-//    {
-//        PROFILE_SCOPE_COLOR("depth pre-pass", legit::Colors::belizeHole);
-//        if (use_depth_prepass)
-//            indirect_depth_prepass(player);
-//    }
-//    //{
-//    //    PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-//    //    if (forward_plus)
-//    //        build_cluster_pass(player);
-//    //}
-//    //{
-//    //    PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-//    //    if (forward_plus)
-//    //        cull_cluster_pass(player);
-//    //}
-//    {
-//        PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
-//        if (ssao_enabled)
-//            ssao_pass(player);
-//    }
-//    //{
-//    //    PROFILE_SCOPE_COLOR("render", legit::Colors::clouds);
-//    //    render_indirect(player, scene); // opaque / mask pass
-//    //    printf("draw");
-//    //}
-//    {
-//        PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
-//        particle_pass(delta_time, particles, player);
-//    }
-//    // post process pass theoretically
-//    {
-//        PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
-//        if (bloom_enabled)
-//            bloom_pass();
-//    }
-//    if (do_draw_light_quads)
-//        draw_light_quads(player);
-//
-//    render_skybox(scene.skybox, player.get_view_matrix(), player.camera.get_projection((float)scr_height / (float) scr_height));
-//
-//    {
-//        PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
-//        composite();
-//    }
-//
-//    {
-//        PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-//        if (player.key_toggles[(unsigned)'r'])
-//            render_debug(player);
-//    }
-//
-//    if (player.key_toggles['l']) {
-//        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-//        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
-//        shader->use();
-//
-//        glDisable(GL_DEPTH_TEST);
-//        Texture_Manager::bind_array(csm_texture, 0);
-//
-//        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-//            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
-//            int x = i * (quad_size + 10);
-//            int y = scr_height - quad_size - 10;
-//
-//            glViewport(x, y, quad_size, quad_size);
-//
-//            shader->set_float("cascade_layer", (float)i);
-//
-//            glBindVertexArray(quadVAO);
-//            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-//        }
-//
-//        glBindVertexArray(0); // unbind quad
-//    }
-//    // end frame
-//    printf("end");
-//}
-
-void Renderer::debug_cascades() {
+void Renderer::debug_cascades(Scene& scene) {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
         Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
@@ -1106,6 +1033,7 @@ void Renderer::debug_cascades() {
         glDisable(GL_DEPTH_TEST);
         Texture_Manager::bind_array(csm_texture, 0);
 
+        shader->set_int("mode", 0);
         for (uint32_t i = 0; i < NUM_CASCADE; i++) {
             int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
             int x = i * (quad_size + 10);
@@ -1118,6 +1046,11 @@ void Renderer::debug_cascades() {
             glBindVertexArray(quadVAO);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
+
+        shader->set_int("mode", 1);
+        glViewport(10, 10, 400, 400);
+        Texture_Manager::bind(scene.terrain.heightmap, 1);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glBindVertexArray(0); // unbind quad
 

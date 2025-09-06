@@ -99,12 +99,12 @@ namespace Glow {
 		//printf(loaded ? "good\n" : "bad\n");
 		scene.init("sky");
 
-		model_handle plane = Model_Manager::load_model("plane.obj");
-		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e(pos, rot, scale, plane, false);
-		scene.include(e);
+		//model_handle plane = Model_Manager::load_model("plane.obj");
+		//glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+		//glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+		//glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
+		//Entity e(pos, rot, scale, plane, false);
+		//scene.include(e);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -132,9 +132,9 @@ namespace Glow {
 		//scene.include(e2323322);
 
 		//model_handle id = Model_Manager::load_model_cgltf("f22/scene.gltf");
-		model_handle id = Model_Manager::load_model_cgltf("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
-		Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
-		scene.include(e232332232323);
+		//model_handle id = Model_Manager::load_model_cgltf("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+		//Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
+		//scene.include(e232332232323);
 
 		//Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0, 0.0f, 0.0f), glm::vec3(1.0f), "blendtest/glTF/AlphaBlendModeTest.gltf", false);
 		//scene.include(e232lamp3322);
@@ -142,17 +142,17 @@ namespace Glow {
 		//Entity d12321313123(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CompareAlphaCoverage/glTF/CompareAlphaCoverage.gltf", false);
 		//scene.include(d12321313123);
 
-		Entity d12321313d123(glm::vec3(5.0f, 5.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
-		scene.include(d12321313d123);
+		//Entity d12321313d123(glm::vec3(5.0f, 5.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
+		//scene.include(d12321313d123);
 
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		for (int j = 0; j < 100; j++) {
-			printf("%d\n", j);
-			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
-			scene.include(dsadasdasdasda);
-		}
+		//for (int j = 0; j < 100; j++) {
+		//	printf("%d\n", j);
+		//	Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
+		//	scene.include(dsadasdasdasda);
+		//}
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
@@ -204,9 +204,9 @@ namespace Glow {
 			//Entity gsdgfsd("rainbow_road", glm::vec3(0.0f, -2500.0f, 0.0f), false, glm::vec3(1.0f), 1.0f, glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
 			//scene.include(gsdgfsd);
 
-			model_handle sl = Model_Manager::load_model("skyloft/scene.gltf");
-			Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
-			scene.include(fsfsfsf);
+			//model_handle sl = Model_Manager::load_model("skyloft/scene.gltf");
+			//Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
+			//scene.include(fsfsfsf);
 
 		//model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
@@ -415,7 +415,7 @@ namespace Glow {
 			}
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 			if (player.key_toggles['l'])
-				renderer.debug_cascades();
+				renderer.debug_cascades(scene);
 
 			//if (!(frame++ % 10)) {
 			//    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
