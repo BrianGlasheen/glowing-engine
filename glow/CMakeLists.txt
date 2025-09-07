@@ -4,9 +4,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(ENABLE_FMOD "enable fmod" ON)
+option(ENABLE_FMOD "enable fmod" OFF)
 if(ENABLE_FMOD)
-    add_compile_definitions(FMOD)
+    add_compile_definitions(USE_FMOD)
 endif()
 
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)

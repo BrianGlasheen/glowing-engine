@@ -3,18 +3,20 @@
 
 #include <string>
 
-#ifdef FMOD
+#include "glow_config.h"
+
+#ifdef USE_FMOD
 #include "fmod.hpp"
 #include <fmod_errors.h>
 #endif
 
+#ifdef USE_FMOD
 struct Audio_handle {
-#ifdef FMOD
     FMOD::Sound* sound = nullptr;
     FMOD::Channel* channel = nullptr;
     std::string filename;
-#endif
 };
+#endif
 
 struct Audio_effect_info {
     std::string filename = "";
