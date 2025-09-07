@@ -7,13 +7,15 @@
 
 namespace Audio {
     // Global variables and FMOD system objects
+#ifdef FMOD
     std::unordered_map<std::string, FMOD::Sound*> g_loaded_audio;
     constexpr int audio_channel_count = 512;
     FMOD::System* g_system = nullptr;
     std::vector<Audio_handle> g_playing_audio;  // Matches struct Audio_handle
+#endif
 
-    void init() 
-    {
+    void init() {
+#ifdef FMOD
         // Create the main system object.
         FMOD_RESULT result = FMOD::System_Create(&g_system);
         if (result != FMOD_OK) {
@@ -35,10 +37,11 @@ namespace Audio {
             std::cerr << "FMOD: Failed to create in-game sound effects channel group: "
                       << FMOD_ErrorString(result) << "\n";
         }
+#endif
     }
 
-    void load_audio(const std::string& filename) 
-    {
+    void load_audio(const std::string& filename) {
+#ifdef FMOD
         // Only load if not already present
         if (g_loaded_audio.find(filename) == g_loaded_audio.end()) {
             FMOD::Sound* sound = nullptr;
@@ -52,10 +55,11 @@ namespace Audio {
             }
             g_loaded_audio[filename] = sound;
         }
+#endif
     }
 
-    void update() 
-    {
+    void update() {
+#ifdef FMOD
         // Remove completed audio
         for (int i = 0; i < static_cast<int>(g_playing_audio.size()); ++i) {
             Audio_handle& handle = g_playing_audio[i];
@@ -76,10 +80,11 @@ namespace Audio {
 
         // Update FMOD
         g_system->update();
+#endif
     }
 
-    void play_audio(const std::string& filename, float volume, float frequency) 
-    {
+    void play_audio(const std::string& filename, float volume, float frequency) {
+#ifdef FMOD
         // Ensure the sound is loaded
         load_audio(filename);
 
@@ -99,10 +104,11 @@ namespace Audio {
         }
 
         g_playing_audio.emplace_back(handle);
+#endif
     }
 
-    void loop_audio_if_not_playing(const std::string& filename, float volume) 
-    {
+    void loop_audio_if_not_playing(const std::string& filename, float volume) {
+#ifdef FMOD
         // If already playing, do nothing
         for (auto& handle : g_playing_audio) {
             if (handle.filename == filename) {
@@ -111,10 +117,11 @@ namespace Audio {
         }
         // Otherwise, start looping
         loop_audio(filename, volume);
+#endif
     }
 
-    void loop_audio(const std::string& filename, float volume) 
-    {
+    void loop_audio(const std::string& filename, float volume) {
+#ifdef FMOD
         // Ensure the sound is loaded
         load_audio(filename);
 
@@ -133,10 +140,11 @@ namespace Audio {
         }
 
         g_playing_audio.emplace_back(handle);
+#endif
     }
 
-    void stop_audio(const std::string& filename) 
-    {
+    void stop_audio(const std::string& filename) {
+#ifdef FMOD
         for (auto& handle : g_playing_audio) {
             if (handle.filename == filename && handle.channel) {
                 FMOD_RESULT result = handle.channel->stop();
@@ -146,15 +154,17 @@ namespace Audio {
                 }
             }
         }
+#endif
     }
 
-    void set_audio_volume(const std::string& filename, float volume) 
-    {
+    void set_audio_volume(const std::string& filename, float volume) {
+#ifdef FMOD
         for (auto& handle : g_playing_audio) {
             if (handle.filename == filename && handle.channel) {
                 handle.channel->setVolume(volume);
             }
         }
+#endif
     }
 
 }

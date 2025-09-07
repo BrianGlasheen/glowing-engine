@@ -4,6 +4,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+option(ENABLE_FMOD "enable fmod" OFF)
+if(ENABLE_FMOD)
+    add_compile_definitions(FMOD)
+endif()
+
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
 set(USE_AVX2 ON CACHE BOOL "" FORCE)
 set(USE_AVX ON CACHE BOOL "" FORCE)
@@ -78,34 +83,36 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Find FMOD library based on platform and architecture
-if(WIN32)
-    # Check if we're building for 32-bit or 64-bit architecture
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(FMOD_LIB_DIR "${FMOD_ROOT}/api/core/lib/x64")
+if(ENABLE_FMOD)
+    if(WIN32)
+        # Check if we're building for 32-bit or 64-bit architecture
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(FMOD_LIB_DIR "${FMOD_ROOT}/api/core/lib/x64")
+        else()
+            set(FMOD_LIB_DIR "${FMOD_ROOT}/api/core/lib/x86")
+        endif()
+        
+        # Find FMOD library (Windows uses .dll and needs .lib for linking)
+        find_library(FMOD_LIBRARY 
+            NAMES fmod_vc fmod64_vc  # Windows library naming
+            PATHS ${FMOD_LIB_DIR}
+            NO_DEFAULT_PATH
+        )
     else()
-        set(FMOD_LIB_DIR "${FMOD_ROOT}/api/core/lib/x86")
+        # Original Linux path
+        find_library(FMOD_LIBRARY 
+            NAMES fmod
+            PATHS ${CMAKE_SOURCE_DIR}/ext/fmodstudioapi20307linux/api/core/lib/x86_64
+            NO_DEFAULT_PATH
+        )
     endif()
-    
-    # Find FMOD library (Windows uses .dll and needs .lib for linking)
-    find_library(FMOD_LIBRARY 
-        NAMES fmod_vc fmod64_vc  # Windows library naming
-        PATHS ${FMOD_LIB_DIR}
-        NO_DEFAULT_PATH
-    )
-else()
-    # Original Linux path
-    find_library(FMOD_LIBRARY 
-        NAMES fmod
-        PATHS ${CMAKE_SOURCE_DIR}/ext/fmodstudioapi20307linux/api/core/lib/x86_64
-        NO_DEFAULT_PATH
-    )
 endif()
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} 
     glfw ${GLFW_LIBRARIES}
     assimp
-    ${FMOD_LIBRARY}
+    $<$<BOOL:${ENABLE_FMOD}>:${FMOD_LIBRARY}>
     Jolt
 )
 
