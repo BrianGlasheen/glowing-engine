@@ -124,6 +124,14 @@ namespace FPS_Controller {
         //return active_weapon->wep_rot;
         return glm::vec3(0.0f);
     }
+
+    void deactivate() { // do something to physics state when switching to another controller
+
+    }
+
+    void activate() { // same ^
+
+    }
     
     //void debug_hud(ImGuiIO& io) {
         //Weapon* current_weapon = active_weapon;

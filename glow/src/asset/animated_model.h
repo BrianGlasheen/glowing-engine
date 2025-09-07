@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asset/mesh.h"
 #include "util/aabb.h"
 
 #include "glm/glm.hpp"
@@ -7,37 +8,29 @@
 #include <string>
 #include <cstdint>
 
-struct Animated_Mesh {
-	uint32_t base_vertex;
-	uint32_t vertex_count;
-	uint32_t base_index;
-	uint32_t index_count;
-	Util::AABB aabb;
-	std::string name;
-
-	// uint32_t parent id? maybe later if needed prob not 
-	glm::mat4 transform; // relative to parent
-	
-	Material material;
-};
-
 class Animated_Model {
 public:
 	Animated_Model() = default;
-	Animated_Model(std::string name, std::vector<Animated_Mesh> meshes) :
+	Animated_Model(std::string name, std::vector<Mesh> meshes) :
 		m_name(name), m_meshes(meshes)
 	{
 		calculate_aabb();
+		// set animation offset
 	}
 
-	void add_mesh(const Animated_Mesh& mesh) {
+	void add_mesh(Mesh& mesh) {
+		glm::vec3 center = (mesh.aabb.min + mesh.aabb.max) * 0.5f;
+		glm::vec3 extent = (mesh.aabb.max - mesh.aabb.min) * 0.5f;
+		float radius = glm::length(extent);
+		mesh.bounding_sphere = glm::vec4(center, radius);
+
 		m_meshes.push_back(mesh);
 	}
 
 	void calculate_aabb() {
 		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
 
-		for (const Animated_Mesh& mesh : m_meshes) {
+		for (const Mesh& mesh : m_meshes) {
 			m_aabb.min = glm::min(mesh.aabb.min, m_aabb.min);
 			m_aabb.max = glm::max(mesh.aabb.max, m_aabb.max);
 		}
@@ -49,10 +42,22 @@ public:
 
 	//private:
 	std::string m_name;
-	std::vector<Animated_Mesh> m_meshes;
+	std::vector<Mesh> m_meshes;
 	// todo maybe huge buffer of all meshes or something
 	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;
+
+	// base vertex in pre-animated buffer
+	// use this vertex + vertex_count to animate the
+	// actual verticies in the main geom buffer which
+	// are indexed by ^^^^ that stuff
+
+	// probably need to find difference between this and first mesh base vertex to use as offset when indexing for each mesh
+
+	// offset = mesh0 - base_animation
+	// when writing write at mesh_base_vertex + offset
+	uint32_t base_animation_vertex;
+	uint32_t animation_offset;
 
 	uint32_t base_bone;
 	uint32_t bone_count;

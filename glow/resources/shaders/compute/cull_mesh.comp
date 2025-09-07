@@ -130,7 +130,7 @@ void main() {
 
         // cull view frustum if has flag
         // todo could maybe do lod-ing?
-		if(visible(gID)) {
+		if(true/*visible(gID)*/) {
 			uint index = atomicAdd(draw_count, 1);
 
             Draw_Elements_Indirect_Command draw_command;

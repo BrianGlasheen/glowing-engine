@@ -72,14 +72,16 @@ Entity::Entity(glm::vec3 position,
     if (is_animated) {
         model_id = Model_Manager::load_animated_model(model_name);
         // todo maybe can set animation state, some kind of animation create info?
-        animated_model = &Model_Manager::get_animated_model(model_id);
+        //animated_model = &Model_Manager::get_animated_model(model_id);
     }
     else
         model_id = Model_Manager::load_model(model_name);
-    
-    Util::AABB aabb = Model_Manager::get_aabb_indirect(model_id);
-    if (physics_enabled)
+
+    // todo hack fix
+    if (physics_enabled) {
+        Util::AABB aabb = Model_Manager::get_aabb_indirect(model_id);
         physics_id = Physics::add_box(position, (aabb.max - aabb.min) * scale, false);
+    }
 }
 
 Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need

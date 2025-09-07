@@ -499,7 +499,7 @@ void Renderer::shadow_pass(Scene& scene) {
             GL_UNSIGNED_INT,
             (void*)0,                             // indirect offset
             (GLintptr)4,                          // offset in the count buffer
-            4000,                                 // maximum draws
+            16000,                                 // maximum draws
             sizeof(Draw_Elements_Indirect_Command)  // stride
         );
 
@@ -769,9 +769,9 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    //GLuint count;
-    //glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
-    //printf("Draw count: %u / %u\n", count, num_meshes);
+    GLuint count;
+    glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
+    printf("Draw count: %u \n", count);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
@@ -784,7 +784,7 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
         GL_UNSIGNED_INT,
         (void*)0,                             // indirect offset
         (GLintptr)0,                          // offset in the count buffer
-        4000,                                 // maximum draws
+        16000,                                 // maximum draws
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
 
@@ -1002,6 +1002,11 @@ void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewpr
 }
 
 //void Renderer::sort_blended_draws() { // todo move to gpu?
+// 
+//      barrier command buffer
+//      dispatch sort shader
+// 
+// 
 //    // sort draw commands by center of aabb
 //    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
 //        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
