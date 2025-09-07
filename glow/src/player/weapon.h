@@ -114,7 +114,7 @@ public:
         weapon.is_automatic = false;
         weapon.prev_firing = false;
         //weapon.model_id = Model_Manager::load_animated_model("pistol4/scene.gltf");
-        weapon.model_id = Model_Manager::load_animated_model_cgltf("pistol5/rig.gltf");
+        //weapon.model_id = Model_Manager::load_animated_model_cgltf("pistol5/rig.gltf");
         return weapon;
     }
 
@@ -143,7 +143,7 @@ public:
         weapon.is_automatic = false;
         weapon.prev_firing = false;
         //weapon.model_id = Model_Manager::load_animated_model("pistol4/scene.gltf");
-        weapon.model_id = Model_Manager::load_animated_model_cgltf("bow/scene.gltf");
+        //weapon.model_id = Model_Manager::load_animated_model_cgltf("bow/scene.gltf");
         return weapon;
     }
 

@@ -192,7 +192,6 @@ float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos) {
 
     float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
 
-
     float currentDepth = projCoords.z;
   //  float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
     float shadow = currentDepth + 0.005 < shadowDepth ? 1.0 : 0.0;

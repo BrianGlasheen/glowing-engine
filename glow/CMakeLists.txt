@@ -65,6 +65,7 @@ set(SOURCES
     "src/core/renderer_debug.cpp"
     "src/core/scene.cpp"
     "src/core/ssbo.cpp"
+    "src/core/terrain.cpp"
     "src/core/window.cpp"
 
     "src/player/player.cpp"

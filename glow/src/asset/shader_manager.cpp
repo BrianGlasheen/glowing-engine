@@ -85,6 +85,45 @@ namespace Shader_Manager {
         }
     }
 
+    void load_tesselation(const std::string& shader_name) {
+        load_tesselation(shader_name, shader_name + "_v.glsl", shader_name + "_f.glsl", shader_name + "_tc.glsl", shader_name + "_te.glsl");
+    }
+
+    void load_tesselation(const std::string& name, const std::string& vertex_name, const std::string& fragment_name, const std::string& tess_control_name, const std::string& tess_eval_name) {
+        auto it = shaders.find(name);
+        if (it != shaders.end()) {
+            printf("shader already loaded with this name %s\n", name.c_str());
+            assert(false);
+        }
+
+        Shader_Data shader_data;
+        shader_data.vertex_name = vertex_name;
+        shader_data.fragment_name = fragment_name;
+        shader_data.tess_control_name = tess_control_name;
+        shader_data.tess_eval_name = tess_eval_name;
+
+        std::string vertex_path = base_path + vertex_name;
+        std::string fragment_path = base_path + fragment_name;
+        std::string tess_control_path = base_path + tess_control_name;
+        std::string tess_eval_path = base_path + tess_eval_name;
+
+        shader_data.vertex_last_modified = get_file_time(vertex_path);
+        shader_data.fragment_last_modified = get_file_time(fragment_path);
+        shader_data.tess_control_last_modified = get_file_time(tess_control_path);
+        shader_data.tess_eval_last_modified = get_file_time(tess_eval_path);
+
+        bool success = shader_data.shader.init(vertex_path.c_str(), fragment_path.c_str(), tess_control_path.c_str(), tess_eval_path.c_str());
+
+        if (success) {
+            shaders[name] = shader_data;
+            printf("[SHADER] loaded: %s & %s & %s & %s\n", vertex_path.c_str(), tess_control_path.c_str(), tess_eval_path.c_str(), fragment_path.c_str());
+        }
+        else {
+            printf("[SHADER] failed to load: %s & %s\n", vertex_path.c_str(), fragment_path.c_str());
+            assert(false);
+        }
+    }
+
     Shader* get_shader(const std::string& name) {
         auto it = shaders.find(name);
 
@@ -120,13 +159,33 @@ namespace Shader_Manager {
         bool vertex_changed = current_vertex_time > shader_data.vertex_last_modified;
         bool fragment_changed = current_fragment_time > shader_data.fragment_last_modified;
 
-        if (vertex_changed || fragment_changed) {
+        bool tess_control_changed = false;
+        bool tess_eval_changed = false;
+        std::string tess_control_path, tess_eval_path;
+
+        if (!shader_data.tess_control_name.empty()) { // todo maybe check both, if one then both should be there
+            tess_control_path = base_path + shader_data.tess_control_name;
+            tess_eval_path = base_path + shader_data.tess_eval_name;
+
+            fs::file_time_type current_tess_control_time = get_file_time(tess_control_path);
+            fs::file_time_type current_tess_eval_time = get_file_time(tess_eval_path);
+
+            tess_control_changed = current_tess_control_time > shader_data.tess_control_last_modified;
+            tess_eval_changed = current_tess_eval_time > shader_data.tess_eval_last_modified;
+        }
+
+        if (vertex_changed || fragment_changed || tess_control_changed || tess_eval_changed) {
             std::cout << "[SHADER] Detected changes in: " << shader_data.vertex_name << " + " << shader_data.fragment_name<< std::endl;
 
             Shader new_shader;
 
-            bool success = new_shader.init(vertex_path.c_str(), fragment_path.c_str());
+            bool success;
+            if (!shader_data.tess_control_name.empty())
+                success = new_shader.init(vertex_path.c_str(), fragment_path.c_str(), tess_control_path.c_str(), tess_eval_path.c_str());
+            else
+                success = new_shader.init(vertex_path.c_str(), fragment_path.c_str());
 
+            // this always returns true but kinda like it that way
             if (success) {
                 if (shader_data.shader.ID != 0) {
                     glDeleteProgram(shader_data.shader.ID);

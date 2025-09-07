@@ -1,4 +1,6 @@
-#include "scene.h"
+#include "core/scene.h"
+
+#include "asset/material_manager.h"
 
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,16 +20,17 @@ Scene::~Scene() {}
 
 void Scene::init(const std::string& path) {
     skybox.load(path);
+    terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
 
     // gen buffers
     glCreateBuffers(1, &gpu_mesh_ssbo);
-    glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 4000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     glCreateBuffers(1, &gpu_entity_ssbo);
-    glNamedBufferStorage(gpu_entity_ssbo, sizeof(GPU_Entity) * 4000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(gpu_entity_ssbo, sizeof(GPU_Entity) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     glCreateBuffers(1, &per_mesh_ssbo);
-    glNamedBufferStorage(per_mesh_ssbo, sizeof(Per_Object_Data) * 4000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(per_mesh_ssbo, sizeof(Per_Object_Data) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
@@ -54,7 +57,11 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         gpu_entities.push_back(g);
 
         // todo EW!
-        for (Mesh& m : Model_Manager::get_model_ind(ntitty.model_id).m_meshes) {
+        const std::vector<Mesh>& meshes = ntitty.is_animated
+            ? Model_Manager::get_animated_model(ntitty.model_id).m_meshes
+            : Model_Manager::get_model_ind(ntitty.model_id).m_meshes;
+
+        for (const Mesh m : meshes) {
             GPU_Mesh gpu_m;
             gpu_m.transform = m.transform;
             gpu_m.base_vertex = m.base_vertex;

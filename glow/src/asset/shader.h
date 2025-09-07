@@ -12,7 +12,8 @@ public:
     Shader() = default;
     // todo destructor
 
-    bool init(const char* vertexPath, const char* fragmentPath);
+    bool init(const char* vertex_path, const char* fragment_path);
+    bool init(const char* vertex_path, const char* fragment_path, const char* tess_control_path, const char* tess_eval_path);
     void use() const;
 
     void set_bool(const std::string& name, bool value) const;

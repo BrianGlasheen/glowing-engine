@@ -247,6 +247,9 @@ void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {
             glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
+    if (key == 't')
+        this_window->renderer->terrain_draw_type = (this_window->renderer->terrain_draw_type + 1) % 3;
+
     if (key == '\'')
         Shader_Manager::hot_reload_all();
 

@@ -158,7 +158,6 @@ namespace Model_Manager {
 
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
     //static std::vector<Vertex> g_skinned_vertices(0); // rigged verts get written here
-    static std::vector<uint32_t> g_animated_indices(0); // same index buffer for skinned and non
     static std::vector<Animated_Model> m_animated_models(0);
     static std::vector<std::string> m_animated_model_names(0); // todo think about how to store names
 
@@ -294,7 +293,7 @@ namespace Model_Manager {
 
     model_handle load_animated_model(const std::string& path) {
         printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
-        printf("num rigged idx before model %llu\n", g_animated_indices.size());
+        printf("num rigged idx before model %llu\n", g_indices.size());
         printf("num bones before model %llu\n", g_rigged_bones.size());
 
         const std::string full_path = base_path + path;
@@ -317,6 +316,7 @@ namespace Model_Manager {
             copy.leaf_count = loaded.leaf_count;
             copy.base_animation = loaded.base_animation;
             copy.animation_count = loaded.animation_count;
+            // todo copy base animation vertex
 
             model_index = m_animated_models.size();
             m_animated_models.push_back(copy);
@@ -324,7 +324,7 @@ namespace Model_Manager {
 
             //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
             printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
-            printf("num rigged idx after model %llu\n", g_animated_indices.size());
+            printf("num idx after model %llu\n", g_indices.size());
             printf("num bones after model %llu\n", g_rigged_bones.size());
             // leaf bones
             // maybe kf's
@@ -334,7 +334,6 @@ namespace Model_Manager {
 
             return model_index;
         }
-         
 
         Assimp::Importer import;
         import.SetPropertyBool(AI_CONFIG_IMPORT_REMOVE_EMPTY_BONES, false);
@@ -349,6 +348,7 @@ namespace Model_Manager {
 
         Animated_Model model;
         model.m_name = path;
+        model.base_animation_vertex = g_rigged_vertices.size();
 
         uint32_t base_bone = g_rigged_bones.size();
         process_animated_node(scene->mRootNode, scene, model, path_without_filename, glm::mat4(1.0f), base_bone);
@@ -386,7 +386,7 @@ namespace Model_Manager {
         m_animated_model_names.push_back(full_path);
 
         printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
-        printf("num rigged idx after model %llu\n", g_animated_indices.size());
+        printf("num idx after model %llu\n", g_indices.size());
         printf("num bones after model %llu\n", g_rigged_bones.size());
         // leaf bones
         // maybe kf's
@@ -494,7 +494,7 @@ namespace Model_Manager {
 
     model_handle load_animated_model_cgltf(const std::string& path) {
         printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
-        printf("num rigged idx before model %llu\n", g_animated_indices.size());
+        printf("num idx before model %llu\n", g_indices.size());
         printf("num bones before model %llu\n", g_rigged_bones.size());
 
         const std::string full_path = base_path + path;
@@ -583,7 +583,7 @@ namespace Model_Manager {
         m_animated_model_names.push_back(full_path);
 
         printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
-        printf("num rigged idx after model %llu\n", g_animated_indices.size());
+        printf("num idx after model %llu\n", g_indices.size());
         printf("num bones after model %llu\n", g_rigged_bones.size());
 
         return model_index;
@@ -675,13 +675,13 @@ namespace Model_Manager {
                     const cgltf_primitive* prim = &mesh->primitives[i];
                     if (prim->type != cgltf_primitive_type_triangles) continue; // todo maybe support more
 
-                    Animated_Mesh anim_mesh = process_animated_mesh_cgltf(prim, data, path, base_bone, skin, node_to_bone_index);
+                    //Animated_Mesh anim_mesh = process_animated_mesh_cgltf(prim, data, path, base_bone, skin, node_to_bone_index);
 
-                    anim_mesh.transform = transform;
+                    /*anim_mesh.transform = transform;
                     anim_mesh.aabb.max = glm::vec3(transform * glm::vec4(anim_mesh.aabb.max, 1.0f));
-                    anim_mesh.aabb.min = glm::vec3(transform * glm::vec4(anim_mesh.aabb.min, 1.0f));
+                    anim_mesh.aabb.min = glm::vec3(transform * glm::vec4(anim_mesh.aabb.min, 1.0f));*/
 
-                    model.add_mesh(anim_mesh);
+                    //model.add_mesh(anim_mesh);
                 }
             }
         }
@@ -697,7 +697,7 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
 
-            Animated_Mesh mesh = process_animated_mesh(ai_mesh, scene, path, base_bone);
+            Mesh mesh = process_animated_mesh(ai_mesh, scene, path, base_bone);
 
             mesh.transform = current_transform;
             mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
@@ -899,8 +899,8 @@ namespace Model_Manager {
         return false;
     }
 
-    Animated_Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone) {
-        Animated_Mesh mesh_ind = { 0 };
+    Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone) {
+        Mesh mesh_ind = { 0 };
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading RIGGED mesh %s\n", mesh_ind.name.c_str());
         //mesh_ind.rigged = true;
@@ -931,9 +931,16 @@ namespace Model_Manager {
             }
         }
 
-        mesh_ind.base_vertex = g_rigged_vertices.size();
+        // base vertex is in the single buffer
+        mesh_ind.base_vertex = g_vertices.size();
+        // base vertex in the buffer to be used for animation
 
-        g_rigged_vertices.reserve(num_vertices);
+        // base animation vertex is in the buffer used to skin 
+        // pre animation buffer
+
+        g_rigged_vertices.reserve(g_rigged_vertices.size() + num_vertices);
+        g_vertices.reserve(g_vertices.size() + num_vertices);
+
         for (uint32_t i = 0; i < num_vertices; i++) {
             Rigged_Vertex vertex;
 
@@ -981,16 +988,20 @@ namespace Model_Manager {
             // todo maybe normalize weights?
 
             g_rigged_vertices.push_back(vertex);
+
+            Vertex v = { vertex.position, vertex.normal, vertex.tex_coords, vertex.tangent, vertex.bitangent };
+
+            g_vertices.push_back(v);
         }
 
-        //// process indices
-        mesh_ind.base_index = g_animated_indices.size();
+        // process indices
+        mesh_ind.base_index = g_indices.size();
 
         uint32_t num_idcs = 0;
         for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
             aiFace face = mesh->mFaces[i];
             for (uint32_t j = 0; j < face.mNumIndices; j++)
-                g_animated_indices.push_back(face.mIndices[j]); // todo probably just reserver size and copy big chunk
+                g_indices.push_back(face.mIndices[j]); // todo probably just reserver size and copy big chunk
 
             num_idcs += face.mNumIndices;
         }
@@ -1002,8 +1013,9 @@ namespace Model_Manager {
         return mesh_ind;
     }
 
-    Animated_Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>&node_to_bone_index) {
-        Animated_Mesh mesh_ind = { 0 };
+    // todo fix and dont use
+    Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>&node_to_bone_index) {
+        Mesh mesh_ind = { 0 };
         // mesh_ind.name = ?
         printf("cgltf loading RIGGED mesh %s\n", mesh_ind.name.c_str());
 
@@ -1163,20 +1175,21 @@ namespace Model_Manager {
             g_rigged_vertices.push_back(vertex);
         }
 
-        mesh_ind.base_index = g_animated_indices.size();
+        // todo cahnge
+        //mesh_ind.base_index = g_animated_indices.size();
         if (prim->indices) {
             uint32_t index_count = prim->indices->count;
             std::vector<uint32_t> temp_indices(index_count);
             cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
 
             for (uint32_t idx : temp_indices) {
-                g_animated_indices.push_back(idx);
+                //g_animated_indices.push_back(idx);
             }
             mesh_ind.index_count = index_count;
         }
         else {
             for (uint32_t i = 0; i < vertex_count; i++) {
-                g_animated_indices.push_back(i);
+                //g_animated_indices.push_back(i);
             }
             mesh_ind.index_count = vertex_count;
         }
@@ -1875,15 +1888,11 @@ namespace Model_Manager {
         // vertex data, + ssbo for all bone data prob
         glGenVertexArrays(1, &rigged_vao);
         glGenBuffers(1, &r_vbo);
-        glGenBuffers(1, &r_ebo);
 
         glBindVertexArray(rigged_vao);
         glBindBuffer(GL_ARRAY_BUFFER, r_vbo);
 
         glBufferData(GL_ARRAY_BUFFER, g_rigged_vertices.size() * sizeof(Rigged_Vertex), &g_rigged_vertices[0], GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, r_ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, g_animated_indices.size() * sizeof(uint32_t), &g_animated_indices[0], GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)0);
@@ -1908,7 +1917,7 @@ namespace Model_Manager {
 
         glBindVertexArray(0);
 
-        printf("Uploaded [rigged] %zu vertices, %zu indices\n", g_rigged_vertices.size(), g_animated_indices.size());
+        printf("Uploaded [rigged] %zu vertices\n", g_rigged_vertices.size());
     }
 
     //void upload_data() {

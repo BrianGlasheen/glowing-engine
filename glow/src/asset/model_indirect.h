@@ -1,32 +1,14 @@
-#include <string>
-#include <vector>
-#include <cstdint>
+#pragma once
 
-#include "glm/glm.hpp"
-
+#include "asset/mesh.h"
 #include "asset/material_manager.h"
 #include "util/aabb.h"
 
-//struct Mesh_Info {
-//	std::string mesh_name;
-//	size_t index;
-//};
+#include "glm/glm.hpp"
 
-struct Mesh {
-	uint32_t base_vertex;
-	uint32_t vertex_count;
-	uint32_t base_index;
-	uint32_t index_count;
-	Util::AABB aabb;
-	std::string name;
-	
-	// parent? 
-	glm::mat4 transform; // relative to parent
-
-	Material material;
-
-	glm::vec4 bounding_sphere;
-};
+#include <string>
+#include <vector>
+#include <cstdint>
 
 class Model {
 public:

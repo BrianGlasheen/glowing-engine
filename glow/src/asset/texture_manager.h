@@ -21,6 +21,7 @@ namespace Texture_Manager {
     texture_handle create_noise_texture(const std::vector<float>& data, int width, int height);
     //texture_handle create_3d_texture(int width, int height, int layers);
     texture_handle create_2d_array_texture(int width, int height, int layers);
+    texture_handle load_heightmap(const std::string& name);
 
     void bind(texture_handle texture_id, uint32_t texture_unit = 0);
     void bind_array(texture_handle texture_id, uint32_t texture_unit);

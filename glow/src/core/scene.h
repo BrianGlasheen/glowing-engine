@@ -2,6 +2,7 @@
 
 #include "core/entity.h"
 #include "asset/skybox.h"
+#include "core/terrain.h" // todo maybe an asset?
 
 #include "core/opengl.h"
 
@@ -9,7 +10,7 @@
 #include <string>
 #include <cstdint>
 
-struct GPU_Entity { // todo can maybe just be pos
+struct GPU_Entity { // todo can maybe just be pos if using BS not aabb
     glm::mat4 transform;
     uint32_t is_dirty;
     uint32_t padding[3];
@@ -21,7 +22,7 @@ struct GPU_Mesh {
     uint32_t vertex_count;
     uint32_t base_index;
     uint32_t index_count;
-    glm::vec4 bounding_sphere; // assume sphere is 
+    glm::vec4 bounding_sphere; // bounding sphere pos, r
     uint32_t entity_index;
     uint32_t padding[3];
 };
@@ -41,6 +42,7 @@ public:
     std::vector<Entity> entities;
     std::vector<Entity> timed_entities;
     Skybox skybox;
+    Terrain terrain;
 
     uint32_t gpu_mesh_ssbo, gpu_entity_ssbo, per_mesh_ssbo;
     std::vector<GPU_Mesh> gpu_meshes;
