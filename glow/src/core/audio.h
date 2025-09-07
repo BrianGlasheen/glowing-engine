@@ -3,18 +3,24 @@
 
 #include <string>
 
+#ifdef FMOD
 #include "fmod.hpp"
 #include <fmod_errors.h>
+#endif
 
 struct Audio_handle {
+    #ifdef FMOD
     FMOD::Sound* sound = nullptr;
     FMOD::Channel* channel = nullptr;
     std::string filename;
+    #endif
 };
 
 struct Audio_effect_info {
+    #ifdef FMOD
     std::string filename = "";
     float volume = 0.0f;
+    #endif
 };
 
 namespace Audio {

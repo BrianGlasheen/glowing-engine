@@ -4,5 +4,6 @@
 //#define IMGUI 1			//
 //#define PHYSICS 1			// 
 //#define GPU_ANIMATION 1	// compute skeletal transforms on gpu
+//#define FMOD                        // with cmake
 
 // define max draw commands?
