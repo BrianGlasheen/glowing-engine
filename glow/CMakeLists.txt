@@ -4,7 +4,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(ENABLE_FMOD "enable fmod" OFF)
+option(ENABLE_FMOD "enable fmod" ON)
 if(ENABLE_FMOD)
     add_compile_definitions(FMOD)
 endif()
