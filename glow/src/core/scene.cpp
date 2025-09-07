@@ -24,13 +24,13 @@ void Scene::init(const std::string& path) {
 
     // gen buffers
     glCreateBuffers(1, &gpu_mesh_ssbo);
-    glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     glCreateBuffers(1, &gpu_entity_ssbo);
-    glNamedBufferStorage(gpu_entity_ssbo, sizeof(GPU_Entity) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(gpu_entity_ssbo, sizeof(GPU_Entity) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     glCreateBuffers(1, &per_mesh_ssbo);
-    glNamedBufferStorage(per_mesh_ssbo, sizeof(Per_Object_Data) * 16000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(per_mesh_ssbo, sizeof(Per_Object_Data) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol

@@ -24,7 +24,7 @@
 #include <random>
 
 const float FAR_PLANE = 1000.0f;
-const uint32_t MAX_DRAW_COMMANDS = 4000;
+const uint32_t MAX_DRAW_COMMANDS = 8000;
 
 const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
@@ -499,7 +499,7 @@ void Renderer::shadow_pass(Scene& scene) {
             GL_UNSIGNED_INT,
             (void*)0,                             // indirect offset
             (GLintptr)4,                          // offset in the count buffer
-            16000,                                 // maximum draws
+            MAX_DRAW_COMMANDS,                                 // maximum draws
             sizeof(Draw_Elements_Indirect_Command)  // stride
         );
 
@@ -784,7 +784,7 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
         GL_UNSIGNED_INT,
         (void*)0,                             // indirect offset
         (GLintptr)0,                          // offset in the count buffer
-        16000,                                 // maximum draws
+        MAX_DRAW_COMMANDS,                                 // maximum draws
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
 
