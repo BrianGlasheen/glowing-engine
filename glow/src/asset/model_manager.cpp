@@ -29,14 +29,24 @@ struct Vertex {
     glm::vec3 bitangent;
 };
 
+//struct Rigged_Vertex {
+//    glm::vec3 position;
+//    glm::vec3 normal;
+//    glm::vec2 tex_coords;
+//    glm::vec3 tangent;
+//    glm::vec3 bitangent;
+//    glm::uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
+//    glm::vec4 bone_weights;
+//};
+
 struct Rigged_Vertex {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 tex_coords;
-    glm::vec3 tangent;
-    glm::vec3 bitangent;
+    glm::vec4 position; // normal x in w
+    glm::vec4 tangent;  // normal y in w
+    glm::vec4 bitangent; // normal z in w
     glm::uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
     glm::vec4 bone_weights;
+    glm::vec2 tex_coords;
+    uint32_t padding[2];
 };
 
 struct Bone { // cpu bone
@@ -156,6 +166,7 @@ namespace Model_Manager {
     static uint32_t num_animated_meshes = 0;
     static uint32_t rigged_vao, r_vbo, r_ebo;
 
+    static uint32_t g_rigged_vertices_ssbo;
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
     //static std::vector<Vertex> g_skinned_vertices(0); // rigged verts get written here
     static std::vector<Animated_Model> m_animated_models(0);
@@ -944,15 +955,21 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < num_vertices; i++) {
             Rigged_Vertex vertex;
 
-            vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+            vertex.position = glm::vec4(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 0.0f);
 
-            mesh_ind.aabb.min = glm::min(vertex.position, mesh_ind.aabb.min);
-            mesh_ind.aabb.max = glm::max(vertex.position, mesh_ind.aabb.max);
+            mesh_ind.aabb.min = glm::min(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.min));
+            mesh_ind.aabb.max = glm::max(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.max));
 
-            if (mesh->HasNormals())
-                vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-            else
-                vertex.normal = glm::vec3(0.0f);
+            if (mesh->HasNormals()) {
+                vertex.position.w = mesh->mNormals[i].x;
+                vertex.tangent.w = mesh->mNormals[i].y;
+                vertex.bitangent.w = mesh->mNormals[i].z;
+            }
+            else {
+                vertex.position.w = 0;
+                vertex.tangent.w = 0;
+                vertex.bitangent.w = 0;
+            }
 
             if (mesh->mTextureCoords[0]) {
                 glm::vec2 vec;
@@ -961,15 +978,23 @@ namespace Model_Manager {
                 vertex.tex_coords = vec;
 
                 const aiVector3D& pTangent = mesh->mTangents[i];
-                vertex.tangent = glm::vec3(pTangent.x, pTangent.y, pTangent.z);
+                vertex.tangent.x = pTangent.x;
+                vertex.tangent.y = pTangent.y;
+                vertex.tangent.z = pTangent.z;
 
                 const aiVector3D& pBitangent = mesh->mBitangents[i];
-                vertex.bitangent = glm::vec3(pBitangent.x, pBitangent.y, pBitangent.z);
+                vertex.bitangent.x = pBitangent.x;
+                vertex.bitangent.y = pBitangent.y;
+                vertex.bitangent.z = pBitangent.z;
             }
             else {
                 vertex.tex_coords = glm::vec2(0.0f, 0.0f);
-                vertex.tangent = glm::vec3(0.0f);
-                vertex.bitangent = glm::vec3(0.0f);
+                vertex.tangent.x = 0;
+                vertex.tangent.y = 0;
+                vertex.tangent.z = 0;
+                vertex.bitangent.x = 0;
+                vertex.bitangent.y = 0;
+                vertex.bitangent.z = 0;
             }
 
             // process bones
@@ -989,8 +1014,8 @@ namespace Model_Manager {
 
             g_rigged_vertices.push_back(vertex);
 
-            Vertex v = { vertex.position, vertex.normal, vertex.tex_coords, vertex.tangent, vertex.bitangent };
-
+            glm::vec3 norm = glm::vec3(vertex.position.w, vertex.tangent.w, vertex.bitangent.w);
+            Vertex v = { vertex.position, norm, vertex.tex_coords, vertex.tangent, vertex.bitangent};
             g_vertices.push_back(v);
         }
 
@@ -1016,187 +1041,188 @@ namespace Model_Manager {
     // todo fix and dont use
     Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>&node_to_bone_index) {
         Mesh mesh_ind = { 0 };
-        // mesh_ind.name = ?
-        printf("cgltf loading RIGGED mesh %s\n", mesh_ind.name.c_str());
-
-        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
-
-        // Get vertex count
-        uint32_t vertex_count = 0;
-        cgltf_accessor* position_accessor = nullptr;
-
-        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
-            if (prim->attributes[i].type == cgltf_attribute_type_position) {
-                position_accessor = prim->attributes[i].data;
-                vertex_count = position_accessor->count;
-                break;
-            }
-        }
-
-        if (!position_accessor) {
-            printf("no position attribute\n");
-            assert(false);
-        }
-
-        cgltf_accessor* joints_accessor = nullptr;
-        cgltf_accessor* weights_accessor = nullptr;
-
-        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
-            if (prim->attributes[i].type == cgltf_attribute_type_joints) {
-                joints_accessor = prim->attributes[i].data;
-            }
-            else if (prim->attributes[i].type == cgltf_attribute_type_weights) {
-                weights_accessor = prim->attributes[i].data;
-            }
-        }
-
-        if (!joints_accessor || !weights_accessor) {
-            printf("missing joint/weight data\n");
-            assert(false);
-        }
-
-        mesh_ind.base_vertex = g_rigged_vertices.size();
-        g_rigged_vertices.reserve(g_rigged_vertices.size() + vertex_count);
-
-        std::vector<Rigged_Vertex> temp_vertices(vertex_count);
-        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
-            cgltf_attribute* attr = &prim->attributes[i];
-            cgltf_accessor* accessor = attr->data;
-
-            if (attr->type == cgltf_attribute_type_position) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float pos[3];
-                    cgltf_accessor_read_float(accessor, v, pos, 3);
-                    temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
-
-                    mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
-                    mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_normal) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float normal[3];
-                    cgltf_accessor_read_float(accessor, v, normal, 3);
-                    temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_texcoord) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float texcoord[2];
-                    cgltf_accessor_read_float(accessor, v, texcoord, 2);
-                    temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_tangent) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float tangent[4];
-                    cgltf_accessor_read_float(accessor, v, tangent, 4);
-                    temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
-
-                    glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
-                    temp_vertices[v].bitangent = bitangent;
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_joints) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    uint32_t joints[4];
-                    if (cgltf_accessor_read_uint(accessor, v, joints, 4)) {
-                        for (int j = 0; j < 4; j++) {
-                            if (joints[j] < skin->joints_count) {
-                                cgltf_node* joint_node = skin->joints[joints[j]];
-                                auto it = node_to_bone_index.find(joint_node);
-
-                                if (it != node_to_bone_index.end()) {
-                                    temp_vertices[v].bone_ids[j] = it->second;
-                                }
-                                else {
-                                    //printf("Joint node mapping failed for vertex %u, joint %d\n", v, j);
-                                    temp_vertices[v].bone_ids[j] = 0;
-                                }
-                            }
-                            else {
-                                //printf("Joint index out of bounds: %u >= %llu\n", joints[j], skin->joints_count);
-                                temp_vertices[v].bone_ids[j] = 0;
-                            }
-                        }
-                        //printf("Vertex %u joints: [%u, %u, %u, %u] -> bones: [%u, %u, %u, %u]\n",
-                        //    v, joints[0], joints[1], joints[2], joints[3],
-                        //    temp_vertices[v].bone_ids[0], temp_vertices[v].bone_ids[1],
-                        //    temp_vertices[v].bone_ids[2], temp_vertices[v].bone_ids[3]);
-                    }
-                    else {
-                        printf("Failed to read joint data for vertex %u\n", v);
-                        for (int j = 0; j < 4; j++) {
-                            temp_vertices[v].bone_ids[j] = 0;
-                        }
-                    }
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_weights) {
-                printf("=== WEIGHT ACCESSOR DEBUG ===\n");
-                printf("Weight component_type: %d, type: %d, count: %llu\n",
-                    accessor->component_type, accessor->type, accessor->count);
-
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float weights[4];
-                    cgltf_accessor_read_float(accessor, v, weights, 4);
-                    for (int j = 0; j < 4; j++) {
-                        temp_vertices[v].bone_weights[j] = weights[j];
-                    }
-                }
-            }
-        }
-
-        for (uint32_t v = 0; v < vertex_count; v++) {
-            if (glm::length(temp_vertices[v].normal) == 0.0f) {
-                temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
-            }
-            if (temp_vertices[v].tex_coords == glm::vec2(0.0f) &&
-                !has_attribute(prim, cgltf_attribute_type_texcoord)) {
-                temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
-            }
-            if (glm::length(temp_vertices[v].tangent) == 0.0f) {
-                temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
-            }
-            if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
-                temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
-            }
-            // joint & weight?
-
-            for (uint32_t j = 0; j < 4; j++) {
-                //if (temp_vertices[v].bone_weights[j] == 0.0f)
-                //    temp_vertices[v].bone_ids[j] = 0;
-                //printf("  slot %d: bone %u, weight %.3f\n", v, temp_vertices[v].bone_ids[j], temp_vertices[v].bone_weights[j]);
-            }
-        }
-
-        for (const auto& vertex : temp_vertices) {
-            g_rigged_vertices.push_back(vertex);
-        }
-
-        // todo cahnge
-        //mesh_ind.base_index = g_animated_indices.size();
-        if (prim->indices) {
-            uint32_t index_count = prim->indices->count;
-            std::vector<uint32_t> temp_indices(index_count);
-            cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
-
-            for (uint32_t idx : temp_indices) {
-                //g_animated_indices.push_back(idx);
-            }
-            mesh_ind.index_count = index_count;
-        }
-        else {
-            for (uint32_t i = 0; i < vertex_count; i++) {
-                //g_animated_indices.push_back(i);
-            }
-            mesh_ind.index_count = vertex_count;
-        }
-
-        mesh_ind.material = load_material_cgltf(prim, data, path);
-
         return mesh_ind;
+        //// mesh_ind.name = ?
+        //printf("cgltf loading RIGGED mesh %s\n", mesh_ind.name.c_str());
+
+        //mesh_ind.aabb.min = glm::vec3(FLT_MAX);
+        //mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+
+        //// Get vertex count
+        //uint32_t vertex_count = 0;
+        //cgltf_accessor* position_accessor = nullptr;
+
+        //for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+        //    if (prim->attributes[i].type == cgltf_attribute_type_position) {
+        //        position_accessor = prim->attributes[i].data;
+        //        vertex_count = position_accessor->count;
+        //        break;
+        //    }
+        //}
+
+        //if (!position_accessor) {
+        //    printf("no position attribute\n");
+        //    assert(false);
+        //}
+
+        //cgltf_accessor* joints_accessor = nullptr;
+        //cgltf_accessor* weights_accessor = nullptr;
+
+        //for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+        //    if (prim->attributes[i].type == cgltf_attribute_type_joints) {
+        //        joints_accessor = prim->attributes[i].data;
+        //    }
+        //    else if (prim->attributes[i].type == cgltf_attribute_type_weights) {
+        //        weights_accessor = prim->attributes[i].data;
+        //    }
+        //}
+
+        //if (!joints_accessor || !weights_accessor) {
+        //    printf("missing joint/weight data\n");
+        //    assert(false);
+        //}
+
+        //mesh_ind.base_vertex = g_rigged_vertices.size();
+        //g_rigged_vertices.reserve(g_rigged_vertices.size() + vertex_count);
+
+        //std::vector<Rigged_Vertex> temp_vertices(vertex_count);
+        //for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+        //    cgltf_attribute* attr = &prim->attributes[i];
+        //    cgltf_accessor* accessor = attr->data;
+
+        //    if (attr->type == cgltf_attribute_type_position) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float pos[3];
+        //            cgltf_accessor_read_float(accessor, v, pos, 3);
+        //            temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+
+        //            mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
+        //            mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_normal) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float normal[3];
+        //            cgltf_accessor_read_float(accessor, v, normal, 3);
+        //            temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_texcoord) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float texcoord[2];
+        //            cgltf_accessor_read_float(accessor, v, texcoord, 2);
+        //            temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_tangent) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float tangent[4];
+        //            cgltf_accessor_read_float(accessor, v, tangent, 4);
+        //            temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+
+        //            glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+        //            temp_vertices[v].bitangent = bitangent;
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_joints) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            uint32_t joints[4];
+        //            if (cgltf_accessor_read_uint(accessor, v, joints, 4)) {
+        //                for (int j = 0; j < 4; j++) {
+        //                    if (joints[j] < skin->joints_count) {
+        //                        cgltf_node* joint_node = skin->joints[joints[j]];
+        //                        auto it = node_to_bone_index.find(joint_node);
+
+        //                        if (it != node_to_bone_index.end()) {
+        //                            temp_vertices[v].bone_ids[j] = it->second;
+        //                        }
+        //                        else {
+        //                            //printf("Joint node mapping failed for vertex %u, joint %d\n", v, j);
+        //                            temp_vertices[v].bone_ids[j] = 0;
+        //                        }
+        //                    }
+        //                    else {
+        //                        //printf("Joint index out of bounds: %u >= %llu\n", joints[j], skin->joints_count);
+        //                        temp_vertices[v].bone_ids[j] = 0;
+        //                    }
+        //                }
+        //                //printf("Vertex %u joints: [%u, %u, %u, %u] -> bones: [%u, %u, %u, %u]\n",
+        //                //    v, joints[0], joints[1], joints[2], joints[3],
+        //                //    temp_vertices[v].bone_ids[0], temp_vertices[v].bone_ids[1],
+        //                //    temp_vertices[v].bone_ids[2], temp_vertices[v].bone_ids[3]);
+        //            }
+        //            else {
+        //                printf("Failed to read joint data for vertex %u\n", v);
+        //                for (int j = 0; j < 4; j++) {
+        //                    temp_vertices[v].bone_ids[j] = 0;
+        //                }
+        //            }
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_weights) {
+        //        printf("=== WEIGHT ACCESSOR DEBUG ===\n");
+        //        printf("Weight component_type: %d, type: %d, count: %llu\n",
+        //            accessor->component_type, accessor->type, accessor->count);
+
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float weights[4];
+        //            cgltf_accessor_read_float(accessor, v, weights, 4);
+        //            for (int j = 0; j < 4; j++) {
+        //                temp_vertices[v].bone_weights[j] = weights[j];
+        //            }
+        //        }
+        //    }
+        //}
+
+        //for (uint32_t v = 0; v < vertex_count; v++) {
+        //    if (glm::length(temp_vertices[v].normal) == 0.0f) {
+        //        temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        //    }
+        //    if (temp_vertices[v].tex_coords == glm::vec2(0.0f) &&
+        //        !has_attribute(prim, cgltf_attribute_type_texcoord)) {
+        //        temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+        //    }
+        //    if (glm::length(temp_vertices[v].tangent) == 0.0f) {
+        //        temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+        //    }
+        //    if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
+        //        temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+        //    }
+        //    // joint & weight?
+
+        //    for (uint32_t j = 0; j < 4; j++) {
+        //        //if (temp_vertices[v].bone_weights[j] == 0.0f)
+        //        //    temp_vertices[v].bone_ids[j] = 0;
+        //        //printf("  slot %d: bone %u, weight %.3f\n", v, temp_vertices[v].bone_ids[j], temp_vertices[v].bone_weights[j]);
+        //    }
+        //}
+
+        //for (const auto& vertex : temp_vertices) {
+        //    g_rigged_vertices.push_back(vertex);
+        //}
+
+        //// todo cahnge
+        ////mesh_ind.base_index = g_animated_indices.size();
+        //if (prim->indices) {
+        //    uint32_t index_count = prim->indices->count;
+        //    std::vector<uint32_t> temp_indices(index_count);
+        //    cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
+
+        //    for (uint32_t idx : temp_indices) {
+        //        //g_animated_indices.push_back(idx);
+        //    }
+        //    mesh_ind.index_count = index_count;
+        //}
+        //else {
+        //    for (uint32_t i = 0; i < vertex_count; i++) {
+        //        //g_animated_indices.push_back(i);
+        //    }
+        //    mesh_ind.index_count = vertex_count;
+        //}
+
+        //mesh_ind.material = load_material_cgltf(prim, data, path);
+
+        //return mesh_ind;
     }
 
     Material load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path) {
@@ -1886,36 +1912,8 @@ namespace Model_Manager {
 
         // todo do same for animated stuff
         // vertex data, + ssbo for all bone data prob
-        glGenVertexArrays(1, &rigged_vao);
-        glGenBuffers(1, &r_vbo);
-
-        glBindVertexArray(rigged_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, r_vbo);
-
-        glBufferData(GL_ARRAY_BUFFER, g_rigged_vertices.size() * sizeof(Rigged_Vertex), &g_rigged_vertices[0], GL_STATIC_DRAW);
-
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)0);
-
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, normal));
-
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, tex_coords));
-
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, tangent));
-
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, bitangent));
-
-        glEnableVertexAttribArray(5);
-        glVertexAttribIPointer(5, 4, GL_UNSIGNED_INT, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, bone_ids));
-
-        glEnableVertexAttribArray(6);
-        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Rigged_Vertex), (void*)offsetof(Rigged_Vertex, bone_weights));
-
-        glBindVertexArray(0);
+        glCreateBuffers(1, &g_rigged_vertices_ssbo);
+        glNamedBufferStorage(g_rigged_vertices_ssbo, sizeof(Rigged_Vertex) * g_rigged_vertices.size(), g_rigged_vertices.data(), GL_DYNAMIC_STORAGE_BIT);
 
         printf("Uploaded [rigged] %zu vertices\n", g_rigged_vertices.size());
     }
@@ -2040,7 +2038,7 @@ namespace Model_Manager {
         glGenBuffers(1, &skinned_bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
         glBufferData(GL_SHADER_STORAGE_BUFFER, num_skinned_bones * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_bone_ssbo);
+        //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         //printf("Created bone SSBO with %zu bytes\n", num_skinned_bones * sizeof(glm::mat4));
 

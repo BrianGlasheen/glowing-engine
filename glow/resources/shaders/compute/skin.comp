@@ -1,0 +1,63 @@
+#version 460
+
+layout(local_size_x = 32) in;
+
+// maybe entity buffer
+
+struct Rigged_Vertex {
+    vec4 position; // normal x in w
+    vec4 tangent;  // normal y in w
+    vec4 bitangent; // normal z in w
+    uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
+    vec4 bone_weights;
+    vec2 tex_coords;
+    uint padding[2];
+};
+
+struct GPU_Mesh {
+    mat4 transform;
+    int base_vertex;
+    uint vertex_count;
+    uint base_index;
+    uint index_count;
+    vec4 bounding_sphere; // maybe use transform for some
+    uint entity_index;
+    uint skinned_to_static_offset; // offset from  
+    // could add needs skin flag?
+    uint padding[2];
+};
+
+
+
+// target vertex buffer
+
+// base vertex ssbo
+layout(std430, binding = 1) buffer Rigged_Vertices {
+    Rigged_Vertex rigged_vertices[];
+};  
+
+layout(std430, binding = 2) buffer Animated_Indices {
+    uint animiated_indices[]; // stores index of animated mesh in the main gpu mesh buffer
+};                            // so if we have 10 meshes, 5 animated, this buffer will have
+                              // 5 elements that store the index in the main buffer, and this
+                              // shader will be dispatched 5 times
+layout(std430, binding = 3) buffer Meshes {
+    GPU_Mesh meshes[];
+};
+
+layout(std430, binding = 4) buffer GPU_Bones_Skinned {
+    mat4 gpu_bones_skinned[];
+};
+
+void main() {
+    GPU_Mesh mesh = meshes[animiated_indices[gl_LocalInvocationID.x]];
+    
+    for (uint base = 0; base < mesh.vertex_count; base++) {
+        // uint vertex_idx = base + local_idx;
+        // if (vertex_idx < cmd.vertex_count) {
+        //     uint global_vertex_idx = cmd.first_vertex + vertex_idx;
+        // 
+        //     skin_vertex(global_vertex_idx, cmd.bone_offset);
+        // }
+    }
+}

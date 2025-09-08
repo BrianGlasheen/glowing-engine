@@ -56,6 +56,9 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         g.transform = ntitty.get_model_matrix();
         gpu_entities.push_back(g);
 
+        // if animated set flags
+        // add animation command to animation system with entity index
+
         // todo EW!
         const std::vector<Mesh>& meshes = ntitty.is_animated
             ? Model_Manager::get_animated_model(ntitty.model_id).m_meshes

@@ -15,7 +15,8 @@ struct Draw_Elements_Indirect_Command {
 struct GPU_Entity { // todo can maybe just be pos
     mat4 transform;
     uint is_dirty;
-    uint padding[3];
+    uint animation_command_index;
+    uint padding[2];
 };
 
 struct GPU_Mesh {
@@ -26,7 +27,9 @@ struct GPU_Mesh {
     uint index_count;
     vec4 bounding_sphere; // maybe use transform for some
     uint entity_index;
-    uint padding[3];
+    uint skinned_to_static_offset; // offset from  
+    // could add needs skin flag?
+    uint padding[2];
 };
 
 struct Per_Object_Data {
@@ -130,7 +133,7 @@ void main() {
 
         // cull view frustum if has flag
         // todo could maybe do lod-ing?
-		if(true/*visible(gID)*/) {
+		if(visible(gID)) {
 			uint index = atomicAdd(draw_count, 1);
 
             Draw_Elements_Indirect_Command draw_command;
