@@ -14,6 +14,7 @@ Scene::Scene() {
     gpu_meshes = std::vector<GPU_Mesh>();
     gpu_entities = std::vector<GPU_Entity>();
     per_mesh_data = std::vector<Per_Object_Data>();
+    animated_mesh_to_all_mesh_mapping = std::vector<uint32_t>();
 }
 
 Scene::~Scene() {}
@@ -31,6 +32,9 @@ void Scene::init(const std::string& path) {
 
     glCreateBuffers(1, &per_mesh_ssbo);
     glNamedBufferStorage(per_mesh_ssbo, sizeof(Per_Object_Data) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
+
+    glCreateBuffers(1, &animated_mesh_to_all_mesh_mapping_ssbo);
+    glNamedBufferStorage(animated_mesh_to_all_mesh_mapping_ssbo, sizeof(uint32_t) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
 }
 
 void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
@@ -54,15 +58,24 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         uint32_t index = gpu_entities.size();
         GPU_Entity g;
         g.transform = ntitty.get_model_matrix();
+        //g.animation_command_index = ntitty.is_animated ? Model_Manager::get_num_animation_commands() : 0xFFFFFFFF;
+        // todo set needs flag default
         gpu_entities.push_back(g);
+
+        if (ntitty.is_animated)
+            Model_Manager::submit_animation_command(ntitty.model_id);
 
         // if animated set flags
         // add animation command to animation system with entity index
+        //void submit_animation_command(uint32_t model_id)
+        //n_cmds
 
         // todo EW!
         const std::vector<Mesh>& meshes = ntitty.is_animated
             ? Model_Manager::get_animated_model(ntitty.model_id).m_meshes
             : Model_Manager::get_model_ind(ntitty.model_id).m_meshes;
+
+        uint32_t skinned_to_static_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).animation_offset : 0xFFFFFFFF;
 
         for (const Mesh m : meshes) {
             GPU_Mesh gpu_m;
@@ -74,6 +87,10 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
             gpu_m.bounding_sphere = m.bounding_sphere;
             gpu_m.bounding_sphere.w *= std::max(ntitty.scale.x, std::max(ntitty.scale.y, ntitty.scale.z));
             gpu_m.entity_index = index;
+            gpu_m.skinned_to_static_offset = skinned_to_static_offset;
+
+            if (ntitty.is_animated)
+                animated_mesh_to_all_mesh_mapping.push_back(gpu_meshes.size());
             gpu_meshes.push_back(gpu_m);
 
             //printf("[%u] sphere %f %f %f %f\n", index, gpu_m.bounding_sphere.x, gpu_m.bounding_sphere.y, gpu_m.bounding_sphere.z, gpu_m.bounding_sphere.w);
@@ -103,6 +120,8 @@ void Scene::upload_buffers() {
     glNamedBufferSubData(gpu_entity_ssbo, 0, sizeof(GPU_Entity) * gpu_entities.size(), gpu_entities.data());
 
     glNamedBufferSubData(per_mesh_ssbo, 0, sizeof(Per_Object_Data) * per_mesh_data.size(), per_mesh_data.data());
+
+    glNamedBufferSubData(animated_mesh_to_all_mesh_mapping_ssbo, 0, sizeof(uint32_t) * animated_mesh_to_all_mesh_mapping.size(), animated_mesh_to_all_mesh_mapping.data());
 }
 
 void Scene::update_dirty() {

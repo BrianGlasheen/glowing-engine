@@ -3,11 +3,10 @@
 
 #extension GL_ARB_gpu_shader_int64: enable
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNor;
-layout (location = 2) in vec2 aTexCoord;
-layout (location = 3) in vec3 Tangent;
-layout (location = 4) in vec3 Bitangent;
+layout (location = 0) in vec4 aPos;
+layout (location = 1) in vec4 Tangent;
+layout (location = 2) in vec4 Bitangent;
+layout (location = 3) in vec2 aTexCoord;
 
 struct Per_Object_Data {
     mat4 model_matrix;
@@ -74,11 +73,13 @@ void main() {
     
     mat4 model = obj_data.model_matrix;
 
-    FragPos = vec3(model * vec4(aPos, 1.0));
+    vec3 aNor = vec3(aPos.w, Tangent.w, Bitangent.w);
+
+    FragPos = vec3(model * vec4(aPos.xyz, 1.0));
     Normal = normalize(mat3(obj_data.normal_matrix) * aNor);
     TexCoord = aTexCoord;
-    Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent);
-    Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent);
+    Tangentout = normalize(mat3(obj_data.normal_matrix) * Tangent.xyz);
+    Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent.xyz);
 
-    gl_Position = vp * model * vec4(aPos, 1.0);
+    gl_Position = vp * model * vec4(aPos.xyz, 1.0);
 }

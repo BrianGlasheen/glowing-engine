@@ -15,8 +15,9 @@ struct Draw_Elements_Indirect_Command {
 struct GPU_Entity { // todo can maybe just be pos
     mat4 transform;
     uint is_dirty;
-    uint animation_command_index;
-    uint padding[2];
+    uint animation_command_index; // todo actually dont need i think
+    uint any_mesh_visible; // only animate bones if some mesh visible
+    uint padding;
 };
 
 struct GPU_Mesh {
@@ -28,7 +29,7 @@ struct GPU_Mesh {
     vec4 bounding_sphere; // maybe use transform for some
     uint entity_index;
     uint skinned_to_static_offset; // offset from  
-    // could add needs skin flag?
+    // could add needs skin flag?  // only do skinning if needed
     uint padding[2];
 };
 

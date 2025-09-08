@@ -16,6 +16,8 @@ public:
 	{
 		calculate_aabb();
 		// set animation offset
+	
+		animation_offset = m_meshes[0].base_vertex - base_animation_vertex;
 	}
 
 	void add_mesh(Mesh& mesh) {

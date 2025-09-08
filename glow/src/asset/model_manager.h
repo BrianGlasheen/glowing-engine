@@ -1,5 +1,8 @@
 #pragma once
 
+//#include "core/scene.h"
+class Scene;
+
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -81,9 +84,12 @@ namespace Model_Manager {
 
 
     void begin_animation_frame();
+    uint32_t get_num_animation_commands();
     //void submit_animation_command(Animation_Command cmd);
     void submit_animation_command(uint32_t model_id);
-    void update_bones_from_animation_compute(uint32_t animation_index, float time);
+    void upload_animation_commands();
+    void update_bones_from_animation_compute(float time);
+    void update_animated_vertices(Scene& scene);
 
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();

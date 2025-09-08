@@ -148,11 +148,11 @@ namespace Glow {
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		for (int j = 0; j < 100; j++) {
-			printf("%d\n", j);
-			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
-			scene.include(dsadasdasdasda);
-		}
+		//for (int j = 0; j < 100; j++) {
+		//	printf("%d\n", j);
+		//	Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
+		//	scene.include(dsadasdasdasda);
+		//}
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
@@ -170,9 +170,9 @@ namespace Glow {
 		scene.include(e5555);
 		printf("here\n");
 
-		Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+	/*	Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(d23);
-		printf("here\n");
+		printf("here\n");*/
 
 		//model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
 		//model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
@@ -271,6 +271,7 @@ namespace Glow {
 		particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
 		///////////////////////////////////////////////////////////
 		Model_Manager::setup_ssbos();
+		Model_Manager::upload_animation_commands();
 
 		return 0;
 	}
@@ -328,10 +329,14 @@ namespace Glow {
 
 			{
 				PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
-				renderer.begin_frame(scene, player_view, player_proj); // pass scene
-			}
+				renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
+			
+			{ PROFILE_SCOPE_COLOR("compute update bones", legit::Colors::nephritis);
+			  Model_Manager::update_bones_from_animation_compute(window.get_time()); }
+			
+			{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
+			  Model_Manager::update_animated_vertices(scene); }
 
-			Model_Manager::begin_animation_frame();
 
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);

@@ -2,6 +2,8 @@
 
 #include "glow_config.h"
 
+#include "core/scene.h"
+
 #include <cstdint>
 #include <string>
 #include <cassert>
@@ -22,11 +24,12 @@
 #include "core/opengl.h"
 
 struct Vertex {
-    glm::vec3 position;
-    glm::vec3 normal;
+    glm::vec4 position; // normal x in w
+    //glm::vec3 normal;
+    glm::vec4 tangent; // normal y in w
+    glm::vec4 bitangent; // normal z in w
     glm::vec2 tex_coords;
-    glm::vec3 tangent;
-    glm::vec3 bitangent;
+    uint32_t padding[2];
 };
 
 //struct Rigged_Vertex {
@@ -182,6 +185,10 @@ namespace Model_Manager {
     static std::vector<Position_Keyframe> position_keyframes(0);
     static std::vector<Rotation_Keyframe> rotation_keyframes(0);
     static std::vector<Scale_Keyframe> scale_keyframes(0);
+
+    static uint32_t num_leafs = 0;
+    static uint32_t n_cmds = 0;
+    std::vector<Animation_Command> cmds(0);
 
     void init(std::string path) {
         base_path = path;
@@ -738,15 +745,23 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
             Vertex vertex;
             
-            vertex.position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+            vertex.position.x = mesh->mVertices[i].x;
+            vertex.position.y = mesh->mVertices[i].y;
+            vertex.position.z = mesh->mVertices[i].z;
 
-            mesh_ind.aabb.min = glm::min(vertex.position, mesh_ind.aabb.min);
-            mesh_ind.aabb.max = glm::max(vertex.position, mesh_ind.aabb.max);
+            mesh_ind.aabb.min = glm::min(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.min));
+            mesh_ind.aabb.max = glm::max(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.max));
 
-            if (mesh->HasNormals())
-                vertex.normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
-            else
-                vertex.normal = glm::vec3(0.0f);
+            if (mesh->HasNormals()) {
+                vertex.position.w = mesh->mNormals[i].x;
+                vertex.tangent.w = mesh->mNormals[i].y;
+                vertex.bitangent.w = mesh->mNormals[i].z;
+            }
+            else {
+                vertex.position.w = 0;
+                vertex.tangent.w = 0;
+                vertex.bitangent.w = 0;
+            }
 
             if (mesh->mTextureCoords[0]) {
                 glm::vec2 vec;
@@ -755,15 +770,23 @@ namespace Model_Manager {
                 vertex.tex_coords = vec;
 
                 const aiVector3D& pTangent = mesh->mTangents[i];
-                vertex.tangent = glm::vec3(pTangent.x, pTangent.y, pTangent.z);
+                vertex.tangent.x = pTangent.x;
+                vertex.tangent.y = pTangent.y;
+                vertex.tangent.z = pTangent.z;
 
                 const aiVector3D& pBitangent = mesh->mBitangents[i];
-                vertex.bitangent = glm::vec3(pBitangent.x, pBitangent.y, pBitangent.z);
+                vertex.bitangent.x = pBitangent.x;
+                vertex.bitangent.y = pBitangent.y;
+                vertex.bitangent.z = pBitangent.z;
             }
             else {
                 vertex.tex_coords = glm::vec2(0.0f, 0.0f);
-                vertex.tangent = glm::vec3(0.0f);
-                vertex.bitangent = glm::vec3(0.0f);
+                vertex.tangent.x = 0;
+                vertex.tangent.y = 0;
+                vertex.tangent.z = 0;
+                vertex.bitangent.x = 0;
+                vertex.bitangent.y = 0;
+                vertex.bitangent.z = 0;
             }
 
             g_vertices.push_back(vertex);
@@ -790,116 +813,116 @@ namespace Model_Manager {
 
     Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path) {
         Mesh mesh_ind = { 0 };
-
+        return mesh_ind;
         //mesh_ind.name = mesh_name + "_primitive_" + std::to_string(primitive_index);
         //printf("loading mesh %s\n", mesh_ind.name.c_str());
 
-        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
-        mesh_ind.base_vertex = g_vertices.size();
+        //mesh_ind.aabb.min = glm::vec3(FLT_MAX);
+        //mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        //mesh_ind.base_vertex = g_vertices.size();
 
-        uint32_t vertex_count = 0;
-        cgltf_accessor* position_accessor = nullptr;
+        //uint32_t vertex_count = 0;
+        //cgltf_accessor* position_accessor = nullptr;
 
-        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
-            if (prim->attributes[i].type == cgltf_attribute_type_position) {
-                position_accessor = prim->attributes[i].data;
-                vertex_count = position_accessor->count;
-                break;
-            }
-        }
+        //for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+        //    if (prim->attributes[i].type == cgltf_attribute_type_position) {
+        //        position_accessor = prim->attributes[i].data;
+        //        vertex_count = position_accessor->count;
+        //        break;
+        //    }
+        //}
 
-        if (!position_accessor) {
-            printf("Warning: primitive has no position attribute\n");
-            assert(false);
-        }
+        //if (!position_accessor) {
+        //    printf("Warning: primitive has no position attribute\n");
+        //    assert(false);
+        //}
 
-        g_vertices.reserve(g_vertices.size() + vertex_count);
+        //g_vertices.reserve(g_vertices.size() + vertex_count);
 
-        std::vector<Vertex> temp_vertices(vertex_count);
-        for (cgltf_size i = 0; i < prim->attributes_count; i++) {
-            cgltf_attribute* attr = &prim->attributes[i];
-            cgltf_accessor* accessor = attr->data;
+        //std::vector<Vertex> temp_vertices(vertex_count);
+        //for (cgltf_size i = 0; i < prim->attributes_count; i++) {
+        //    cgltf_attribute* attr = &prim->attributes[i];
+        //    cgltf_accessor* accessor = attr->data;
 
-            if (attr->type == cgltf_attribute_type_position) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float pos[3];
-                    cgltf_accessor_read_float(accessor, v, pos, 3);
-                    temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+        //    if (attr->type == cgltf_attribute_type_position) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float pos[3];
+        //            cgltf_accessor_read_float(accessor, v, pos, 3);
+        //            temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
 
-                    mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
-                    mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_normal) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float normal[3];
-                    cgltf_accessor_read_float(accessor, v, normal, 3);
-                    temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_texcoord) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float texcoord[2];
-                    cgltf_accessor_read_float(accessor, v, texcoord, 2);
-                    temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
-                }
-            }
-            else if (attr->type == cgltf_attribute_type_tangent) {
-                for (uint32_t v = 0; v < vertex_count; v++) {
-                    float tangent[4];
-                    cgltf_accessor_read_float(accessor, v, tangent, 4);
-                    temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+        //            mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
+        //            mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_normal) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float normal[3];
+        //            cgltf_accessor_read_float(accessor, v, normal, 3);
+        //            temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_texcoord) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float texcoord[2];
+        //            cgltf_accessor_read_float(accessor, v, texcoord, 2);
+        //            temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+        //        }
+        //    }
+        //    else if (attr->type == cgltf_attribute_type_tangent) {
+        //        for (uint32_t v = 0; v < vertex_count; v++) {
+        //            float tangent[4];
+        //            cgltf_accessor_read_float(accessor, v, tangent, 4);
+        //            temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
 
-                    glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
-                    temp_vertices[v].bitangent = bitangent;
-                }
-            }
-            // maybe add color
-        }
+        //            glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+        //            temp_vertices[v].bitangent = bitangent;
+        //        }
+        //    }
+        //    // maybe add color
+        //}
 
-        for (uint32_t v = 0; v < vertex_count; v++) {
-            if (glm::length(temp_vertices[v].normal) == 0.0f) {
-                temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
-            }
-            if (temp_vertices[v].tex_coords == glm::vec2(0.0f) && !has_attribute(prim, cgltf_attribute_type_texcoord)) {
-                temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
-            }
-            if (glm::length(temp_vertices[v].tangent) == 0.0f) {
-                temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
-            }
-            if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
-                temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
-            }
-        }
+        //for (uint32_t v = 0; v < vertex_count; v++) {
+        //    if (glm::length(temp_vertices[v].normal) == 0.0f) {
+        //        temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        //    }
+        //    if (temp_vertices[v].tex_coords == glm::vec2(0.0f) && !has_attribute(prim, cgltf_attribute_type_texcoord)) {
+        //        temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+        //    }
+        //    if (glm::length(temp_vertices[v].tangent) == 0.0f) {
+        //        temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+        //    }
+        //    if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
+        //        temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+        //    }
+        //}
 
-        for (const auto& vertex : temp_vertices) {
-            g_vertices.push_back(vertex);
-        }
+        //for (const auto& vertex : temp_vertices) {
+        //    g_vertices.push_back(vertex);
+        //}
 
-        mesh_ind.base_index = g_indices.size();
+        //mesh_ind.base_index = g_indices.size();
 
-        if (prim->indices) {
-            uint32_t index_count = prim->indices->count;
+        //if (prim->indices) {
+        //    uint32_t index_count = prim->indices->count;
 
-            std::vector<uint32_t> temp_indices(index_count);
-            cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
+        //    std::vector<uint32_t> temp_indices(index_count);
+        //    cgltf_accessor_unpack_indices(prim->indices, temp_indices.data(), sizeof(uint32_t), index_count);
 
-            for (uint32_t idx : temp_indices)
-                g_indices.push_back(idx);
+        //    for (uint32_t idx : temp_indices)
+        //        g_indices.push_back(idx);
 
-            mesh_ind.index_count = index_count;
-        }
-        else {
-            for (uint32_t i = 0; i < vertex_count; i++)
-                g_indices.push_back(mesh_ind.base_vertex + i);
+        //    mesh_ind.index_count = index_count;
+        //}
+        //else {
+        //    for (uint32_t i = 0; i < vertex_count; i++)
+        //        g_indices.push_back(mesh_ind.base_vertex + i);
 
-            mesh_ind.index_count = vertex_count;
-        }
+        //    mesh_ind.index_count = vertex_count;
+        //}
 
-        mesh_ind.material = load_material_cgltf(prim, data, path);
+        //mesh_ind.material = load_material_cgltf(prim, data, path);
 
-        return mesh_ind;
+        //return mesh_ind;
     }
     bool has_attribute(const cgltf_primitive* prim, cgltf_attribute_type type) {
         for (cgltf_size i = 0; i < prim->attributes_count; i++) {
@@ -1014,8 +1037,7 @@ namespace Model_Manager {
 
             g_rigged_vertices.push_back(vertex);
 
-            glm::vec3 norm = glm::vec3(vertex.position.w, vertex.tangent.w, vertex.bitangent.w);
-            Vertex v = { vertex.position, norm, vertex.tex_coords, vertex.tangent, vertex.bitangent};
+            Vertex v = { vertex.position, vertex.tangent, vertex.bitangent, vertex.tex_coords};
             g_vertices.push_back(v);
         }
 
@@ -1886,25 +1908,29 @@ namespace Model_Manager {
         glBindVertexArray(big_buffer_vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-        glBufferData(GL_ARRAY_BUFFER, g_vertices.size() * sizeof(Vertex), &g_vertices[0], GL_STATIC_DRAW);
+        //glBufferData(GL_ARRAY_BUFFER, g_vertices.size() * sizeof(Vertex), &g_vertices[0], GL_DYNAMIC_DRAW);
+        glBufferStorage(GL_ARRAY_BUFFER, g_vertices.size() * sizeof(Vertex), &g_vertices[0], GL_DYNAMIC_STORAGE_BIT);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, g_indices.size() * sizeof(uint32_t), &g_indices[0], GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
 
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tangent));
 
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
+        glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, bitangent));
 
         glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tangent));
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coords));
 
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, bitangent));
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            assert(false);
+            printf("OpenGL Error after: 0x%x\n", error);
+        }
 
         glBindVertexArray(0);
 
@@ -2022,6 +2048,7 @@ namespace Model_Manager {
 
     void setup_ssbos() {
         Shader_Manager::load_compute("animate_skeleton");
+        Shader_Manager::load_compute("skin");
 
         // setup rigged bones
         // setup skinned bones
@@ -2066,12 +2093,22 @@ namespace Model_Manager {
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
         
+        //glGenBuffers(1, &animation_commands);
+        //glBindBuffer(GL_SHADER_STORAGE_BUFFER, animation_commands);
+        //glBufferData(GL_SHADER_STORAGE_BUFFER,
+        //    m_animated_models.size() * sizeof(Animation_Command),
+        //    nullptr,
+        //    GL_DYNAMIC_STORAGE_BIT);
+        //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
         glGenBuffers(1, &animation_commands);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, animation_commands);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, m_animated_models.size() * sizeof(Animation_Command), nullptr, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bone_animation_ssbo);
+        glBufferData(GL_SHADER_STORAGE_BUFFER,
+            cmds.size() * sizeof(Animation_Command),
+            nullptr,
+            GL_DYNAMIC_DRAW);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
+        
         //bone_animation_ssbo
         glGenBuffers(1, &bone_animation_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, bone_animation_ssbo);
@@ -2105,14 +2142,14 @@ namespace Model_Manager {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
 
-    static uint32_t num_leafs = 0;
-    static uint32_t n_cmds = 0;
-    std::vector<Animation_Command> cmds(0);
-
     void begin_animation_frame() {
         cmds.clear();
         n_cmds = 0;
         num_leafs = 0;
+    }
+    
+    uint32_t get_num_animation_commands() {
+        return n_cmds;
     }
 
     //void submit_animation_command(Animation_Command cmd) {
@@ -2132,28 +2169,96 @@ namespace Model_Manager {
         num_leafs += cmd.leaf_count;
     }
 
-    void update_bones_from_animation_compute(uint32_t animation_index, float time) {
-        //const Animation& anim = g_animations[animation_index];
-        if (n_cmds)
-            glNamedBufferData(animation_commands, cmds.size() * sizeof(Animation_Command), cmds.data(), GL_DYNAMIC_DRAW);
+    void upload_animation_commands() {
+        glNamedBufferData(animation_commands, cmds.size() * sizeof(Animation_Command), cmds.data(), GL_DYNAMIC_DRAW);
 
-        //printf("animating for %d leafs\n", num_leafs);
+        /*
+
+        printf("num: %d", n_cmds);
+        printf("size: %d", (uint32_t)cmds.size());
+
+        glNamedBufferSubData(animation_commands, 0, cmds.size() * sizeof(Animation_Command), cmds.data());
+
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+
+        }
+
+        */
+    }
+
+    void update_bones_from_animation_compute(float time) {
+        //const Animation& anim = g_animations[animation_index]
+
+        printf("animating for %d leafs\n", num_leafs);
 
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, animation_commands);
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
 
         // can do all these once if doing gpu skeletal transforms
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, leaf_bones_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bone_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, skinned_bone_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, absolute_bone_transform_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transform_time_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, bone_animation_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, pos_keys_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, rot_keys_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, scale_keys_ssbo);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
 
          //printf("Dispatching animation at time: %.3f\n", time);
 
@@ -2162,7 +2267,35 @@ namespace Model_Manager {
         //skeleton->set_uint("max_leaf", (uint32_t)g_leaf_bones.size());
         //skeleton->set_uint("animation_count", (uint32_t)g_animations[0].bone_animations.size());
 
-        skeleton->dispatch_and_wait((num_leafs + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+        skeleton->dispatch_and_wait((num_leafs + 63) / 64, 1, 1, GL_ALL_BARRIER_BITS);
+        error = glGetError();
+        if (error != GL_NO_ERROR) {
+            printf("OpenGL Error after: 0x%x\n", error);
+            assert(false);
+        }
+    }
+
+    void update_animated_vertices(Scene& scene) {
+        Compute_Shader* skin = Shader_Manager::get_compute("skin");
+        skin->use();
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, vbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, g_rigged_vertices_ssbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.animated_mesh_to_all_mesh_mapping_ssbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, scene.gpu_mesh_ssbo);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, bone_ssbo);
+
+        skin->set_uint("animated_count", (uint32_t)scene.animated_mesh_to_all_mesh_mapping.size());
+
+        printf("skinning %du meshes\n", (uint32_t)scene.animated_mesh_to_all_mesh_mapping.size());
+
+        skin->dispatch_and_wait((scene.animated_mesh_to_all_mesh_mapping.size() + 31) / 32, 1, 1, GL_ALL_BARRIER_BITS);
+
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            assert(false);
+            printf("OpenGL Error after: 0x%x\n", error);
+        }
     }
 
     uint32_t get_bone_ssbo() { return bone_ssbo; }
