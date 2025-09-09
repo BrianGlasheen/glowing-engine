@@ -168,7 +168,9 @@ namespace Glow {
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
 		Entity e5555 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(e5555);
-		printf("here\n");
+		
+		Entity e55552 = Entity::Animated_Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		scene.include(e55552);
 
 	/*	Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(d23);
@@ -287,18 +289,14 @@ namespace Glow {
 			last_frame = current_time;
 
 			//if (!editor_mode) {
-			
 			// todo this controller step will also update holding / player viewmodel visibility stuff like that
-			player.controller_step(window.get_window(), delta_time, scene);
-			{
-				PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
-				Physics::update(); // default 1/60 delta time
-			}
 
-			{
-				PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
-				scene.update_dirty();
-			}
+			player.controller_step(window.get_window(), delta_time, scene);
+			{ PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
+			  Physics::update(); } // default 1/60 delta time
+
+			{ PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
+			  scene.update_dirty(); }
 
 			// grab per frame values
 			float aspect_ratio = (float)renderer.scr_width / (float)renderer.scr_height;
@@ -327,9 +325,8 @@ namespace Glow {
 			active_inv_view = glm::inverse(active_view);
 			active_inv_proj = glm::inverse(active_proj);
 
-			{
-				PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
-				renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
+			{ PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
+			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
 			
 			{ PROFILE_SCOPE_COLOR("compute update bones", legit::Colors::nephritis);
 			  Model_Manager::update_bones_from_animation_compute(window.get_time()); }
@@ -347,37 +344,21 @@ namespace Glow {
 				//PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
 				//renderer.sort_blended_draws();
 			}
-			
-			// player submit render items
-			//player.submit_animation_items(); todo this will be done via main cull shader
-			//player.submit_render_items(renderer); same here
 
 			// iterate particles + submit etc
 			// other cool things todo! B)
 
-			//renderer.upload_render_commands();
+			{ PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+			  if (renderer.forward_plus)
+				renderer.build_cluster_pass(active_inv_proj); } // todo pass calc'd already
 
-			{
-				PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-				if (renderer.forward_plus)
-					renderer.build_cluster_pass(active_inv_proj); // todo pass calc'd already
-			}
+			{ PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+			  if (renderer.forward_plus)
+				renderer.cull_cluster_pass(active_view); } // todo pass calc'd alre
 
-			{
-				PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-				if (renderer.forward_plus)
-					renderer.cull_cluster_pass(active_view);// todo pass calc'd alre
-			}
-			{
-				PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
-				if (renderer.ssao_enabled)
-					renderer.ssao_pass(active_proj, active_inv_proj);
-			}
-			{
-				PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
-				//Model_Manager::update_bones_from_animation_compute(0, current_time);
-			}
-			// compute skin rigged models -> main buffer
+			{ PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
+			  if (renderer.ssao_enabled)
+				renderer.ssao_pass(active_proj, active_inv_proj); }
 			
 			{ PROFILE_SCOPE_COLOR("CSM shadow pass", legit::Colors::sunFlower);
 			  renderer.shadow_pass(scene); }
@@ -395,6 +376,9 @@ namespace Glow {
 			
 			if (renderer.do_draw_light_quads)
 				renderer.draw_light_quads(player_proj, player_view);
+
+			if (renderer.draw_skeletons)
+				renderer.debug_skeletons(scene, active_viewproj);
 
 			renderer.render_skybox(scene.skybox, player_view, player_proj);
 
@@ -433,7 +417,8 @@ namespace Glow {
 			ImGui::NewFrame();
 
 			ImGui::Begin("particle");
-			ImGui::Checkbox("compute culling", &compute_culling);     
+			ImGui::Checkbox("compute culling", &compute_culling);
+			ImGui::Checkbox("skele", &renderer.draw_skeletons);
 			ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
 			ImGui::SliderFloat3("acceleration dir", &renderer.acceleration_direction.x, -1.0f, 1.0f);
 			ImGui::SliderFloat("acceleration mag", &renderer.acceleration_force, -17.0f, 19.0f);

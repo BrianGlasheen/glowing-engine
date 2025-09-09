@@ -117,6 +117,8 @@ int Renderer::init() {
     Shader_Manager::load_from_name("depth_prepass");
     Shader_Manager::load_from_paths("indirect_depth_prepass", "vertex_ind_depth_v.glsl", "depth_prepass_f.glsl");
 
+    Shader_Manager::load_from_paths("skeleton_debug", "skeleton_debug_v.glsl", "outline_f.glsl");
+
     // 
     Shader_Manager::load_from_name("outline");
     Shader_Manager::load_from_name("debug");
@@ -733,9 +735,9 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     Shader* shader = Shader_Manager::get_shader("indirect");
     shader->use();
     //glStencilMask(0x00);
-    Texture_Manager::bind(ssao_texture, 0); // todo once
-    Texture_Manager::bind_array(csm_texture, 1); // todo once
 
+    Texture_Manager::bind(ssao_texture, 7); // todo once
+    Texture_Manager::bind_array(csm_texture, 8); // todo once
     scene.skybox.bind(9);
     shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
 
@@ -769,15 +771,15 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
 
-    GLuint count;
-    glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
-    printf("Draw count: %u \n", count);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, scene.per_mesh_ssbo);
     cluster_ssbo.bind(1);
     light_ssbo.bind(2);
+    
+    glBindBuffer(GL_PARAMETER_BUFFER, num_commands);
+
+#if BINDLESS
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, compute_culled_commands);
-    glBindBuffer(GL_PARAMETER_BUFFER, num_commands);
 
     glMultiDrawElementsIndirectCount(
         GL_TRIANGLES,
@@ -787,6 +789,32 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
         MAX_DRAW_COMMANDS,                                 // maximum draws
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
+
+#else
+    GLuint count;
+    glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
+    printf("Draw count: %u \n", count);
+
+    std::vector<Draw_Elements_Indirect_Command> commands(count);
+    glBindBuffer(GL_COPY_READ_BUFFER, compute_culled_commands);
+    glGetBufferSubData(GL_COPY_READ_BUFFER, 0,
+        count * sizeof(Draw_Elements_Indirect_Command),
+        commands.data());
+
+    for (uint32_t i = 0; i < count; i++) {
+        Draw_Elements_Indirect_Command cmd = commands[i];
+        Per_Object_Data pod = scene.per_mesh_data[cmd.base_instance];
+        Texture_Manager::bind(pod.albedo, 0);
+        Texture_Manager::bind(pod.normal, 1);
+        Texture_Manager::bind(pod.met_rough, 2);
+        Texture_Manager::bind(pod.emissive, 3);
+        Texture_Manager::bind(pod.amb_occ, 4);
+        shader->set_uint("instance_id", cmd.base_instance);
+
+        glDrawElementsBaseVertex(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.base_vertex);
+    }
+
+#endif
 
     glBindVertexArray(0);
 
@@ -1403,4 +1431,38 @@ void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::
 
 glm::vec4 Renderer::normalize_plane(glm::vec4 p) {
     return p / glm::length(glm::vec3(p));
+}
+
+
+void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
+    // use skeleton debug shader
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);  // Always pass
+    glDepthMask(GL_TRUE);    // Still write to depth buffer
+    glEnable(GL_PROGRAM_POINT_SIZE);
+
+    Shader* shader = Shader_Manager::get_shader("skeleton_debug");
+    shader->use();
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, Model_Manager::get_skinned_bone_ssbo());
+
+    static GLuint dummyVAO = 0;
+    if (dummyVAO == 0) {
+        glGenVertexArrays(1, &dummyVAO);
+    }
+    glBindVertexArray(dummyVAO);
+
+    // draw points
+    for (Entity& e : scene.entities) {
+        if (e.is_animated) {
+            Animated_Model am = Model_Manager::get_animated_model(e.model_id);
+            uint32_t base_bone = am.base_bone + am.bone_offset;
+            uint32_t bone_count = am.bone_count;
+
+            shader->set_mat4("mvp", vp * e.get_model_matrix());
+            shader->set_uint("base_bone", base_bone);
+            shader->set_vec3("color", glm::vec3(1.0f, 0.0f, 0.0f));
+            glDrawArrays(GL_POINTS, 0, bone_count);
+        }
+    }
 }

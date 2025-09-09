@@ -50,14 +50,14 @@ out flat float alpha_cutoff;
 
 uniform mat4 vp;
 #if !BINDLESS
-    uniform uint draw_id;
+    uniform uint instance_id;
 #endif
 
 void main() {
     #if BINDLESS
         Per_Object_Data obj_data = per_object_data[gl_BaseInstance];
     #else
-        Per_Object_Data obj_data = per_object_data[draw_id];
+        Per_Object_Data obj_data = per_object_data[instance_id];
     #endif
 
     base_color_factor = obj_data.base_color;

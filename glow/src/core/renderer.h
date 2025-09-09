@@ -110,6 +110,8 @@ public:
     void debug_cascades(Scene& scene);
 
     glm::vec4 normalize_plane(glm::vec4 p);
+    void debug_skeletons(Scene& scene, const glm::mat4& vp);
+
 
 // private:
 
@@ -142,6 +144,7 @@ public:
 
     bool use_depth_prepass = false;
     bool do_draw_light_quads = false;
+    bool draw_skeletons = true;
 
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;

@@ -398,6 +398,8 @@ namespace Model_Manager {
             printf("animation count %d\n", model.base_animation);
         }
 
+        model.calculate_aabb();
+
         model_index = m_animated_models.size();
 
         m_animated_models.push_back(model);
@@ -2193,6 +2195,7 @@ namespace Model_Manager {
         //const Animation& anim = g_animations[animation_index]
 
         printf("animating for %d leafs\n", num_leafs);
+        printf("num_animation_cmds %du\n", n_cmds);
 
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();
@@ -2201,7 +2204,6 @@ namespace Model_Manager {
         GLenum error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
 
         // can do all these once if doing gpu skeletal transforms
@@ -2209,55 +2211,46 @@ namespace Model_Manager {
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bone_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, skinned_bone_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, absolute_bone_transform_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transform_time_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, bone_animation_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, pos_keys_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, rot_keys_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, scale_keys_ssbo);
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
 
          //printf("Dispatching animation at time: %.3f\n", time);
@@ -2271,7 +2264,6 @@ namespace Model_Manager {
         error = glGetError();
         if (error != GL_NO_ERROR) {
             printf("OpenGL Error after: 0x%x\n", error);
-            assert(false);
         }
     }
 

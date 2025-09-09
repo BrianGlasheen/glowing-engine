@@ -32,9 +32,6 @@ layout(std430, binding = 2) restrict buffer lightSSBO {
     GPU_Light lights[];
 };
 
-layout(binding = 0) uniform sampler2D ssao;
-layout(binding = 1) uniform sampler2DArray directional_shadow_map;
-
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
@@ -60,6 +57,8 @@ in flat float alpha_cutoff;
     layout(binding = 4) uniform sampler2D occlusion_texture;
 #endif
 
+layout(binding = 7) uniform sampler2D ssao;
+layout(binding = 8) uniform sampler2DArray directional_shadow_map;
 layout(binding = 9) uniform samplerCube skybox;
 uniform uint num_skybox_mips;
 

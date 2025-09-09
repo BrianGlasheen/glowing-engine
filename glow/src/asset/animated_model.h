@@ -17,7 +17,8 @@ public:
 		calculate_aabb();
 		// set animation offset
 	
-		animation_offset = m_meshes[0].base_vertex - base_animation_vertex;
+		//animation_offset = m_meshes[0].base_vertex - base_animation_vertex;
+		//printf("\n\n\nbase vertex: %du, base anim vert: %du, offset: %du\n", m_meshes[0].base_vertex, base_animation_vertex, animation_offset);
 	}
 
 	void add_mesh(Mesh& mesh) {
@@ -36,6 +37,9 @@ public:
 			m_aabb.min = glm::min(mesh.aabb.min, m_aabb.min);
 			m_aabb.max = glm::max(mesh.aabb.max, m_aabb.max);
 		}
+
+		animation_offset = m_meshes[0].base_vertex - base_animation_vertex;
+		printf("\n\n\nbase vertex: %du, base anim vert: %du, offset: %du\n", m_meshes[0].base_vertex, base_animation_vertex, animation_offset);
 	}
 
 	Util::AABB get_aabb() {
