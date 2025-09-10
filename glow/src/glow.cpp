@@ -12,6 +12,7 @@
 #include "asset/text.h"
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
+#include "asset/particle_manager.h"
 
 #include "player/player.h"
 #include "core/ssbo.h"
@@ -28,27 +29,6 @@
 #include <vector>
 
 namespace Glow {
-	void iterate_entities(Scene& scene, const glm::vec3& view_pos, const float& aspect_ratio); // hm forward declaration i guess it works
-
-	// ▀█▀ █▀█ █▀▄ █▀█   █▄░█ █░█ █▄▀ █▀▀
-	// ░█░ █▄█ █▄▀ █▄█   █░▀█ █▄█ █░█ ██▄
-	struct Particle {
-		glm::vec3 position;
-		float ttl;
-		glm::vec3 velocity;
-		float max_ttl;
-		glm::vec4 color_start;
-		glm::vec4 color_end;
-		float size_start;
-		float size_end;
-		glm::vec2 padding;
-	};
-
-	SSBO particle_ssbo;
-
-	// ▀█▀ █▀█ █▀▄ █▀█   █▄░█ █░█ █▄▀ █▀▀
-	// ░█░ █▄█ █▄▀ █▄█   █░▀█ █▄█ █░█ ██▄
-
 	float delta_time = 0.0f;
 	float last_frame = 0.0f;
 	bool editor_mode = 0;
@@ -72,6 +52,53 @@ namespace Glow {
 			return -1;
 
 		//Texture_Manager::init();
+		Particle_Manager::init();
+
+		Particle_Paramaters a = {
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f),  // Up
+			2.0f,
+			glm::vec2(1.0f, 3.0f),
+			glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
+			glm::vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
+			glm::vec3(0.0f, 2.0f, 0.0f),
+			glm::vec3(1.5f, 0.5f, 1.5f),       // Spread outward
+			3.0f,
+			150.0f,
+			5000
+		};
+
+		Particle_Paramaters b = {
+			glm::vec3(-250.0f, 2.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
+			0.5f,
+			glm::vec2(2.0f, 5.0f),
+			glm::vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
+			glm::vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
+			glm::vec3(0.0f, 1.0f, 0.0f),
+			glm::vec3(2.0f, 1.0f, 2.0f),       // Wide spread
+			1.5f,
+			75.0f,
+			3000
+		};
+
+		Particle_Paramaters c = {
+			glm::vec3(250.0f, 1.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gravity down
+			8.0f,
+			glm::vec2(0.5f, 2.0f),
+			glm::vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
+			glm::vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
+			12.0f,
+			500.0f,  // High burst rate
+			8000
+		};
+
+		Particle_Manager::add_effect("a", a, 10.0f);
+		Particle_Manager::add_effect("b", b, 10.0f);
+		Particle_Manager::add_effect("c", c, 10.0f);
 
 		if (editor.init())
 			return -1;
@@ -103,8 +130,8 @@ namespace Glow {
 		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e(pos, rot, scale, plane, false);
-		scene.include(e);
+		Entity e23223(pos, rot, scale, plane, false);
+		scene.include(e23223);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -171,6 +198,7 @@ namespace Glow {
 		
 		Entity e55552 = Entity::Animated_Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(e55552);
+
 
 	/*	Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(d23);
@@ -253,25 +281,6 @@ namespace Glow {
 		Text screen_text3(font3, u8"我爱你", 600, 200, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));
 		Text screen_text4(font3, "hello world!?", 800, 300, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));*/
 
-
-		// todo move
-		const int MAX_PARTICLES = 10000;
-		std::vector<Particle> particles(MAX_PARTICLES);
-		for (auto& p : particles) {
-			p.position = glm::vec3(0.0f);
-			p.ttl = 0.0f;
-			p.velocity = glm::vec3(0.0f);
-			p.max_ttl = 0.0f;
-			p.color_start = glm::vec4(0.0f);
-			p.color_end = glm::vec4(0.0f);
-			p.size_start = 0.0f;
-			p.size_end = 0.0f;
-			// p.padding;
-		}
-		//SSBO particle_ssbo;
-		particle_ssbo.init();
-		particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
-		///////////////////////////////////////////////////////////
 		Model_Manager::setup_ssbos();
 		Model_Manager::upload_animation_commands();
 
@@ -366,10 +375,11 @@ namespace Glow {
 			{ PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
 			  renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj); }
 
-			//{
-			//	PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
-			//	renderer.particle_pass(delta_time, particles, player);
-			//}
+			{
+				PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
+				Particle_Manager::step_particles(delta_time);
+				renderer.particle_pass(delta_time, active_proj, active_view);
+			}
 			// post process pass theoretically
 			{ PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
 			  if (renderer.bloom_enabled) renderer.bloom_pass(); }

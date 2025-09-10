@@ -76,7 +76,7 @@ public:
     // todo grab random stuff from
     //void render(Player& player, Scene& scene, float delta_time, SSBO& particles); // todo rm
 
-    void particle_pass(float delta_time, SSBO& particle_ssbo, const glm::mat4& proj, const glm::mat4& view);
+    void particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view);
     
     void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
     void bloom_pass();

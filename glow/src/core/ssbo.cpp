@@ -8,7 +8,7 @@ void SSBO::init() {
     glGenBuffers(1, &id);
 }
 
-void SSBO::bind(uint32_t binding) {
+void SSBO::bind(uint32_t binding) const {
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding, id);
 }
 

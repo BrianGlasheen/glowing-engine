@@ -6,6 +6,7 @@
 
 #include "asset/material_manager.h"
 #include "asset/model_manager.h"
+#include "asset/particle_manager.h"
 
 #include "util/frustum.h"
 #include "util/colors.h"
@@ -138,7 +139,6 @@ int Renderer::init() {
     // post processing compute shaders
     Shader_Manager::load_compute("bloomdown");
     Shader_Manager::load_compute("bloomup");
-    Shader_Manager::load_compute("particle2");
 
     Shader_Manager::load_compute("cull_mesh");
     Shader_Manager::load_compute("clear_dirty");
@@ -1100,44 +1100,21 @@ void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj) {
     debug_renderer.render(shader, proj, view, num_lights);
 }
 
-void Renderer::particle_pass(float delta_time, SSBO& particle_ssbo, const glm::mat4& proj, const glm::mat4& view) {
-    // todo holy hell
+void Renderer::particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //glDisable(GL_DEPTH_TEST);
-    const int MAX_PARTICLES = 10000;
-    
-    Compute_Shader* particle = Shader_Manager::get_compute("particle2");
-
-    particle->use();
-    particle->set_float("dt", delta_time);
-    particle->set_vec3("emitter_position", emitter_position);
-    particle->set_vec3("acceleration_direction", acceleration_direction);
-    particle->set_float("acceleration_force", acceleration_force);
-    particle->set_vec2("life_range", life_range);
-    particle->set_vec4("color_start_base", color_start_base);
-    particle->set_vec4("color_end_base", color_end_base);
-    particle->set_vec3("velocity_base", velocity_base);
-    particle->set_vec3("velocity_random_bias", velocity_random_bias);
-    particle->set_float("velocity_mag", velocity_mag);
-    particle->set_float("emission_rate", emission_rate);
-    particle->set_int("max_particle", MAX_PARTICLES);
-
-    particle_ssbo.bind(0);
-    glDispatchCompute((MAX_PARTICLES + 127) / 128, 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
     Shader* shader = Shader_Manager::get_shader("particle");
     shader->use();
     shader->set_mat4("view", view);
     shader->set_mat4("projection", proj);
-    particle_ssbo.bind(0);
     glBindVertexArray(quadVAO);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, MAX_PARTICLES);
-    
+
+    Particle_Manager::draw();
     //glEnable(GL_DEPTH_TEST);
 }
 
