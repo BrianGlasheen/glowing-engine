@@ -1422,6 +1422,7 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
     shader->use();
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, Model_Manager::get_skinned_bone_ssbo());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_bone_ssbo());
 
     static GLuint dummyVAO = 0;
     if (dummyVAO == 0) {
@@ -1438,7 +1439,14 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
 
             shader->set_mat4("mvp", vp * e.get_model_matrix());
             shader->set_uint("base_bone", base_bone);
-            shader->set_vec3("color", glm::vec3(1.0f, 0.0f, 0.0f));
+            shader->set_uint("bone_count", bone_count);
+
+            shader->set_uint("draw_mode", 1);
+            shader->set_vec3("color", glm::vec3(0.0f, 1.0f, 1.0f));
+            glDrawArrays(GL_LINES, 0, bone_count * 2);
+
+            shader->set_uint("draw_mode", 0);
+            shader->set_vec3("color", glm::vec3(1.0f, 0.64f, 0.0f));
             glDrawArrays(GL_POINTS, 0, bone_count);
         }
     }

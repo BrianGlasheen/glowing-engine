@@ -48,15 +48,19 @@ namespace FPS_Controller {
         //    player_physics.velocity.y = JUMP_FORCE;
         //    player_physics.isOnGround = false;
         //}
-        glm::vec3 currentVelocity = Physics::get_body_velocity(physics_id);
-        glm::vec3 newVelocity(movement.x, currentVelocity.y, movement.z);
 
+        glm::vec3 forward = glm::normalize(glm::vec3(camera.front.x, 0.0f, camera.front.z));
+        glm::vec3 right = glm::normalize(glm::cross(forward, camera.world_up));
+        glm::vec3 acceleration = forward * movement.z + right * movement.x;
+
+        glm::vec3 currentVelocity = Physics::get_body_velocity(physics_id);
+        glm::vec3 newVelocity(acceleration.x, currentVelocity.y, acceleration.z);
         Physics::set_body_velocity(physics_id, newVelocity);
 
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
             //camera.position += glm::vec3(0.0f, 1.0f, 0.0f);
 
-            JPH::Vec3 jumpVelocity(0, 150.0f, 0); // jump impulse
+            JPH::Vec3 jumpVelocity(0, 500.0f, 0); // jump impulse
             Physics::add_impulse(physics_id, jumpVelocity);
             /*player_physics.velocity.y = JUMP_FORCE;
             player_physics.isOnGround = false;*/
@@ -68,12 +72,6 @@ namespace FPS_Controller {
             player_physics.isOnGround = false;*/
         }
         
-
-        // Convert camera-relative movement to world space
-        glm::vec3 forward = glm::normalize(glm::vec3(camera.front.x, 0.0f, camera.front.z));
-        glm::vec3 right = glm::normalize(glm::cross(forward, camera.world_up));
-        glm::vec3 acceleration = forward * movement.z + right * movement.x;
-
         //camera.position += acceleration;
         camera.position = Physics::get_body_position(physics_id) + glm::vec3(0.0f, 1.5f, 0.0f);
 
