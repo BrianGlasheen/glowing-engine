@@ -126,12 +126,12 @@ namespace Glow {
 		//printf(loaded ? "good\n" : "bad\n");
 		scene.init("sky");
 
-		model_handle plane = Model_Manager::load_model("plane.obj");
-		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e23223(pos, rot, scale, plane, false);
-		scene.include(e23223);
+		// model_handle plane = Model_Manager::load_model("plane.obj");
+		// glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+		// glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+		// glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
+		// Entity e23223(pos, rot, scale, plane, false);
+		// scene.include(e23223);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -193,11 +193,11 @@ namespace Glow {
 		//model_handle raccoon226 = Model_Manager::load_animated_model_cgltf("gun/scene.gltf");
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
-		Entity e5555 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
-		scene.include(e5555);
+		// Entity e5555 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		// scene.include(e5555);
 		
-		Entity e55552 = Entity::Animated_Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
-		scene.include(e55552);
+		// Entity e55552 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "AnimatedCube/glTF/AnimatedCube.gltf", false);
+		// scene.include(e55552);
 
 
 	/*	Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
@@ -245,11 +245,11 @@ namespace Glow {
 			//Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
 			//scene.include(fsfsfsf);
 
-		//model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
+		model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
-			//model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-			//Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), loaded, false);
-			//scene.include(sadasd23232323232332323);
+			// model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+			Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), loaded, false);
+			// scene.include(sadasd23232323232332323);
 		}
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu

@@ -1,24 +1,82 @@
+#include "texture_manager.h"
+
+// #include <glad/glad.h>
+#include "core/opengl.h"
+#include "glow_config.h"
+
+#include "stb_image.h"
+
 #include <vector>
 #include <string>
 #include <iostream>
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 
-// #include <glad/glad.h>
-#include "core/opengl.h"
-
-#include <stb_image.h>
-
-#include "texture_manager.h"
+struct DDSHeader {
+    uint32_t size;
+    uint32_t flags;
+    uint32_t height;
+    uint32_t width;
+    uint32_t pitchOrLinearSize;
+    uint32_t depth;
+    uint32_t mipMapCount;
+    uint32_t reserved1[11];
+    
+    struct {
+        uint32_t size;
+        uint32_t flags;
+        uint32_t fourCC;
+        uint32_t RGBBitCount;
+        uint32_t RBitMask;
+        uint32_t GBitMask;
+        uint32_t BBitMask;
+        uint32_t ABitMask;
+    } pixelFormat;
+    
+    uint32_t caps;
+    uint32_t caps2;
+    uint32_t caps3;
+    uint32_t caps4;
+    uint32_t reserved2;
+};
 
 namespace Texture_Manager {
 
-    static std::vector<uint32_t> textures;
-    static std::vector<std::string> paths;
-    //static std::vector<texture_data> texture_data;
+    // todo can slim down if non bindless maybe
+    struct Texture {
+        uint32_t gl_id;
+        uint64_t handle;
+        std::string path;
+        int width, height, channels;
+        // enum type or something format idk
+    };
+    static std::vector<Texture> textures;
+
+    void init() {
+        //stbi_set_flip_vertically_on_load(true);
+        // texture_handle zero = load("../resources/textures/missing.png");
+        // assert(!textures.empty());
+        // todo set basepath
+    }
+
+    void cleanup() {
+        // for (uint32_t texture : textures) {
+        //     if (texture != 0) {
+        //         // make non resident
+        //         glDeleteTextures(1, &texture);
+        //     }
+        // }
+        // textures.clear();
+        // paths.clear();
+
+        // bindless_textures
+    }
+
 
     bool loaded_already(const std::string& new_path, size_t& existing_idx) {
-        for (size_t i = 0; i < paths.size(); i++) {
-            if (new_path == paths[i]) {
+        for (size_t i = 0; i < textures.size(); i++) {
+            if (new_path == textures[i].path) {
                 existing_idx = i;
                 return true;
             }
@@ -26,40 +84,116 @@ namespace Texture_Manager {
         return false;
     }
 
-    void init() {
-        //stbi_set_flip_vertically_on_load(true);
-        texture_handle zero = load_from_path("../resources/textures/missing.png");
-        assert(!textures.empty());
-        // todo set basepath
-    }
+    uint64_t load(const std::string& file_path) {
+        std::string dds = file_path.substr(0, file_path.find_last_of('.')) + ".dds";
+        bool is_dds = std::filesystem::exists(dds);
 
-    void cleanup() {
-        for (uint32_t texture : textures) {
-            if (texture != 0) {
-                glDeleteTextures(1, &texture);
-            }
-        }
-        textures.clear();
-        paths.clear();
-    }
+        std::string target = is_dds ? dds : file_path;
 
-    texture_handle load_from_path(const std::string& file_path) {
         size_t existing_texture_index;
         if (loaded_already(file_path, existing_texture_index)) {
-            return existing_texture_index;
+            printf("[bindless] %s already loaded\n", file_path.c_str());
+            return textures[existing_texture_index].handle;
         }
 
-        uint32_t texture_id = 0;
+        if (is_dds)
+            return load_dds(target);
+        else
+            return load_non_dds(target);
+    }
+
+    uint64_t load_dds(const std::string& file_path) {
+        std::ifstream file(file_path, std::ios::binary);
+        if (!file) {
+            std::cerr << "Failed to open DDS file: " << file_path << std::endl;
+            return 0;
+        }
+        
+        char magic[4];
+        file.read(magic, 4);
+        if (std::string(magic, 4) != "DDS ") {
+            std::cerr << "Invalid DDS file format" << std::endl;
+            return 0;
+        }
+        
+        DDSHeader header;
+        file.read(reinterpret_cast<char*>(&header), sizeof(header));
+        
+        GLenum format = get_ogl_format(header.pixelFormat.fourCC);
+        if (format == 0) {
+            std::cerr << "Unsupported DDS format" << std::endl;
+            return 0;
+        }
+        
+        uint32_t mipCount = (header.mipMapCount > 0) ? header.mipMapCount : 1;
+        uint32_t blockSize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
+        
+        std::vector<uint8_t> data;
+        uint32_t width = header.width;
+        uint32_t height = header.height;
+        
+        for (uint32_t mip = 0; mip < mipCount; mip++) {
+            uint32_t mipSize = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+            
+            size_t currentPos = data.size();
+            data.resize(currentPos + mipSize);
+            file.read(reinterpret_cast<char*>(&data[currentPos]), mipSize);
+            
+            width = std::max(1u, width / 2);
+            height = std::max(1u, height / 2);
+        }
+        
+        GLuint texture_id;
         glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        
+        width = header.width;
+        height = header.height;
+        uint32_t offset = 0;
+
+        // Texture tex = { texture_id, handle, file_path, width, height, 0 };
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = file_path;
+        texture.width = width;
+        texture.height = height;
+
+        for (uint32_t mip = 0; mip < mipCount; mip++) {
+            uint32_t mipSize = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+            
+            glCompressedTexImage2D(GL_TEXTURE_2D, mip, format, width, height, 0, mipSize, &data[offset]);
+            
+            offset += mipSize;
+            width = std::max(1u, width / 2);
+            height = std::max(1u, height / 2);
+        }
+        
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipCount > 1 ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+#if BINDLESS
+        uint64_t handle = glGetTextureHandleARB(texture_id);
+        glMakeTextureHandleResidentARB(handle);
+        texture.handle = handle;
+#endif
+        glBindTexture(GL_TEXTURE_2D, 0);
+        
+        std::cout << "[DDS] Loaded DDS texture: " << file_path << " (" << header.width << "x" << header.height << ", " << mipCount << " mips)" << std::endl;
+        
+#if BINDLESS
+        return texture.handle;
+#else
+        return texture.gl_id;
+#endif
+    }
+    
+    uint64_t load_non_dds(const std::string& file_path) {
         int width, height, nrComponents;
         unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &nrComponents, 0);
 
         if (data) {
-            //GLenum format = 0;
-            //if (nrComponents == 1) format = GL_RED;
-            //else if (nrComponents == 3) format = GL_RGB;
-            //else if (nrComponents == 4) format = GL_RGBA;
-
             GLenum internalFormat = 0, dataFormat = 0;
             if (nrComponents == 1) {
                 internalFormat = dataFormat = GL_RED;
@@ -78,6 +212,18 @@ namespace Texture_Manager {
                 return 0;
             }
 
+            // here
+            uint32_t texture_id = 0;
+            glGenTextures(1, &texture_id);
+
+            // emplace
+            Texture& texture = textures.emplace_back();
+            texture.gl_id = texture_id;
+            texture.path = file_path;
+            texture.width = width;
+            texture.height = height;
+            texture.channels = nrComponents; // todo need?
+
             glBindTexture(GL_TEXTURE_2D, texture_id);
             glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
             glGenerateMipmap(GL_TEXTURE_2D);
@@ -88,10 +234,24 @@ namespace Texture_Manager {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             stbi_image_free(data);
-            textures.push_back(texture_id);
-            paths.push_back(file_path);
+
+#if BINDLESS
+            uint64_t handle = glGetTextureHandleARB(texture_id);
+            glMakeTextureHandleResidentARB(handle);
+            // Texture tex = { texture_id, handle, file_path, width, height, nrComponents };
+            // textures.push_back(tex);
+            texture.handle = handle;
             std::cout << "[TEXTURE] Loaded: " << file_path << std::endl;
-            return textures.size() - 1;
+#endif
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            std::cout << "[TEXTURE] Loaded NON-DDS texture: " << file_path << " (" << texture.width << "x" << texture.height << std::endl;
+
+#if BINDLESS
+            return texture.handle;
+#else
+            return texture.gl_id;
+#endif
         }
         else {
             std::cout << "Texture failed to load: " << file_path << std::endl;
@@ -138,7 +298,7 @@ namespace Texture_Manager {
         if (mips > 1)
             glGenerateMipmap(GL_TEXTURE_2D);
 
-        printf("[TEXTURE] %s resized to width: %d, height: %d\n", paths[handle].c_str(), width, height);
+        printf("[TEXTURE] %s resized to width: %d, height: %d\n", textures[handle].path.c_str(), width, height);
     }
 
     texture_handle load_msdf(const std::string& file_path) {
@@ -147,8 +307,6 @@ namespace Texture_Manager {
             return existing_texture_index;
         }
 
-        uint32_t texture_id = 0;
-        glGenTextures(1, &texture_id);
         int width, height, nrComponents;
         unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &nrComponents, 0);
 
@@ -164,6 +322,9 @@ namespace Texture_Manager {
                 assert(false);
             }
 
+            uint32_t texture_id = 0;
+            glGenTextures(1, &texture_id);
+
             glBindTexture(GL_TEXTURE_2D, texture_id);
             glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 
@@ -175,8 +336,13 @@ namespace Texture_Manager {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
             stbi_image_free(data);
-            textures.push_back(texture_id);
-            paths.push_back(file_path);
+
+            Texture& texture = textures.emplace_back();
+            texture.gl_id = texture_id;
+            texture.path = file_path;
+            texture.width = width;
+            texture.height = height;
+
             std::cout << "[MSDF TEXTURE] Loaded: " << file_path << std::endl;
             return textures.size() - 1;
         }
@@ -199,8 +365,11 @@ namespace Texture_Manager {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-        textures.push_back(texture_id);
-        paths.push_back("depth_texture");
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "";
+        texture.width = width;
+        texture.height = height;
 
         std::cout << "[DEPTH TEXTURE] Created " << width << "x" << height << std::endl;
         return textures.size() - 1;
@@ -226,8 +395,11 @@ namespace Texture_Manager {
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        textures.push_back(texture_id);
-        paths.push_back(hdr ? "render_texture_hdr" : "render_texture");
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = hdr ? "render_texture_hdr" : "render_texture";
+        texture.width = width;
+        texture.height = height;
 
         std::cout << "[RENDER TEXTURE] Created " << (hdr ? "HDR " : "") << width << "x" << height << std::endl;
         return textures.size() - 1;
@@ -253,8 +425,11 @@ namespace Texture_Manager {
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        textures.push_back(texture_id);
-        paths.push_back("bloom_texture_with_mips");
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "bloom_texture_with_mips";
+        texture.width = width;
+        texture.height = height;
 
         std::cout << "[BLOOM TEXTURE] Created with " << mip_levels << " mip levels: " << width << "x" << height << std::endl;
         return textures.size() - 1;
@@ -274,8 +449,12 @@ namespace Texture_Manager {
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        textures.push_back(texture_id);
-        paths.push_back("ssao_texture");
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "ssao";
+        texture.width = width;
+        texture.height = height;
+
         return textures.size() - 1;
     }
 
@@ -293,48 +472,56 @@ namespace Texture_Manager {
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        textures.push_back(texture_id);
-        paths.push_back("noise_texture"); // todo maybe change if multiple of these
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "noise_texture";
+        texture.width = width;
+        texture.height = height;
+
         return textures.size() - 1;
     }
 
-    texture_handle create_3d_texture(int width, int height, int layers) {
-        uint32_t texture_id = 0;
-        glGenTextures(1, &texture_id);
+    // texture_handle create_3d_texture(int width, int height, int layers) {
+    //     uint32_t texture_id = 0;
+    //     glGenTextures(1, &texture_id);
 
-        glBindTexture(GL_TEXTURE_2D_ARRAY, texture_id);
-        glTexImage3D(
-            GL_TEXTURE_2D_ARRAY, // todo arg?
-            0,
-            GL_DEPTH_COMPONENT32F, // todo arg
-            width,
-            height,
-            layers,
-            0,
-            GL_DEPTH_COMPONENT, // todo arg
-            GL_FLOAT, // todo arg?
-            nullptr);
+    //     glBindTexture(GL_TEXTURE_2D_ARRAY, texture_id);
+    //     glTexImage3D(
+    //         GL_TEXTURE_2D_ARRAY, // todo arg?
+    //         0,
+    //         GL_DEPTH_COMPONENT32F, // todo arg
+    //         width,
+    //         height,
+    //         layers,
+    //         0,
+    //         GL_DEPTH_COMPONENT, // todo arg
+    //         GL_FLOAT, // todo arg?
+    //         nullptr);
 
-        //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //     //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //     //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    //     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    //     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    //     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-        constexpr float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, bordercolor);
+    //     constexpr float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    //     glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, bordercolor);
 
-        /*glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);*/
+    //     /*glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    //     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);*/
 
-        glBindTexture(GL_TEXTURE_2D, 0);
+    //     glBindTexture(GL_TEXTURE_2D, 0);
 
-        textures.push_back(texture_id);
-        paths.push_back("3d"); // todo maybe change if multiple of these
-        return textures.size() - 1;
-    }
+    //     Texture& texture = textures.emplace_back();
+    //     texture.gl_id = texture_id;
+    //     texture.path = "3d";  // todo maybe change if multiple of these
+    //     texture.width = width;
+    //     texture.height = height;
+
+    //     return textures.size() - 1;
+    // }
 
     texture_handle create_2d_array_texture(int width, int height, int layers) {
         uint32_t texture_id = 0;
@@ -351,8 +538,12 @@ namespace Texture_Manager {
         float borderColor[] = { 0.0f, 0.0f, 0.0f, 0.0f};
         glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, borderColor);
 
-        textures.push_back(texture_id);
-        paths.push_back("2d"); // todo maybe change if multiple of these
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "2d";  // todo maybe change if multiple of these
+        texture.width = width;
+        texture.height = height;
+
         return textures.size() - 1;
     }
 
@@ -375,7 +566,12 @@ namespace Texture_Manager {
 
             stbi_image_free(data);
 
-            textures.push_back(texture_id);
+            Texture& texture = textures.emplace_back();
+            texture.gl_id = texture_id;
+            texture.path = "heightmap";  // todo maybe change if multiple of these
+            texture.width = width;
+            texture.height = height;
+
             //paths.push_back(file_path);
             std::cout << "[TEXTURE] heightmap loaded: " << name << std::endl;
             return textures.size() - 1;
@@ -392,16 +588,16 @@ namespace Texture_Manager {
 
     void bind(texture_handle texture_id, uint32_t texture_unit) {
         glActiveTexture(GL_TEXTURE0 + texture_unit);
-        glBindTexture(GL_TEXTURE_2D, textures[texture_id]);
+        glBindTexture(GL_TEXTURE_2D, textures[texture_id].gl_id);
     }
 
     void bind_array(texture_handle texture_id, uint32_t texture_unit) {
         glActiveTexture(GL_TEXTURE0 + texture_unit);
-        glBindTexture(GL_TEXTURE_2D_ARRAY, textures[texture_id]);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, textures[texture_id].gl_id);
     }
 
     uint32_t get_ogl_id(texture_handle texture_id) {
-        return textures[texture_id];
+        return textures[texture_id].gl_id;
     }
 
     size_t get_texture_count() {
@@ -409,82 +605,27 @@ namespace Texture_Manager {
     }
 
     std::string get_name(texture_handle texture_id) {
-        return paths[texture_id];
+        return textures[texture_id].path;
     }
 
-    // bindless stuff
-    struct BindlessTexture {
-        uint32_t gl_id;
-        uint64_t handle;
-        std::string path;
-        int width, height, channels;
-    };
-    static std::vector<BindlessTexture> bindless_textures;
-
-    bool bindless_loaded_already(const std::string& new_path, size_t& existing_idx) {
-        for (size_t i = 0; i < bindless_textures.size(); i++) {
-            if (new_path == bindless_textures[i].path) {
-                existing_idx = i;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    uint64_t load_bindless_from_path(const std::string& file_path) {
-        size_t existing_texture_index;
-        if (bindless_loaded_already(file_path, existing_texture_index)) {
-            return bindless_textures[existing_texture_index].handle;
-        }
-
-        uint32_t texture_id = 0;
-        glGenTextures(1, &texture_id);
-        int width, height, nrComponents;
-        unsigned char* data = stbi_load(file_path.c_str(), &width, &height, &nrComponents, 0);
-
-        if (data) {
-            GLenum internalFormat = 0, dataFormat = 0;
-            if (nrComponents == 1) {
-                internalFormat = dataFormat = GL_RED;
-            }
-            else if (nrComponents == 3) {
-                internalFormat = GL_SRGB;
-                dataFormat = GL_RGB;
-            }
-            else if (nrComponents == 4) {
-                internalFormat = GL_SRGB_ALPHA;
-                dataFormat = GL_RGBA;
-            }
-            else {
-                std::cerr << "Unsupported number of texture components: " << nrComponents << std::endl;
-                stbi_image_free(data);
+    uint32_t get_ogl_format(uint32_t fourCC) {
+        switch (fourCC) {
+            case 0x31545844: // "DXT1"
+                return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+            case 0x33545844: // "DXT3"
+                return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+            case 0x35545844: // "DXT5"
+                return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+            case 0x55344342: // "BC4U"
+                return GL_COMPRESSED_RED_RGTC1;
+            case 0x53344342: // "BC4S"
+                return GL_COMPRESSED_SIGNED_RED_RGTC1;
+            case 0x55354342: // "BC5U"
+                return GL_COMPRESSED_RG_RGTC2;
+            case 0x53354342: // "BC5S"
+                return GL_COMPRESSED_SIGNED_RG_RGTC2;
+            default:
                 return 0;
-            }
-
-            glBindTexture(GL_TEXTURE_2D, texture_id);
-            glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            stbi_image_free(data);
-
-            uint64_t handle = glGetTextureHandleARB(texture_id);
-            glMakeTextureHandleResidentARB(handle);
-
-            BindlessTexture tex = { texture_id, handle, file_path, width, height, nrComponents };
-            bindless_textures.push_back(tex);
-
-            std::cout << "[BINDLESS TEXTURE] Loaded: " << file_path << std::endl;
-            return handle;
-        }
-        else {
-            std::cout << "Bindless texture failed to load: " << file_path << std::endl;
-            stbi_image_free(data);
-            return 0;
         }
     }
 }

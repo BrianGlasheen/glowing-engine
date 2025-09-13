@@ -741,7 +741,8 @@ namespace Model_Manager {
         mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
 
         mesh_ind.base_vertex = g_vertices.size();// 
-        uint32_t vertex_count = mesh->mNumVertices;
+        // uint32_t vertex_count = mesh->mNumVertices;
+        mesh_ind.vertex_count = mesh->mNumVertices;
 
         g_vertices.reserve(mesh->mNumVertices);
         for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
@@ -945,6 +946,7 @@ namespace Model_Manager {
         mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
 
         uint32_t num_vertices = mesh->mNumVertices;
+        mesh_ind.vertex_count = num_vertices;
 
         //// process bones
         // create mapping from verticies to bones
@@ -1260,20 +1262,14 @@ namespace Model_Manager {
             if (material->GetTextureCount(aiTextureType_BASE_COLOR)) {
                 aiString str;
                 material->GetTexture(aiTextureType_BASE_COLOR, 0, &str);
-                #if BINDLESS
-                    mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-                #else
-                    mesh_mat.albedo = Texture_Manager::load_from_path(path + str.C_Str());
-                #endif
+                
+                mesh_mat.albedo = Texture_Manager::load(path + str.C_Str());
             }
             if (material->GetTextureCount(aiTextureType_NORMALS)) {
                 aiString str;
                 material->GetTexture(aiTextureType_NORMALS, 0, &str);
-                #if BINDLESS
-                    mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-                #else
-                    mesh_mat.normal = Texture_Manager::load_from_path(path + str.C_Str());
-                #endif
+
+                mesh_mat.normal = Texture_Manager::load(path + str.C_Str());
             }
 
             // todo why metallic 1?
@@ -1283,28 +1279,22 @@ namespace Model_Manager {
                 aiString str;
                 material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &str);
                 // printf("MET ROUGHESNSENSENESNESNE %s\n", str.C_Str());
-                #if BINDLESS
-                    mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-                #else
-                    mesh_mat.met_rough = Texture_Manager::load_from_path(path + str.C_Str());
-                #endif
+                mesh_mat.met_rough = Texture_Manager::load(path + str.C_Str());
+
                 aiReturn metallicResult = material->Get(AI_MATKEY_METALLIC_FACTOR, metallic);
                 aiReturn roughnessResult = material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness);
             }
             mesh_mat.metallic_factor = metallic;
             mesh_mat.roughness_factor = roughness;
 
-            printf("MET: %f, ROG: %f\n", metallic, roughness);
+            // printf("MET: %f, ROG: %f\n", metallic, roughness);
 
             // aiTextureType_EMISSIVE
             if (material->GetTextureCount(aiTextureType_EMISSIVE)) {
                 aiString str;
                 material->GetTexture(aiTextureType_EMISSIVE, 0, &str);
-                #if BINDLESS
-                    mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-                #else
-                    mesh_mat.emissive = Texture_Manager::load_from_path(path + str.C_Str());
-                #endif
+                
+                mesh_mat.emissive = Texture_Manager::load(path + str.C_Str());
             }
 
             aiColor3D emissiveColor;
@@ -1321,7 +1311,6 @@ namespace Model_Manager {
 
             aiColor4D pbrBaseColor(0.0f, 0.0f, 0.0f, 0.0f);
             if (aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &pbrBaseColor) == AI_SUCCESS) {
-                // Use PBR base color
                 mesh_mat.base_color = glm::vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
             }
             else {
@@ -1332,11 +1321,8 @@ namespace Model_Manager {
             if (material->GetTextureCount(aiTextureType_LIGHTMAP)) {
                 aiString str;
                 material->GetTexture(aiTextureType_LIGHTMAP, 0, &str);
-                #if BINDLESS
-                    mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + str.C_Str());
-                #else
-                    mesh_mat.amb_occ = Texture_Manager::load_from_path(path + str.C_Str());
-                #endif
+
+                mesh_mat.amb_occ = Texture_Manager::load(path + str.C_Str());
             }
 
             float alpha_cutoff = 0.5f;
@@ -1373,7 +1359,7 @@ namespace Model_Manager {
                 else if (strcmp(alpha_mode.C_Str(), "BLEND") == 0) {
                     alpha_cutoff = 0.01f;
                     mesh_mat.blend_mode = Blend_Mode::blend;
-                    printf("\n\n\nyesblend\n\n\n");
+                    // printf("\n\n\nyesblend\n\n\n");
                 }
             }
 
@@ -1406,11 +1392,7 @@ namespace Model_Manager {
                 std::string uri = pbr->base_color_texture.texture->image->uri;
                 uri.resize(cgltf_decode_uri(&uri[0]));
 
-            #if BINDLESS
-                mesh_mat.albedo = Texture_Manager::load_bindless_from_path(path + uri);
-            #else
-                mesh_mat.albedo = Texture_Manager::load_from_path(path + uri);
-            #endif
+                mesh_mat.albedo = Texture_Manager::load(path + uri);
             }
 
             if (pbr->metallic_roughness_texture.texture && pbr->metallic_roughness_texture.texture->image &&
@@ -1419,11 +1401,7 @@ namespace Model_Manager {
                 std::string uri = pbr->metallic_roughness_texture.texture->image->uri;
                 uri.resize(cgltf_decode_uri(&uri[0]));
 
-            #if BINDLESS
-                mesh_mat.met_rough = Texture_Manager::load_bindless_from_path(path + uri);
-            #else
-                mesh_mat.met_rough = Texture_Manager::load_from_path(path + uri);
-            #endif
+                mesh_mat.met_rough = Texture_Manager::load(path + uri);
             }
 
             mesh_mat.metallic_factor = pbr->metallic_factor;
@@ -1436,7 +1414,7 @@ namespace Model_Manager {
                 pbr->base_color_factor[3]
             );
 
-            printf("MET: %f, ROG: %f\n", mesh_mat.metallic_factor, mesh_mat.roughness_factor);
+            // printf("MET: %f, ROG: %f\n", mesh_mat.metallic_factor, mesh_mat.roughness_factor);
         }
         else {
             mesh_mat.base_color = glm::vec4(1.0f);
@@ -1450,11 +1428,7 @@ namespace Model_Manager {
             std::string uri = material->normal_texture.texture->image->uri;
             uri.resize(cgltf_decode_uri(&uri[0]));
 
-        #if BINDLESS
-            mesh_mat.normal = Texture_Manager::load_bindless_from_path(path + uri);
-        #else
-            mesh_mat.normal = Texture_Manager::load_from_path(path + uri);
-        #endif
+            mesh_mat.normal = Texture_Manager::load(path + uri);
         }
 
         if (material->emissive_texture.texture && material->emissive_texture.texture->image &&
@@ -1463,11 +1437,7 @@ namespace Model_Manager {
             std::string uri = material->emissive_texture.texture->image->uri;
             uri.resize(cgltf_decode_uri(&uri[0]));
 
-        #if BINDLESS
-            mesh_mat.emissive = Texture_Manager::load_bindless_from_path(path + uri);
-        #else
-            mesh_mat.emissive = Texture_Manager::load_from_path(path + uri);
-        #endif
+            mesh_mat.emissive = Texture_Manager::load(path + uri);
         }
 
         mesh_mat.emissive_factor = glm::vec4(
@@ -1483,14 +1453,10 @@ namespace Model_Manager {
             std::string uri = material->occlusion_texture.texture->image->uri;
             uri.resize(cgltf_decode_uri(&uri[0]));
 
-        #if BINDLESS
-            mesh_mat.amb_occ = Texture_Manager::load_bindless_from_path(path + uri);
-        #else
-            mesh_mat.amb_occ = Texture_Manager::load_from_path(path + uri);
-        #endif
+            mesh_mat.amb_occ = Texture_Manager::load(path + uri);
         }
 
-        printf("path is :%s\n", path.c_str());
+        // printf("path is :%s\n", path.c_str());
 
         return mesh_mat;
     }
@@ -2193,7 +2159,6 @@ namespace Model_Manager {
 
     void update_bones_from_animation_compute(float time) {
         //const Animation& anim = g_animations[animation_index]
-
         printf("animating for %d leafs\n", num_leafs);
         printf("num_animation_cmds %du\n", n_cmds);
 
@@ -2201,57 +2166,16 @@ namespace Model_Manager {
         skeleton->use();
 
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, animation_commands);
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
-
         // can do all these once if doing gpu skeletal transforms
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, leaf_bones_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bone_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, skinned_bone_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, absolute_bone_transform_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transform_time_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, bone_animation_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, pos_keys_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, rot_keys_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, scale_keys_ssbo);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
 
          //printf("Dispatching animation at time: %.3f\n", time);
 
@@ -2261,10 +2185,6 @@ namespace Model_Manager {
         //skeleton->set_uint("animation_count", (uint32_t)g_animations[0].bone_animations.size());
 
         skeleton->dispatch_and_wait((num_leafs + 63) / 64, 1, 1, GL_ALL_BARRIER_BITS);
-        error = glGetError();
-        if (error != GL_NO_ERROR) {
-            printf("OpenGL Error after: 0x%x\n", error);
-        }
     }
 
     void update_animated_vertices(Scene& scene) {
@@ -2279,15 +2199,26 @@ namespace Model_Manager {
 
         skin->set_uint("animated_count", (uint32_t)scene.animated_mesh_to_all_mesh_mapping.size());
 
-        printf("skinning %du meshes\n", (uint32_t)scene.animated_mesh_to_all_mesh_mapping.size());
-
         skin->dispatch_and_wait((scene.animated_mesh_to_all_mesh_mapping.size() + 31) / 32, 1, 1, GL_ALL_BARRIER_BITS);
 
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            assert(false);
-            printf("OpenGL Error after: 0x%x\n", error);
+        for (int i = 0; i < scene.animated_mesh_to_all_mesh_mapping.size(); i++) {
+            uint32_t mesh_idx = scene.animated_mesh_to_all_mesh_mapping[i];
+            printf("Animated mesh %d: mesh_idx=%u, base_vertex=%d, vertex_count=%u, offset=%u\n", 
+                i, mesh_idx, 
+                scene.gpu_meshes[mesh_idx].base_vertex,
+                scene.gpu_meshes[mesh_idx].vertex_count,
+                scene.gpu_meshes[mesh_idx].skinned_to_static_offset);
         }
+
+        // skin->dispatch_and_wait((g_vertices.size() + 31) / 32, 1, 1, GL_ALL_BARRIER_BITS);
+
+        glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+
+        // GLenum error = glGetError();
+        // if (error != GL_NO_ERROR) {
+        //     assert(false);
+        //     printf("OpenGL Error after: 0x%x\n", error);
+        // }
     }
 
     uint32_t get_bone_ssbo() { return bone_ssbo; }

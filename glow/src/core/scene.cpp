@@ -77,7 +77,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
 
         uint32_t skinned_to_static_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).animation_offset : 0xFFFFFFFF;
 
-        for (const Mesh m : meshes) {
+        for (const Mesh& m : meshes) {
             GPU_Mesh gpu_m;
             gpu_m.transform = m.transform;
             gpu_m.base_vertex = m.base_vertex;

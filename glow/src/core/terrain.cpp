@@ -8,7 +8,7 @@ void Terrain::init(float width, float height, uint32_t num_patches_x, uint32_t n
 
 	// load hightmap
 	heightmap = Texture_Manager::load_heightmap(path);
-	heightmap_texture = Texture_Manager::load_from_path("../resources/textures/terrain/atxcolor.png");
+	// heightmap_texture = Texture_Manager::load("../resources/textures/terrain/atxcolor.png");
 
 	std::vector<float> vertices;
 	for (uint32_t i = 0; i < num_patches_x; i++) {

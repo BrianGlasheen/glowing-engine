@@ -61,6 +61,12 @@ layout(std430, binding = 4) buffer GPU_Bones_Skinned {
 uniform uint animated_count;
 
 void main() {
+    // uint idx = gl_GlobalInvocationID.x;
+    // if (idx >= vertices.length()) return;
+    
+    // vertices[idx].position.y += 0.1;
+    // return;
+    return ;
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= animated_count) return;
     
@@ -96,8 +102,8 @@ void main() {
         skinned_tangent = normalize(skinned_tangent);
         skinned_bitangent = normalize(skinned_bitangent);
 
-        //vertices[vertex_idx].position = vec4(skinned_pos.xyz, skinned_normal.x);
-        vertices[vertex_idx].position = vec4(0, 0, 0, skinned_normal.x);
+        vertices[vertex_idx].position = vec4(skinned_pos.xyz, skinned_normal.x);
+        // vertices[vertex_idx].position = vec4(0, 0, 0, skinned_normal.x);
         vertices[vertex_idx].tangent = vec4(skinned_tangent, skinned_normal.y);
         vertices[vertex_idx].bitangent = vec4(skinned_bitangent, skinned_normal.z);
         vertices[vertex_idx].tex_coords = rv.tex_coords; // todo probably dont need
