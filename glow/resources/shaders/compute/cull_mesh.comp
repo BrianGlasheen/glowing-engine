@@ -102,7 +102,7 @@ bool visible(uint index) {
 	visible = visible && center.z * frustum[1] - abs(center.x) * frustum[0] > -radius;
 	visible = visible && center.z * frustum[3] - abs(center.y) * frustum[2] > -radius;
 	// the near/far plane culling uses camera space Z directly
-    visible = visible && -center.z + radius > .1 && -center.z - radius < 1000;
+    // visible = visible && -center.z + radius > .1 && -center.z - radius < 1000;
 	// visible = visible; // || cullData.cullingEnabled == 0;
 	return visible;
 }
@@ -111,7 +111,6 @@ void main() {
 	uint gID = gl_GlobalInvocationID.x;
 
 	if(gID < num_meshes) {
-    
         GPU_Mesh mesh = meshes[gID];
         uint entity_idx = meshes[gID].entity_index;
         

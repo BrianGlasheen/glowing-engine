@@ -61,16 +61,15 @@ namespace Texture_Manager {
     }
 
     void cleanup() {
-        // for (uint32_t texture : textures) {
-        //     if (texture != 0) {
-        //         // make non resident
-        //         glDeleteTextures(1, &texture);
-        //     }
-        // }
-        // textures.clear();
-        // paths.clear();
-
-        // bindless_textures
+        for (Texture& texture : textures) {
+            if (texture.gl_id != 0) {
+                if (texture.handle != 0)
+                    glMakeTextureHandleNonResidentARB(texture.handle);
+                
+                glDeleteTextures(1, &texture.gl_id);
+            }
+        }
+        textures.clear();
     }
 
 
@@ -91,8 +90,8 @@ namespace Texture_Manager {
         std::string target = is_dds ? dds : file_path;
 
         size_t existing_texture_index;
-        if (loaded_already(file_path, existing_texture_index)) {
-            printf("[bindless] %s already loaded\n", file_path.c_str());
+        if (loaded_already(target, existing_texture_index)) {
+            printf("[bindless] %s already loaded\n", target.c_str());
             return textures[existing_texture_index].handle;
         }
 
