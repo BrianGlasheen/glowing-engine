@@ -430,8 +430,8 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
         //max.x = min.x + box_size.x;
         //max.y = min.y + box_size.y;
 
-        max += 5.0f;
-        min -= 5.0f;
+        // max += 5.0f;
+        // min -= 5.0f;
 
         //min *= 1.5;
         //max *= 1.5;
@@ -818,33 +818,33 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
 
     glBindVertexArray(0);
 
-    shader = Shader_Manager::get_shader("terrain");
-    shader->use();
-    shader->set_mat4("vp", viewproj);
-    shader->set_mat4("view", view);
-    Texture_Manager::bind(scene.terrain.heightmap, 0);
-    Texture_Manager::bind(scene.terrain.heightmap_texture, 1);
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
-    glBindVertexArray(scene.terrain.vao);
+    // shader = Shader_Manager::get_shader("terrain");
+    // shader->use();
+    // shader->set_mat4("vp", viewproj);
+    // shader->set_mat4("view", view);
+    // Texture_Manager::bind(scene.terrain.heightmap, 0);
+    // Texture_Manager::bind(scene.terrain.heightmap_texture, 1);
+    // glPatchParameteri(GL_PATCH_VERTICES, 4);
+    // glBindVertexArray(scene.terrain.vao);
 
-    if (terrain_draw_type == 0 || terrain_draw_type == 2) {
-        shader->set_bool("lines", false);
-        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
-    }
-    if (terrain_draw_type == 1) {
-        shader->set_bool("lines", true);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
-    if (terrain_draw_type == 2) {
-        shader->set_bool("lines", true);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
+    // if (terrain_draw_type == 0 || terrain_draw_type == 2) {
+    //     shader->set_bool("lines", false);
+    //     glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+    // }
+    // if (terrain_draw_type == 1) {
+    //     shader->set_bool("lines", true);
+    //     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //     glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+    //     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // }
+    // if (terrain_draw_type == 2) {
+    //     shader->set_bool("lines", true);
+    //     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //     glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+    //     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // }
 
-    glBindVertexArray(0);
+    // glBindVertexArray(0);
 }
 
 void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
@@ -1417,11 +1417,12 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
     glDepthFunc(GL_ALWAYS);  // Always pass
     glDepthMask(GL_TRUE);    // Still write to depth buffer
     glEnable(GL_PROGRAM_POINT_SIZE);
+    glLineWidth(2.0f);
 
     Shader* shader = Shader_Manager::get_shader("skeleton_debug");
     shader->use();
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, Model_Manager::get_skinned_bone_ssbo());
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, Model_Manager::get_absolute_bones());
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_bone_ssbo());
 
     static GLuint dummyVAO = 0;
@@ -1437,9 +1438,11 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
             uint32_t base_bone = am.base_bone + am.bone_offset;
             uint32_t bone_count = am.bone_count;
 
-            shader->set_mat4("mvp", vp * e.get_model_matrix());
+            printf("drawing skeelton for %s, base bone: %d, bone count: %d, offset(%d)\n", am.m_name.c_str(), base_bone, bone_count, am.bone_offset);
+
+            shader->set_mat4("mvp", vp * e.get_model_matrix() * am.m_meshes[0].transform);
             shader->set_uint("base_bone", base_bone);
-            shader->set_uint("bone_count", bone_count);
+            shader->set_uint("max_bone", base_bone + bone_count);
 
             shader->set_uint("draw_mode", 1);
             shader->set_vec3("color", glm::vec3(0.0f, 1.0f, 1.0f));

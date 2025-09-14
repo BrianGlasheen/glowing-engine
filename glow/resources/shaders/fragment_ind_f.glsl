@@ -213,7 +213,6 @@ vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metal
     //if (shadows_enabled) {
         shadow = DirectionalShadowCalculation(FragPos, fragViewPos);
     //}
-    
     return lighting * (1.0 - shadow);
 }
 

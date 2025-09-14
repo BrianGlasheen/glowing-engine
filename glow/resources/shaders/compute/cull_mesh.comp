@@ -144,7 +144,6 @@ void main() {
             draw_command.base_instance = gID;
         
             draw_commands[index] = draw_command;
-
         }
 
         // cull animated against frustum if has flag

@@ -184,7 +184,7 @@ namespace Texture_Manager {
 #if BINDLESS
         return texture.handle;
 #else
-        return texture.gl_id;
+        return textures.size() - 1;
 #endif
     }
     
@@ -240,7 +240,6 @@ namespace Texture_Manager {
             // Texture tex = { texture_id, handle, file_path, width, height, nrComponents };
             // textures.push_back(tex);
             texture.handle = handle;
-            std::cout << "[TEXTURE] Loaded: " << file_path << std::endl;
 #endif
             glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -249,7 +248,7 @@ namespace Texture_Manager {
 #if BINDLESS
             return texture.handle;
 #else
-            return texture.gl_id;
+            return textures.size() - 1;
 #endif
         }
         else {

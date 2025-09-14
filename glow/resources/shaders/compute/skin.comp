@@ -66,7 +66,7 @@ void main() {
     
     // vertices[idx].position.y += 0.1;
     // return;
-    return ;
+    // return ;
     uint idx = gl_GlobalInvocationID.x;
     if (idx >= animated_count) return;
     
@@ -87,7 +87,7 @@ void main() {
             if (weight > 0.0) {
                 mat4 bone = bones[bone_idx];
 
-                skinned_pos += weight * (bone * rv.position);
+                skinned_pos += weight * (bone * vec4(rv.position.xyz, 1.0));
 
                 mat3 rot_scale = mat3(bone);
                 vec3 norm = vec3(rv.position.w, rv.tangent.w, rv.bitangent.w);

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <cstdint>
+#include <vector>
 
 class Animated_Model {
 public:

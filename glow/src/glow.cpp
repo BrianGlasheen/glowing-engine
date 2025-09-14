@@ -96,9 +96,9 @@ namespace Glow {
 			8000
 		};
 
-		Particle_Manager::add_effect("a", a, 10.0f);
-		Particle_Manager::add_effect("b", b, 10.0f);
-		Particle_Manager::add_effect("c", c, 10.0f);
+		// Particle_Manager::add_effect("a", a, 10.0f);
+		// Particle_Manager::add_effect("b", b, 10.0f);
+		// Particle_Manager::add_effect("c", c, 10.0f);
 
 		if (editor.init())
 			return -1;
@@ -126,12 +126,12 @@ namespace Glow {
 		//printf(loaded ? "good\n" : "bad\n");
 		scene.init("sky");
 
-		model_handle plane = Model_Manager::load_model("plane.obj");
-		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e23223(pos, rot, scale, plane, false);
-		scene.include(e23223);
+		// model_handle plane = Model_Manager::load_model("plane.obj");
+		// glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+		// glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+		// glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
+		// Entity e23223(pos, rot, scale, plane, false);
+		// scene.include(e23223);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -190,11 +190,22 @@ namespace Glow {
 		//model_handle raccoon6 = Model_Manager::load_animated_model_cgltf("hkm23/scene.gltf");
 		//model_handle raccoon6ddd = Model_Manager::load_animated_model("hkm23/source/Mark23.fbx");
 
-		//model_handle raccoon226 = Model_Manager::load_animated_model_cgltf("gun/scene.gltf");
+		Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "gun/scene.gltf", false);
+		scene.include(raccoon226);
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
+		
 		Entity e5555 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(e5555);
+
+		Entity e2323 = Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		scene.include(e2323);
+
+		Entity raccoon23333 = Entity::Animated_Entity(glm::vec3(-50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "goku/scene.gltf", false);
+		scene.include(raccoon23333);
+
+		// Entity raccoon233332 = Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		// scene.include(raccoon233332);
 		
 		// Entity e55552 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "AnimatedCube/glTF/AnimatedCube.gltf", false);
 		// scene.include(e55552);
@@ -205,7 +216,7 @@ namespace Glow {
 		printf("here\n");*/
 
 		//model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-		//model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
+		
 		//model_handle raccoon2333333 = Model_Manager::load_animated_model("m4a1/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");

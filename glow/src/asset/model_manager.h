@@ -80,8 +80,13 @@ namespace Model_Manager {
     uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene * scene, uint32_t base_bone);
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
     void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
-
-
+    
+    void print_animated_model_info(const Animated_Model& model);
+    void print_bone_tree(uint32_t base_bone, uint32_t num_bones);
+    void tree(const std::unordered_map<int, std::vector<int>>& childrenMap,
+                int boneIndex,
+                const std::string& indent = "",
+                bool isLast = true);
 
     void begin_animation_frame();
     uint32_t get_num_animation_commands();
@@ -93,6 +98,7 @@ namespace Model_Manager {
 
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();
+    uint32_t get_absolute_bones();
     uint32_t get_num_animated_models();
     uint32_t get_animation_command_ssbo();
 
