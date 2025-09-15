@@ -363,33 +363,40 @@ namespace Model_Manager {
             return false;
         }
 
+        print_node_hierarchy(scene->mRootNode, 0);
+
         const std::string path_without_filename = full_path.substr(0, full_path.find_last_of("/") + 1);
 
         Animated_Model model;
         model.m_name = path;
         model.base_animation_vertex = g_rigged_vertices.size();
 
-        uint32_t base_bone = g_rigged_bones.size();
-        process_animated_node(scene->mRootNode, scene, model, path_without_filename, glm::mat4(1.0f), base_bone);
+        model.base_bone = g_rigged_bones.size();
 
-        model.base_bone = base_bone;
-        model.bone_count = g_rigged_bones.size() - base_bone;
+        process_animated_node(scene->mRootNode, scene, model, path_without_filename, glm::mat4(1.0f), model.base_bone);
+
+        create_fake_bones_for_animation_targets(scene, model.base_bone);
+
+        model.bone_count = g_rigged_bones.size() - model.base_bone;
         model.bone_offset = num_skinned_bones - model.base_bone; assert(model.bone_offset >= 0);
         num_skinned_bones += model.bone_count;
 
         assert(model.bone_count != 0);
 
+        update_bone_parents(scene, model.base_bone, g_rigged_bones.size());
+        model.base_leaf = g_leaf_bones.size();
+        add_leaf_bones(model.base_bone, g_rigged_bones.size());
+        model.leaf_count = g_leaf_bones.size() - model.base_leaf;
+
+        print_animated_model_info(model);
+        printf("PRINTING BONE TREE FOR %s, bone: %d, to bone: %d\n", model.m_name.c_str(), model.base_bone, model.bone_count);
+        print_bone_tree(model.base_bone, model.bone_count);
+
         if (scene->mNumAnimations > 0) {
-            update_bone_parents(scene, base_bone, g_rigged_bones.size());
-
-            model.base_leaf = g_leaf_bones.size();
-            add_leaf_bones(base_bone, g_rigged_bones.size());
-            model.leaf_count = g_leaf_bones.size() - model.base_leaf;
-
             printf("LOADING ANIMATIONS\n");
 
             model.base_animation = g_animations.size();
-            load_animations_from_scene(scene, base_bone);
+            load_animations_from_scene(scene, model.base_bone);
             model.animation_count = g_animations.size() - model.base_animation;
 
             printf("base bone %d\n", model.base_bone);
@@ -403,9 +410,6 @@ namespace Model_Manager {
 
 
         model.calculate_aabb();
-
-        print_animated_model_info(model);
-        print_bone_tree(model.base_bone, model.bone_count);
 
         model_index = m_animated_models.size();
 
@@ -1631,7 +1635,7 @@ namespace Model_Manager {
             }
         }
 
-        printf("[BONES] Total bones loaded: %zu\n\n", g_rigged_bones.size() - base_bone);
+        printf("[BONES] Total bones loaded: %zu\n", g_rigged_bones.size() - base_bone);
     }
 
     void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone) {
@@ -1785,7 +1789,7 @@ namespace Model_Manager {
                 return i;
         }
 
-        printf("[BONE] adding bone %s\n", bone_name.c_str());
+        // printf("[BONE] adding bone %s\n", bone_name.c_str());
 
         Bone new_bone;
         new_bone.name = bone_name;
@@ -1868,6 +1872,80 @@ namespace Model_Manager {
         }
         printf("bone %s not found\n", bone_name.c_str());
         assert(false);
+    }
+
+    void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone) {
+        if (!scene->mNumAnimations) 
+            return;
+        
+        printf("[BONE] Scanning animations for non-bone targets...\n");
+        
+        std::set<std::string> animation_targets;
+        
+        for (uint32_t anim_idx = 0; anim_idx < scene->mNumAnimations; anim_idx++) {
+            const aiAnimation* animation = scene->mAnimations[anim_idx];
+            
+            for (uint32_t channel_idx = 0; channel_idx < animation->mNumChannels; channel_idx++) {
+                const aiNodeAnim* channel = animation->mChannels[channel_idx];
+                std::string target_name(channel->mNodeName.C_Str());
+                animation_targets.insert(target_name);
+            }
+        }
+        
+        for (const std::string& target : animation_targets) {
+            bool is_existing_bone = false;
+            
+            for (uint32_t i = base_bone; i < g_rigged_bones.size(); i++) {
+                if (g_rigged_bones[i].name == target) {
+                    is_existing_bone = true;
+                    break;
+                }
+            }
+            
+            if (!is_existing_bone) {
+                uint32_t bone = find_or_create_fake_bone(target, scene, base_bone);
+            }
+        }
+    }
+
+    uint32_t find_or_create_fake_bone(const std::string& node_name, const aiScene* scene, uint32_t base_bone) {
+        for (uint32_t i = base_bone; i < g_rigged_bones.size(); i++) {
+            if (g_rigged_bones[i].name == node_name) {
+                return i;
+            }
+        }
+        
+        aiNode* target_node = find_node_by_name(scene->mRootNode, node_name);
+        if (!target_node) {
+            printf("[BONE] Warning: Could not find animation target node '%s'\n", node_name.c_str());
+            return UINT32_MAX;
+        }
+        
+        printf("[BONE] Creating fake bone for animation target: %s\n", node_name.c_str());
+        
+        Bone fake_bone = {};
+        fake_bone.name = node_name;
+        
+        // inverse bind should be inverse world transform
+        aiMatrix4x4 world_transform;
+        get_world_transform(target_node, scene->mRootNode, world_transform);
+        aiMatrix4x4 inverse_world = world_transform.Inverse();
+        fake_bone.inverse_bind = assimp_to_glm(inverse_world);
+        
+        fake_bone.parent_bone = UINT32_MAX;
+        
+        g_rigged_bones.push_back(fake_bone);
+        return g_rigged_bones.size() - 1;
+    }
+
+    void get_world_transform(aiNode* node, aiNode* root, aiMatrix4x4& out_transform) {
+        out_transform = aiMatrix4x4();
+        
+        aiNode* current = node;
+        while (current && current != root) {
+            out_transform = current->mTransformation * out_transform;
+            current = current->mParent;
+        }
     }
 
     Model get_model_ind(uint32_t idx) {
@@ -2020,7 +2098,7 @@ namespace Model_Manager {
 
             if (leaf) {
                 g_leaf_bones.push_back(bone);
-                printf("bone: %s is a leaf\n", g_rigged_bones[bone].name.c_str());
+                // printf("bone: %s is a leaf\n", g_rigged_bones[bone].name.c_str());
             }
         }
     }
@@ -2028,30 +2106,30 @@ namespace Model_Manager {
     void print_animated_model_info(const Animated_Model& m) {
         printf("-----------------------\n");
         printf("MODEL: %s\n", m.m_name.c_str());
-        printf("Number meshes: %d", m.m_meshes.size());
+        printf("Number meshes: %d\n", m.m_meshes.size());
         
         for (const Mesh& mm : m.m_meshes) {
             std::string name;
             printf(" mesh: %s\n", mm.name.c_str());
 
-            printf("%f %f %f %f\n", mm.transform[0][0], mm.transform[1][0], mm.transform[2][0], mm.transform[3][0]);
-            printf("%f %f %f %f\n", mm.transform[0][1], mm.transform[1][1], mm.transform[2][1], mm.transform[3][1]);
-            printf("%f %f %f %f\n", mm.transform[0][2], mm.transform[1][2], mm.transform[2][2], mm.transform[3][2]);
-            printf("%f %f %f %f\n", mm.transform[0][3], mm.transform[1][3], mm.transform[2][3], mm.transform[3][3]);
+        //     printf("%f %f %f %f\n", mm.transform[0][0], mm.transform[1][0], mm.transform[2][0], mm.transform[3][0]);
+        //     printf("%f %f %f %f\n", mm.transform[0][1], mm.transform[1][1], mm.transform[2][1], mm.transform[3][1]);
+        //     printf("%f %f %f %f\n", mm.transform[0][2], mm.transform[1][2], mm.transform[2][2], mm.transform[3][2]);
+        //     printf("%f %f %f %f\n", mm.transform[0][3], mm.transform[1][3], mm.transform[2][3], mm.transform[3][3]);
         }
     }
 
     void print_bone_tree(uint32_t base_bone, uint32_t num_bones) {
         std::unordered_map<int, std::vector<int>> childrenMap;
 
-        for (int i = base_bone; i < num_bones; ++i) {
+        for (int i = base_bone; i < base_bone + num_bones; ++i) {
             int parent = g_rigged_bones[i].parent_bone;
             if (parent != 0xFFFFFFFF)
                 childrenMap[parent].push_back(i);
         }
 
         std::vector<int> roots;
-        for (int i = base_bone; i < num_bones; ++i) {
+        for (int i = base_bone; i < base_bone + num_bones; ++i) {
             if (g_rigged_bones[i].parent_bone == 0xFFFFFFFF)
                 roots.push_back(i);
         }
@@ -2079,6 +2157,28 @@ namespace Model_Manager {
                             indent + (isLast ? "   " : "│  "),
                             lastChild);
             }
+        }
+    }
+
+    void print_node_hierarchy(const aiNode* node, int depth) {
+        for (int i = 0; i < depth; ++i) {
+            std::cout << "  ";
+        }
+        std::cout << "Node: " << node->mName.C_Str() << std::endl;
+
+        if (node->mNumMeshes > 0) {
+            for (int i = 0; i < depth; ++i) {
+                std::cout << "  ";
+            }
+            std::cout << "  Meshes: ";
+            for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+                std::cout << node->mMeshes[i] << (i == node->mNumMeshes - 1 ? "" : ", ");
+            }
+            std::cout << std::endl;
+        }
+
+        for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+            print_node_hierarchy(node->mChildren[i], depth + 1);
         }
     }
 
@@ -2202,7 +2302,7 @@ namespace Model_Manager {
 
         Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, a.base_bone_animation, a.bone_animation_count, a.duration, num_leafs };
 
-        printf("Animation %s for model %s\n", g_animation_names[m.current_animation].c_str(), m.m_name.c_str());
+        printf("Animation %s for model %s\n", g_animation_names[m.current_animation + m.base_animation].c_str(), m.m_name.c_str());
         printf("  base_bone: %u\n", cmd.base_bone);
         printf("  bone_count: %u\n", cmd.bone_count);
         printf("  bone_offset: %u\n", cmd.bone_offset);
@@ -2240,8 +2340,8 @@ namespace Model_Manager {
 
     void update_bones_from_animation_compute(float time) {
         //const Animation& anim = g_animations[animation_index]
-        printf("animating for %d leafs\n", num_leafs);
-        printf("num_animation_cmds %du\n", n_cmds);
+        // printf("animating for %d leafs\n", num_leafs);
+        // printf("num_animation_cmds %du\n", n_cmds);
 
         Compute_Shader* skeleton = Shader_Manager::get_compute("animate_skeleton");
         skeleton->use();
@@ -2282,14 +2382,14 @@ namespace Model_Manager {
 
         skin->dispatch_and_wait((scene.animated_mesh_to_all_mesh_mapping.size() + 31) / 32, 1, 1, GL_ALL_BARRIER_BITS);
 
-        for (int i = 0; i < scene.animated_mesh_to_all_mesh_mapping.size(); i++) {
-            uint32_t mesh_idx = scene.animated_mesh_to_all_mesh_mapping[i];
-            printf("Animated mesh %d: mesh_idx=%u, base_vertex=%d, vertex_count=%u, offset=%u\n", 
-                i, mesh_idx, 
-                scene.gpu_meshes[mesh_idx].base_vertex,
-                scene.gpu_meshes[mesh_idx].vertex_count,
-                scene.gpu_meshes[mesh_idx].skinned_to_static_offset);
-        }
+        // for (int i = 0; i < scene.animated_mesh_to_all_mesh_mapping.size(); i++) {
+        //     uint32_t mesh_idx = scene.animated_mesh_to_all_mesh_mapping[i];
+        //     printf("Animated mesh %d: mesh_idx=%u, base_vertex=%d, vertex_count=%u, offset=%u\n", 
+        //         i, mesh_idx, 
+        //         scene.gpu_meshes[mesh_idx].base_vertex,
+        //         scene.gpu_meshes[mesh_idx].vertex_count,
+        //         scene.gpu_meshes[mesh_idx].skinned_to_static_offset);
+        // }
 
         // skin->dispatch_and_wait((g_vertices.size() + 31) / 32, 1, 1, GL_ALL_BARRIER_BITS);
 

@@ -67,6 +67,10 @@ namespace Model_Manager {
     //glm::vec3 interpolate_scale(aiNodeAnim* channel, double time);
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
+    void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone);
+    uint32_t find_or_create_fake_bone(const std::string& node_name, const aiScene* scene, uint32_t base_bone);
+    void get_world_transform(aiNode* node, aiNode* root, aiMatrix4x4& out_transform);
+
     Model get_model_ind(uint32_t idx);
     Animated_Model& get_animated_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
@@ -83,10 +87,8 @@ namespace Model_Manager {
     
     void print_animated_model_info(const Animated_Model& model);
     void print_bone_tree(uint32_t base_bone, uint32_t num_bones);
-    void tree(const std::unordered_map<int, std::vector<int>>& childrenMap,
-                int boneIndex,
-                const std::string& indent = "",
-                bool isLast = true);
+    void tree(const std::unordered_map<int, std::vector<int>>& childrenMap, int boneIndex, const std::string& indent = "", bool isLast = true);
+    void print_node_hierarchy(const aiNode* node, int depth);
 
     void begin_animation_frame();
     uint32_t get_num_animation_commands();

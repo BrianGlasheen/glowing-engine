@@ -1089,15 +1089,15 @@ void Renderer::debug_cascades(Scene& scene) {
 
 }
 
-void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj) {
+void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene) {
     Shader* shader = Shader_Manager::get_shader("debug");
     //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
     //glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
 
-    shader->set_mat4("projection", proj);
-    shader->set_mat4("view", view);
-
+    shader->set_bool("uniform_color", false);
     debug_renderer.render(shader, proj, view, num_lights);
+    shader->set_bool("uniform_color", true);
+    debug_renderer.draw_scene_bounding_spheres(shader, scene, proj * view);
 }
 
 void Renderer::particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view) {
@@ -1438,7 +1438,7 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
             uint32_t base_bone = am.base_bone + am.bone_offset;
             uint32_t bone_count = am.bone_count;
 
-            printf("drawing skeelton for %s, base bone: %d, bone count: %d, offset(%d)\n", am.m_name.c_str(), base_bone, bone_count, am.bone_offset);
+            // printf("drawing skeelton for %s, base bone: %d, bone count: %d, offset(%d)\n", am.m_name.c_str(), base_bone, bone_count, am.bone_offset);
 
             shader->set_mat4("mvp", vp * e.get_model_matrix() * am.m_meshes[0].transform);
             shader->set_uint("base_bone", base_bone);

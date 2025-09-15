@@ -83,7 +83,7 @@ public:
     void ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj);
     void composite();
 
-    void render_debug(const glm::mat4& view, const glm::mat4& proj);
+    void render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene);
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 

@@ -87,17 +87,23 @@ uniform bool infinite_far;
 // max meshes
 
 bool visible(uint index) {
-	//grab sphere cull data from the object buffer
-	vec4 sphereBounds = meshes[index].bounding_sphere;
-
-	vec3 center = sphereBounds.xyz;
-	center += entities[meshes[index].entity_index].transform[3].xyz;
-
-	center = (view * vec4(center,1.f)).xyz;
-	float radius = sphereBounds.w;
+    mat4 entity_transform = entities[meshes[index].entity_index].transform;
+    
+    vec3 local_center = meshes[index].bounding_sphere.xyz;
+    vec3 world_center = (entity_transform * vec4(local_center, 1.0)).xyz;
+    
+    vec3 center = (view * vec4(world_center, 1.0)).xyz;
+    
+    vec3 scale = vec3(
+        length(entity_transform[0].xyz), 
+        length(entity_transform[1].xyz), 
+        length(entity_transform[2].xyz)
+    );
+    float max_scale = max(scale.x, max(scale.y, scale.z));
+    
+    float radius = meshes[index].bounding_sphere.w * max_scale;
 
 	bool visible = true;
-
 	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
 	visible = visible && center.z * frustum[1] - abs(center.x) * frustum[0] > -radius;
 	visible = visible && center.z * frustum[3] - abs(center.y) * frustum[2] > -radius;

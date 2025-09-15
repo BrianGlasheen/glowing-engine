@@ -7,6 +7,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
+
 void Renderer_Debug::init() {
     // line VAO/VBO 
     glGenVertexArrays(1, &line_vao);
@@ -29,8 +31,47 @@ void Renderer_Debug::init() {
 
     //build_sphere_geometry();
     //build_cube_geometry();
+    sphere_vertices.clear();
+    
+    const int segments = 32;
+    const float step = 2.0f * M_PI / segments;
+    
+    // xy
+    for (int i = 0; i <= segments; ++i) {
+        float angle = i * step;
+        sphere_vertices.push_back(glm::vec3(cos(angle), sin(angle), 0.0f));
+    }
+    
+    // xz
+    for (int i = 0; i <= segments; ++i) {
+        float angle = i * step;
+        sphere_vertices.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+    }
+    
+    // yz
+    for (int i = 0; i <= segments; ++i) {
+        float angle = i * step;
+        sphere_vertices.push_back(glm::vec3(0.0f, cos(angle), sin(angle)));
+    }
+    
+    sphere_vertex_count = sphere_vertices.size();
+        
+    glGenVertexArrays(1, &sphere_vao);
+    glGenBuffers(1, &sphere_vbo);
+    
+    glBindVertexArray(sphere_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
+    
+    glBufferData(GL_ARRAY_BUFFER, 
+                    sphere_vertices.size() * sizeof(glm::vec3), 
+                    sphere_vertices.data(), 
+                    GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    glBindVertexArray(0);
 }
-
 
 void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color) {
     line_vertices.push_back(start.x);
@@ -154,14 +195,15 @@ void Renderer_Debug::draw_frustum(const glm::vec3& cameraPos, const glm::vec3& c
 
 void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view, uint32_t num_cubes) {
 
+    debug_shader->use();
+
     if (!line_vertices.empty()) {
         glBindVertexArray(line_vao);
         glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
 
         glBufferData(GL_ARRAY_BUFFER, line_vertices.size() * sizeof(float), line_vertices.data(), GL_DYNAMIC_DRAW);
 
-        debug_shader->use();
-        debug_shader->set_mat4("mvp", projection * view * glm::mat4(1.0f));
+        debug_shader->set_mat4("mvp", projection * view);
 
         glDisable(GL_DEPTH_TEST);
 
@@ -170,6 +212,68 @@ void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, c
     }
 
     line_vertices.clear();
+}
+
+void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const glm::vec3& center, float radius, const glm::vec3& color, const glm::mat4& vp) {
+    if (sphere_vertex_count == 0) return;
+    
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * 
+                        glm::scale(glm::mat4(1.0f), glm::vec3(radius));
+    
+    // Set uniforms (adjust these based on your shader)
+    debug_shader->set_mat4("mvp", vp * model);
+    debug_shader->set_vec3("color", color);
+    
+    // Draw the three circles
+    glBindVertexArray(sphere_vao);
+    
+    const int segments = 32;
+    const int vertices_per_circle = segments + 1;
+    
+    // xy
+    glDrawArrays(GL_LINE_STRIP, 0, vertices_per_circle);
+    // xz
+    glDrawArrays(GL_LINE_STRIP, vertices_per_circle, vertices_per_circle);
+    // yz
+    glDrawArrays(GL_LINE_STRIP, vertices_per_circle * 2, vertices_per_circle);
+    
+    glBindVertexArray(0);
+}
+
+void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Scene& scene, const glm::mat4& view_proj) {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDisable(GL_DEPTH_TEST);
+    
+    for (size_t i = 0; i < scene.gpu_meshes.size(); ++i) {
+        const GPU_Mesh& mesh = scene.gpu_meshes[i];
+        
+        glm::vec3 color = glm::vec3(0.0f, 1.0f, 0.0f);
+        
+        // if (i < scene.animated_mesh_to_all_mesh_mapping.size()) {
+        //     color = glm::vec3(1.0f, 0.0f, 1.0f);
+        // }
+        
+        // if (mesh.entity_index < scene.gpu_entities.size() && scene.gpu_entities[mesh.entity_index].is_dirty) {
+        //     color = glm::vec3(1.0f, 1.0f, 0.0f); // Yellow for dirty
+        // }
+        
+        glm::mat4 entity_transform = scene.gpu_entities[mesh.entity_index].transform;
+        glm::vec3 center = glm::vec3(entity_transform * glm::vec4(glm::vec3(mesh.bounding_sphere), 1.0));
+
+        glm::vec3 scale = glm::vec3(
+            length(glm::vec3(entity_transform[0])), 
+            length(glm::vec3(entity_transform[1])), 
+            length(glm::vec3(entity_transform[2]))
+        );
+        float max_scale = std::max(scale.x, std::max(scale.y, scale.z));
+        float radius = mesh.bounding_sphere.w * max_scale;
+
+        draw_bounding_sphere(debug_shader, center, radius, color, view_proj);
+    }
+    
+    glEnable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glUseProgram(0);
 }
 
 //void Renderer_Debug::build_sphere_geometry() {

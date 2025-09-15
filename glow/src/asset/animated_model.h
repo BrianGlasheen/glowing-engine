@@ -40,7 +40,7 @@ public:
 		}
 
 		animation_offset = m_meshes[0].base_vertex - base_animation_vertex;
-		printf("\n\n\nbase vertex: %du, base anim vert: %du, offset: %du\n", m_meshes[0].base_vertex, base_animation_vertex, animation_offset);
+		printf("base vertex: %du, base anim vert: %du, offset: %du\n", m_meshes[0].base_vertex, base_animation_vertex, animation_offset);
 	}
 
 	Util::AABB get_aabb() {

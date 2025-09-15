@@ -15,9 +15,7 @@
 #include "asset/particle_manager.h"
 
 #include "player/player.h"
-#include "core/ssbo.h"
 #include "util/profiler.h"
-#include "util/frustum.h"
 
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -183,15 +181,23 @@ namespace Glow {
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-		//model_handle raccoon5 = Model_Manager::load_animated_model("glockhell/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon3 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model_cgltf("hkm23/scene.gltf");
 		//model_handle raccoon6ddd = Model_Manager::load_animated_model("hkm23/source/Mark23.fbx");
 
-		Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "gun/scene.gltf", false);
-		scene.include(raccoon226);
+		// Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "mp5/scene.gltf", false);
+		// scene.include(raccoon226);
+		// Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "akakak/scene.gltf", false);
+		// scene.include(raccoon226);
+
+		// Entity raccoon5 = Entity::Animated_Entity(glm::vec3(5.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "glockhell/scene.gltf", false);
+		// scene.include(raccoon5);
+
+		Entity raccoon233323 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "goku/scene.gltf", false);
+		scene.include(raccoon233323);
+
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
 		
@@ -407,7 +413,7 @@ namespace Glow {
 			  renderer.composite(); }
 
 			{ PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-			  if (player.key_toggles[(unsigned)'r']) renderer.render_debug(active_view, active_proj); }
+			  if (player.key_toggles[(unsigned)'r']) renderer.render_debug(active_view, active_proj, scene); }
 			
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 			if (player.key_toggles['l'])
@@ -451,6 +457,8 @@ namespace Glow {
 			ImGui::SliderFloat("velocity_mag", &renderer.velocity_mag, -100.0f, 100.0f);
 			ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
 			ImGui::End();
+
+			scene.imgui();
 
 			player.debug_hud();
 			renderer.imgui_pass();
