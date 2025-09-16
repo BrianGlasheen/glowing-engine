@@ -217,8 +217,7 @@ void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, c
 void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const glm::vec3& center, float radius, const glm::vec3& color, const glm::mat4& vp) {
     if (sphere_vertex_count == 0) return;
     
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * 
-                        glm::scale(glm::mat4(1.0f), glm::vec3(radius));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * glm::scale(glm::mat4(1.0f), glm::vec3(radius));
     
     // Set uniforms (adjust these based on your shader)
     debug_shader->set_mat4("mvp", vp * model);
@@ -243,7 +242,8 @@ void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const glm::vec3&
 void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Scene& scene, const glm::mat4& view_proj) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDisable(GL_DEPTH_TEST);
-    
+    glLineWidth(1.0f);
+
     for (size_t i = 0; i < scene.gpu_meshes.size(); ++i) {
         const GPU_Mesh& mesh = scene.gpu_meshes[i];
         
@@ -259,16 +259,8 @@ void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Sce
         
         glm::mat4 entity_transform = scene.gpu_entities[mesh.entity_index].transform;
         glm::vec3 center = glm::vec3(entity_transform * glm::vec4(glm::vec3(mesh.bounding_sphere), 1.0));
-
-        glm::vec3 scale = glm::vec3(
-            length(glm::vec3(entity_transform[0])), 
-            length(glm::vec3(entity_transform[1])), 
-            length(glm::vec3(entity_transform[2]))
-        );
-        float max_scale = std::max(scale.x, std::max(scale.y, scale.z));
-        float radius = mesh.bounding_sphere.w * max_scale;
-
-        draw_bounding_sphere(debug_shader, center, radius, color, view_proj);
+        // bounding sphere radius has entity scale baked in
+        draw_bounding_sphere(debug_shader, center, mesh.bounding_sphere.w, color, view_proj);
     }
     
     glEnable(GL_DEPTH_TEST);

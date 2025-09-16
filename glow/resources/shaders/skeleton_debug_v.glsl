@@ -17,6 +17,7 @@ layout(std430, binding = 1) buffer GPU_Bones {
 uniform mat4 mvp;
 uniform uint base_bone;
 uniform uint max_bone;
+uniform uint bone_offset;
 
 uniform uint draw_mode;
 
@@ -37,7 +38,7 @@ void main() {
         }
         
         uint current_bone = base_bone + bone_idx;
-        uint parent_idx = gpu_bones[current_bone].parent_bone;
+        uint parent_idx = gpu_bones[current_bone - bone_offset].parent_bone;
         
         if (parent_idx == 0xFFFFFFFF) {
             gl_Position = vec4(0.0, 0.0, 0.0, 0.0);

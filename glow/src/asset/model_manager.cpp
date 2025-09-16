@@ -4,6 +4,7 @@
 #include "glow_config.h"
 
 #include "core/scene.h"
+#include "util/aabb.h"
 
 #include <cstdint>
 #include <string>
@@ -313,7 +314,8 @@ namespace Model_Manager {
     model_handle load_animated_model(const std::string& path) {
         printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
         printf("num rigged idx before model %llu\n", g_indices.size());
-        printf("num bones before model %llu\n", g_rigged_bones.size());
+        printf("num base bones after model %llu\n", g_rigged_bones.size());
+        printf("num total bones after model %llu\n", num_skinned_bones);
 
         const std::string full_path = base_path + path;
 
@@ -325,17 +327,58 @@ namespace Model_Manager {
 
             Animated_Model copy;
 
-            copy.m_meshes = loaded.m_meshes; // todo change when duplicating verts
+            // copy all draw vertices
+            for (const Mesh& m : loaded.m_meshes) {
+                // copy.m_meshes = loaded.m_meshes; // todo change when duplicating verts
+                printf("copying mesh: %s\n", m.name.c_str());
+                Mesh mesh = m;
+
+                mesh.base_vertex = g_vertices.size();
+                mesh.base_index = g_indices.size();
+                
+                for (uint32_t i = 0; i < m.vertex_count; i++) {
+                    g_vertices.push_back(g_vertices[m.base_vertex + i]);
+                }
+                
+                for (uint32_t i = 0; i < m.index_count; i++) {
+                    uint32_t original_index = g_indices[m.base_index + i];
+                    uint32_t adjusted_index = original_index - m.base_vertex + mesh.base_vertex;
+                    g_indices.push_back(adjusted_index);
+                }
+                
+                copy.add_mesh(mesh);
+                // mesh.vertex_count = m.vertex_count;
+                // mesh.base_index = m.base_index;
+                // mesh.index_count = m.index_count;
+                // struct Mesh {
+                //     uint32_t base_vertex;
+                //     uint32_t vertex_count;
+                //     uint32_t base_index;
+                //     uint32_t index_count;
+                //     Util::AABB aabb;
+                //     std::string name;
+
+                //     // parent? 
+                //     glm::mat4 transform; // relative to parent
+
+                //     Material material;
+
+                //     glm::vec4 bounding_sphere;
+                // };
+            }
+
             copy.m_aabb = loaded.m_aabb;
             copy.base_bone = loaded.base_bone;
             copy.bone_count = loaded.bone_count;
-            copy.bone_offset = num_skinned_bones - loaded.base_bone; assert(copy.bone_offset >= 0);
+            copy.bone_offset = num_skinned_bones - copy.base_bone; assert(copy.bone_offset >= 0);
             num_skinned_bones += copy.bone_count;
             copy.base_leaf = loaded.base_leaf;
             copy.leaf_count = loaded.leaf_count;
             copy.base_animation = loaded.base_animation;
             copy.animation_count = loaded.animation_count;
             // todo copy base animation vertex
+            copy.base_animation_vertex = loaded.base_animation_vertex;
+            copy.animation_offset = copy.m_meshes[0].base_vertex - loaded.base_animation_vertex;
 
             model_index = m_animated_models.size();
             m_animated_models.push_back(copy);
@@ -344,7 +387,8 @@ namespace Model_Manager {
             //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
             printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
             printf("num idx after model %llu\n", g_indices.size());
-            printf("num bones after model %llu\n", g_rigged_bones.size());
+            printf("num base bones after model %llu\n", g_rigged_bones.size());
+            printf("num total bones after model %llu\n", num_skinned_bones);
             // leaf bones
             // maybe kf's
             printf("here\n");
@@ -629,8 +673,7 @@ namespace Model_Manager {
             Mesh mesh = process_mesh(ai_mesh, scene, path);
 
             mesh.transform = current_transform;
-            mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
-            mesh.aabb.min = glm::vec3(current_transform * glm::vec4(mesh.aabb.min, 1.0f));
+            mesh.aabb = Util::transform_aabb(mesh.aabb, mesh.transform);
 
             model.add_mesh(mesh);
             num_meshes++;
@@ -661,8 +704,8 @@ namespace Model_Manager {
                 Mesh mesh = process_mesh_cgltf(prim, data, i, path);
 
                 mesh.transform = transform;
-                mesh.aabb.max = glm::vec3(transform * glm::vec4(mesh.aabb.max, 1.0f));
-                mesh.aabb.min = glm::vec3(transform * glm::vec4(mesh.aabb.min, 1.0f));
+                // mesh.aabb.max = glm::vec3(transform * glm::vec4(mesh.aabb.max, 1.0f));
+                // mesh.aabb.min = glm::vec3(transform * glm::vec4(mesh.aabb.min, 1.0f));
 
                 model.add_mesh(mesh);
 
@@ -731,8 +774,7 @@ namespace Model_Manager {
             Mesh mesh = process_animated_mesh(ai_mesh, scene, path, base_bone);
 
             mesh.transform = current_transform;
-            mesh.aabb.max = glm::vec3(current_transform * glm::vec4(mesh.aabb.max, 1.0f));
-            mesh.aabb.min = glm::vec3(current_transform * glm::vec4(mesh.aabb.min, 1.0f));
+            mesh.aabb = Util::transform_aabb(mesh.aabb, mesh.transform);
 
             model.add_mesh(mesh);
             num_animated_meshes++;
@@ -751,7 +793,7 @@ namespace Model_Manager {
         mesh_ind.aabb.min = glm::vec3(FLT_MAX);
         mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
 
-        mesh_ind.base_vertex = g_vertices.size();// 
+        mesh_ind.base_vertex = g_vertices.size();
         // uint32_t vertex_count = mesh->mNumVertices;
         mesh_ind.vertex_count = mesh->mNumVertices;
 
@@ -2112,10 +2154,10 @@ namespace Model_Manager {
             std::string name;
             printf(" mesh: %s\n", mm.name.c_str());
 
-        //     printf("%f %f %f %f\n", mm.transform[0][0], mm.transform[1][0], mm.transform[2][0], mm.transform[3][0]);
-        //     printf("%f %f %f %f\n", mm.transform[0][1], mm.transform[1][1], mm.transform[2][1], mm.transform[3][1]);
-        //     printf("%f %f %f %f\n", mm.transform[0][2], mm.transform[1][2], mm.transform[2][2], mm.transform[3][2]);
-        //     printf("%f %f %f %f\n", mm.transform[0][3], mm.transform[1][3], mm.transform[2][3], mm.transform[3][3]);
+            printf("%f %f %f %f\n", mm.transform[0][0], mm.transform[1][0], mm.transform[2][0], mm.transform[3][0]);
+            printf("%f %f %f %f\n", mm.transform[0][1], mm.transform[1][1], mm.transform[2][1], mm.transform[3][1]);
+            printf("%f %f %f %f\n", mm.transform[0][2], mm.transform[1][2], mm.transform[2][2], mm.transform[3][2]);
+            printf("%f %f %f %f\n", mm.transform[0][3], mm.transform[1][3], mm.transform[2][3], mm.transform[3][3]);
         }
     }
 

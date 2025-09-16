@@ -27,7 +27,8 @@ struct GPU_Mesh {
     glm::vec4 bounding_sphere; // bounding sphere pos, r
     uint32_t entity_index;
     uint32_t skinned_to_static_offset;
-    uint32_t padding[2];
+    uint32_t bone_offset;
+    uint32_t padding;
 };
 
 class Scene {
@@ -39,6 +40,7 @@ public:
     void include(Entity& ntitty);
     void upload_buffers();
     void update_dirty();
+    void imgui();
     // returns the number of hits
     //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
 

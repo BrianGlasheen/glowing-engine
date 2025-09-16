@@ -31,8 +31,9 @@ struct GPU_Mesh {
     vec4 bounding_sphere; // maybe use transform for some
     uint entity_index;
     uint skinned_to_static_offset; // offset from  
+    uint bone_offset;
     // could add needs skin flag?
-    uint padding[2];
+    uint padding;
 };
 
 // target vertex buffer
@@ -85,7 +86,7 @@ void main() {
             float weight = rv.bone_weights[i];
 
             if (weight > 0.0) {
-                mat4 bone = bones[bone_idx];
+                mat4 bone = bones[bone_idx + mesh.bone_offset];
 
                 skinned_pos += weight * (bone * vec4(rv.position.xyz, 1.0));
 

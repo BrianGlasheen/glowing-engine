@@ -1443,6 +1443,7 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
             shader->set_mat4("mvp", vp * e.get_model_matrix() * am.m_meshes[0].transform);
             shader->set_uint("base_bone", base_bone);
             shader->set_uint("max_bone", base_bone + bone_count);
+            shader->set_uint("bone_offset", am.bone_offset);
 
             shader->set_uint("draw_mode", 1);
             shader->set_vec3("color", glm::vec3(0.0f, 1.0f, 1.0f));
