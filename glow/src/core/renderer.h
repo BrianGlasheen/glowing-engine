@@ -145,6 +145,7 @@ public:
     bool use_depth_prepass = false;
     bool do_draw_light_quads = false;
     bool draw_skeletons = true;
+    bool cascade_vis = false;
 
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
@@ -160,21 +161,6 @@ public:
     texture_handle csm_texture;
     std::vector<std::vector<Draw_Elements_Indirect_Command>> csm_draw_commands;
     std::vector<std::vector<Per_Object_Data>> csm_per_object_data;
-
-    glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);
-    glm::vec3 acceleration_direction = glm::vec3(0.0f, 1.0f, 0.0f);
-    float acceleration_force = 9.8f;
-    
-    glm::vec2 life_range = glm::vec2(3.0f, 6.0f);
-    glm::vec4 color_start_base = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 color_end_base = glm::vec4(1.0, 1.0, 1.0f, 0.0f);
-    glm::vec3 velocity_base = glm::vec3(0.0f);           // base spawn velocity
-    glm::vec3 velocity_random_bias = glm::vec3(0.0f);
-    float velocity_mag = 0.0f;
-
-    float emission_rate = 1;
-    int max_particles = 10000;
-    ////////
 
     uint32_t opaque_draw_command_ssbo, opaque_object_ssbo;
     std::vector<Draw_Elements_Indirect_Command> opaque_draw_commands;

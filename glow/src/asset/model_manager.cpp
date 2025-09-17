@@ -312,6 +312,7 @@ namespace Model_Manager {
     }
 
     model_handle load_animated_model(const std::string& path) {
+        printf("num verts before model %llu\n", g_vertices.size());
         printf("num rigged verts before model %llu\n", g_rigged_vertices.size());
         printf("num rigged idx before model %llu\n", g_indices.size());
         printf("num base bones after model %llu\n", g_rigged_bones.size());
@@ -334,19 +335,13 @@ namespace Model_Manager {
                 Mesh mesh = m;
 
                 mesh.base_vertex = g_vertices.size();
-                mesh.base_index = g_indices.size();
                 
                 for (uint32_t i = 0; i < m.vertex_count; i++) {
                     g_vertices.push_back(g_vertices[m.base_vertex + i]);
                 }
                 
-                for (uint32_t i = 0; i < m.index_count; i++) {
-                    uint32_t original_index = g_indices[m.base_index + i];
-                    uint32_t adjusted_index = original_index - m.base_vertex + mesh.base_vertex;
-                    g_indices.push_back(adjusted_index);
-                }
-                
                 copy.add_mesh(mesh);
+                printf("size: %d\n", copy.m_meshes.size());
                 // mesh.vertex_count = m.vertex_count;
                 // mesh.base_index = m.base_index;
                 // mesh.index_count = m.index_count;
@@ -385,10 +380,14 @@ namespace Model_Manager {
             m_animated_model_names.push_back(full_path);
 
             //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
+            printf("num verts after model %llu\n", g_vertices.size());
             printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
             printf("num idx after model %llu\n", g_indices.size());
             printf("num base bones after model %llu\n", g_rigged_bones.size());
             printf("num total bones after model %llu\n", num_skinned_bones);
+
+            printf("original base vertex: %d, original base rigged vertex: %d, offset: %d\n", loaded.m_meshes[0].base_vertex, loaded.base_animation_vertex, loaded.animation_offset);
+            printf("new base vertex: %d, new base rigged vertex: %d, offset: %d\n", copy.m_meshes[0].base_vertex, copy.base_animation_vertex, copy.animation_offset);
             // leaf bones
             // maybe kf's
             printf("here\n");
@@ -2344,7 +2343,7 @@ namespace Model_Manager {
 
         Animation_Command cmd = { m.base_bone, m.bone_count, m.bone_offset, m.base_leaf, m.leaf_count, a.base_bone_animation, a.bone_animation_count, a.duration, num_leafs };
 
-        printf("Animation %s for model %s\n", g_animation_names[m.current_animation + m.base_animation].c_str(), m.m_name.c_str());
+        printf("adding Animation command %s for model %s\n", g_animation_names[m.current_animation + m.base_animation].c_str(), m.m_name.c_str());
         printf("  base_bone: %u\n", cmd.base_bone);
         printf("  bone_count: %u\n", cmd.bone_count);
         printf("  bone_offset: %u\n", cmd.bone_offset);

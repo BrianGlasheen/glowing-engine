@@ -28,7 +28,7 @@ struct GPU_Mesh {
     uint32_t entity_index;
     uint32_t skinned_to_static_offset;
     uint32_t bone_offset;
-    uint32_t padding;
+    uint32_t transparent;
 };
 
 class Scene {

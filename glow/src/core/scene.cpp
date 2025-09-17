@@ -82,6 +82,8 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         uint32_t bone_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).bone_offset : 0xFFFFFFFF;
 
         for (const Mesh& m : meshes) {
+            const Material& mater = m.material;
+            
             GPU_Mesh gpu_m;
             gpu_m.transform = m.transform;
             gpu_m.base_vertex = m.base_vertex;
@@ -93,6 +95,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
             gpu_m.entity_index = index;
             gpu_m.skinned_to_static_offset = skinned_to_static_offset;
             gpu_m.bone_offset = bone_offset;
+            gpu_m.transparent = mater.blend_mode != Blend_Mode::disabled ? 1 : 0;
 
             if (ntitty.is_animated)
                 animated_mesh_to_all_mesh_mapping.push_back(gpu_meshes.size());
@@ -104,7 +107,6 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
             Per_Object_Data obj_data;
             // obj_data.model_matrix = g.transform * m.transform; // todo write in gpu
             obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
-            const Material& mater = m.material;
             obj_data.albedo = mater.albedo;
             obj_data.normal = mater.normal;
             obj_data.met_rough = mater.met_rough;
@@ -246,25 +248,6 @@ void Scene::imgui() {
             }
         }
         
-        // Timed Entities
-        if (!timed_entities.empty() && ImGui::CollapsingHeader("Timed Entities")) {
-            for (size_t i = 0; i < timed_entities.size(); ++i) {
-                const Entity& entity = timed_entities[i];
-                
-                std::string label = "Timed Entity " + std::to_string(i);
-                if (ImGui::TreeNode(label.c_str())) {
-                    ImGui::Text("TTL: %.2f / %.2f", entity.ttl, entity.max_ttl);
-                    float progress = entity.ttl / entity.max_ttl;
-                    ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f));
-                    
-                    glm::vec3 pos = entity.physics_enabled ? entity.get_physics_position() : entity.position;
-                    ImGui::Text("Position: %.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
-                    ImGui::Text("Model ID: %u", entity.model_id);
-                    ImGui::TreePop();
-                }
-            }
-        }
-        
         // GPU Data
         if (ImGui::CollapsingHeader("GPU Data")) {
             static int selected_mesh = -1;
@@ -296,6 +279,9 @@ void Scene::imgui() {
                 
                 if (mesh.skinned_to_static_offset != 0xFFFFFFFF) {
                     ImGui::Text("Animation Offset: %u", mesh.skinned_to_static_offset);
+                }
+                if (mesh.bone_offset != 0xFFFFFFFF) {
+                    ImGui::Text("Bone Offset: %u", mesh.skinned_to_static_offset);
                 }
             }
         }

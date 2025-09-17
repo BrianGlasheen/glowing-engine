@@ -30,7 +30,8 @@ struct GPU_Mesh {
     uint entity_index;
     uint skinned_to_static_offset; // offset from  
     // could add needs skin flag?  // only do skinning if needed
-    uint padding[2];
+    uint bone_offset;
+    uint transparent;
 };
 
 struct Per_Object_Data {
@@ -52,29 +53,34 @@ struct Per_Object_Data {
     uint bone_offset; // todo remove
 };
 
-layout(std430, binding = 0) buffer Draw_Commands {
+layout(std430, binding = 0) buffer Draw_Command_Count {
+    uint draw_count;
+    uint csm_draw_count;
+    uint transparent_draw_count;
+};
+
+layout(std430, binding = 1) buffer Draw_Commands {
     Draw_Elements_Indirect_Command draw_commands[];
 };
 
-layout(std430, binding = 1) buffer Draw_Command_Count {
-    uint draw_count;
-    uint csm_draw_count;
+layout(std430, binding = 2) buffer Transparent_Draw_Commands {
+    Draw_Elements_Indirect_Command transparent_draw_commands[];
 };
 
-layout(std430, binding = 2) buffer Entities {
+layout(std430, binding = 3) buffer CSM_Draw_Commands {
+    Draw_Elements_Indirect_Command csm_draw_commands[];
+};
+
+layout(std430, binding = 4) buffer Entities {
     GPU_Entity entities[];
 };
 
-layout(std430, binding = 3) buffer Meshes {
+layout(std430, binding = 5) buffer Meshes {
     GPU_Mesh meshes[];
 };
 
-layout(std430, binding = 4) buffer Per_Mesh_Data {
+layout(std430, binding = 6) buffer Per_Mesh_Data {
     Per_Object_Data per_mesh_data[];
-};
-
-layout(std430, binding = 5) buffer CSM_Draw_Commands {
-    Draw_Elements_Indirect_Command csm_draw_commands[];
 };
 
 uniform uint num_meshes;
@@ -87,7 +93,6 @@ uniform bool infinite_far;
 // max meshes
 
 bool visible(uint index) {
-    return true;
     mat4 entity_transform = entities[meshes[index].entity_index].transform;
     
     vec3 local_center = meshes[index].bounding_sphere.xyz;
@@ -133,18 +138,22 @@ void main() {
         // cull view frustum if has flag
         // todo could maybe do lod-ing?
 		if(visible(gID)) {
-			uint index = atomicAdd(draw_count, 1);
-
             Draw_Elements_Indirect_Command draw_command;
             draw_command.count = mesh.index_count;
             draw_command.instance_count = 1;
             draw_command.first_index = mesh.base_index;
             draw_command.base_vertex = mesh.base_vertex;
             draw_command.base_instance = gID;
-        
-            draw_commands[index] = draw_command;
-        }
 
+            if (mesh.transparent == 0) {
+                uint index = atomicAdd(draw_count, 1);
+                draw_commands[index] = draw_command;
+
+            } else if (mesh.transparent == 1) {
+                uint index = atomicAdd(transparent_draw_count, 1);
+                transparent_draw_commands[index] = draw_command;
+            }
+        }
         // cull animated against frustum if has flag
             // submit animation command (if gpu animation)
             // submit draw command

@@ -31,7 +31,7 @@ const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
 const glm::vec3 SUN_DIR = glm::vec3(0.0, -1.0f, -1.0f);
 static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 };
-const float CASCADE_END[NUM_CASCADE + 1] = { 1.0f, 25.0f, 50.0f, 100.0f, 200.0f };
+const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 50.0f, 100.0f, 200.0f };
 
 // point light shadow mapping
 struct camera_dir {
@@ -213,13 +213,16 @@ void Renderer::setup_indirect() {
 
     // // // 
     glCreateBuffers(1, &compute_culled_commands);
-    glNamedBufferStorage(compute_culled_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);    
+    glNamedBufferStorage(compute_culled_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT); 
+
+    glCreateBuffers(1, &blended_draw_command_ssbo);
+    glNamedBufferStorage(blended_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);    
     
     glCreateBuffers(1, &csm_commands);
     glNamedBufferStorage(csm_commands, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
     glCreateBuffers(1, &num_commands);
-    glNamedBufferStorage(num_commands, sizeof(uint32_t) * 2, 0, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferStorage(num_commands, sizeof(uint32_t) * 3, 0, GL_DYNAMIC_STORAGE_BIT);
     // // //
 
     blended_draw_commands.reserve(MAX_DRAW_COMMANDS);
@@ -227,10 +230,10 @@ void Renderer::setup_indirect() {
     blended_draw_command_indices.resize(MAX_DRAW_COMMANDS);
     blended_draw_command_distances.resize(MAX_DRAW_COMMANDS);
     
-    glCreateBuffers(1, &blended_draw_command_ssbo);
-    glNamedBufferStorage(blended_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
-    glCreateBuffers(1, &blended_object_ssbo);
-    glNamedBufferStorage(blended_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    // glCreateBuffers(1, &blended_draw_command_ssbo);
+    // glNamedBufferStorage(blended_draw_command_ssbo, sizeof(Draw_Elements_Indirect_Command) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
+    // glCreateBuffers(1, &blended_object_ssbo);
+    // glNamedBufferStorage(blended_object_ssbo, sizeof(Per_Object_Data) * MAX_DRAW_COMMANDS, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
 
     // #if COMPUTE_SKINNG load skinned compute shader (does boen transformation)
@@ -342,7 +345,7 @@ void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
     cluster_build->use();
     cluster_ssbo.bind(1); // todo fix once
 
-    cluster_build->set_float("zNear", 1.0f); // once
+    cluster_build->set_float("zNear", 0.1f); // once
     cluster_build->set_float("zFar", FAR_PLANE); // once (would have to change if changed)
     cluster_build->set_mat4("inverseProjection", inv_proj);
     cluster_build->set_uvec3("gridSize", glm::uvec3(16, 9, 24)); // thnk about how to do x y
@@ -714,14 +717,14 @@ void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
     glBindVertexArray(0);
 }
 
-void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj) {
+void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& player_view, const glm::mat4& cull_proj) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
+    glDisable(GL_BLEND);
 
     glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
     if (use_depth_prepass) {
-        // after pre pass set this state
         glClear(GL_COLOR_BUFFER_BIT);
         glDepthFunc(GL_GEQUAL); // fragments at same depth pass
         glDepthMask(GL_FALSE); // dont write depth, unnecessary
@@ -748,9 +751,10 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     shader->set_vec3("view_pos", view_pos);
     shader->set_int("num_lights", num_lights);
     shader->set_bool("forward_plus", forward_plus);
-    shader->set_float("zNear", 1.0f);
+    shader->set_float("zNear", 0.1f);
     shader->set_float("zFar", FAR_PLANE);
     shader->set_mat4("viewMatrix", view);
+    shader->set_mat4("playerViewMatrix", player_view);
     shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
     shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
 
@@ -763,10 +767,10 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     shader->set_vec3("directional_light_color", glm::vec3(1.0f));
     shader->set_float("directional_light_intensity", sun_strength);
 
+    shader->set_bool("cascade_vis", cascade_vis);
+
     Texture_Manager::bind(ssao_texture, 0); // todo once
     Texture_Manager::bind_array(csm_texture, 1); // todo once
-
-    glDisable(GL_BLEND);
 
     uint32_t vao = Model_Manager::get_big_vao();
     glBindVertexArray(vao);
@@ -781,11 +785,35 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, compute_culled_commands);
 
+    // GLuint count;
+    // glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
+    // printf("solid Draw count: %u \n", count);
+
     glMultiDrawElementsIndirectCount(
         GL_TRIANGLES,
         GL_UNSIGNED_INT,
         (void*)0,                             // indirect offset
         (GLintptr)0,                          // offset in the count buffer
+        MAX_DRAW_COMMANDS,                                 // maximum draws
+        sizeof(Draw_Elements_Indirect_Command)  // stride
+    );
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_DEPTH_TEST);
+
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_ssbo);
+
+    // glGetBufferSubData(GL_PARAMETER_BUFFER, 8, sizeof(GLuint), &count);
+    // printf("op Draw count: %u \n", count);
+    
+    glMultiDrawElementsIndirectCount(
+        GL_TRIANGLES,
+        GL_UNSIGNED_INT,
+        (void*)0,                             // indirect offset
+        (GLintptr)8,                          // offset in the count buffer
         MAX_DRAW_COMMANDS,                                 // maximum draws
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
@@ -847,215 +875,215 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
     // glBindVertexArray(0);
 }
 
-void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
-    // DRAW
-    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
-    glViewport(0, 0, scr_width, scr_height);
-    glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
+// void Renderer::draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj) {
+//     // DRAW
+//     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
+//     glViewport(0, 0, scr_width, scr_height);
+//     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
 
-    glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
-    if (use_depth_prepass) {
-        // after pre pass set this state
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDepthFunc(GL_GEQUAL); // fragments at same depth pass
-        glDepthMask(GL_FALSE); // dont write depth, unnecessary
-    }
-    else {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDepthFunc(GL_GREATER);
-        glDepthMask(GL_TRUE);
-    }
+//     glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
+//     if (use_depth_prepass) {
+//         // after pre pass set this state
+//         glClear(GL_COLOR_BUFFER_BIT);
+//         glDepthFunc(GL_GEQUAL); // fragments at same depth pass
+//         glDepthMask(GL_FALSE); // dont write depth, unnecessary
+//     }
+//     else {
+//         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//         glDepthFunc(GL_GREATER);
+//         glDepthMask(GL_TRUE);
+//     }
 
-    Shader* shader = Shader_Manager::get_shader("indirect");
-    shader->use();
-    //glStencilMask(0x00);
+//     Shader* shader = Shader_Manager::get_shader("indirect");
+//     shader->use();
+//     //glStencilMask(0x00);
     
-    scene.skybox.bind(9);
-    shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
+//     scene.skybox.bind(9);
+//     shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
 
-    shader->set_mat4("vp", viewproj);
+//     shader->set_mat4("vp", viewproj);
 
-    shader->set_bool("blend", false);
+//     shader->set_bool("blend", false);
 
-    shader->set_vec3("view_pos", view_pos);
-    shader->set_int("num_lights", num_lights);
-    shader->set_bool("forward_plus", forward_plus);
-    shader->set_float("zNear", 1.0f);
-    shader->set_float("zFar", FAR_PLANE);
-    shader->set_mat4("viewMatrix", view);
-    shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
-    shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
+//     shader->set_vec3("view_pos", view_pos);
+//     shader->set_int("num_lights", num_lights);
+//     shader->set_bool("forward_plus", forward_plus);
+//     shader->set_float("zNear", 0.1f);
+//     shader->set_float("zFar", FAR_PLANE);
+//     shader->set_mat4("viewMatrix", view);
+//     shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
+//     shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
 
-    shader->set_bool("ssao_enabled", ssao_enabled);
+//     shader->set_bool("ssao_enabled", ssao_enabled);
 
-    shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
-    shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
-    shader->set_int("num_cascades", NUM_CASCADE);
-    shader->set_vec3("directional_light_direction", SUN_DIR);
-    shader->set_vec3("directional_light_color", glm::vec3(1.0f));
-    shader->set_float("directional_light_intensity", sun_strength);
+//     shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
+//     shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
+//     shader->set_int("num_cascades", NUM_CASCADE);
+//     shader->set_vec3("directional_light_direction", SUN_DIR);
+//     shader->set_vec3("directional_light_color", glm::vec3(1.0f));
+//     shader->set_float("directional_light_intensity", sun_strength);
 
-    Texture_Manager::bind(ssao_texture, 0); // todo once
-    Texture_Manager::bind_array(csm_texture, 1); // todo once
+//     Texture_Manager::bind(ssao_texture, 0); // todo once
+//     Texture_Manager::bind_array(csm_texture, 1); // todo once
 
 
-    //static float time = 0.0f;
-    //time += delta_time;
+//     //static float time = 0.0f;
+//     //time += delta_time;
 
-    // main pass
-#if BINDLESS
-    glDisable(GL_BLEND);
+//     // main pass
+// #if BINDLESS
+//     glDisable(GL_BLEND);
 
-    uint32_t vao = Model_Manager::get_big_vao();
-    glBindVertexArray(vao);
+//     uint32_t vao = Model_Manager::get_big_vao();
+//     glBindVertexArray(vao);
 
-    // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
+//     // draw commands and transform
+//     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_command_ssbo);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
-    cluster_ssbo.bind(1);
-    light_ssbo.bind(2);
+//     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, opaque_object_ssbo);
+//     cluster_ssbo.bind(1);
+//     light_ssbo.bind(2);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
+//     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, opaque_draw_count, 0);
 
-    glBindVertexArray(0);
-    //
-    // skinned
-    //
-    shader = Shader_Manager::get_shader("skinned");
-    shader->use();
-    shader->set_mat4("vp", proj);
-    //shader->set_uint("bone", bone);
-    //printf("bone: %d\n", bone);
+//     glBindVertexArray(0);
+//     //
+//     // skinned
+//     //
+//     shader = Shader_Manager::get_shader("skinned");
+//     shader->use();
+//     shader->set_mat4("vp", proj);
+//     //shader->set_uint("bone", bone);
+//     //printf("bone: %d\n", bone);
 
-    vao = Model_Manager::get_rigged_vao();
-    glBindVertexArray(vao);
+//     vao = Model_Manager::get_rigged_vao();
+//     glBindVertexArray(vao);
 
-    // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, skinned_draw_commands_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_object_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+//     // draw commands and transform
+//     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, skinned_draw_commands_ssbo);
+//     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, skinned_object_ssbo);
+//     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, skinned_draw_commands.size(), 0);
+//     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, skinned_draw_commands.size(), 0);
 
-    glBindVertexArray(0);
+//     glBindVertexArray(0);
 
-    // blended stuff
-    shader = Shader_Manager::get_shader("indirect");
-    shader->use();
-    shader->set_bool("blend", true);
+//     // blended stuff
+//     shader = Shader_Manager::get_shader("indirect");
+//     shader->use();
+//     shader->set_bool("blend", true);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDepthMask(GL_FALSE);
+//     glEnable(GL_BLEND);
+//     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//     glDepthMask(GL_FALSE);
 
-    vao = Model_Manager::get_big_vao();
-    glBindVertexArray(vao);
+//     vao = Model_Manager::get_big_vao();
+//     glBindVertexArray(vao);
 
-    // draw commands and transform
-    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, blended_object_ssbo);
+//     // draw commands and transform
+//     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_command_ssbo);
+//     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, blended_object_ssbo);
 
-    glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, blended_draw_count, 0);
+//     glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, NULL, blended_draw_count, 0);
 
-    glBindVertexArray(0);
-    glDepthMask(GL_TRUE);
+//     glBindVertexArray(0);
+//     glDepthMask(GL_TRUE);
 
-#else
-    //uint32_t vao = Model_Manager::get_big_vao();
-    //glBindVertexArray(vao);
+// #else
+//     //uint32_t vao = Model_Manager::get_big_vao();
+//     //glBindVertexArray(vao);
 
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
-    //cluster_ssbo.bind(1);
-    //light_ssbo.bind(2);
-    //Texture_Manager::bind(ssao_texture, 0);
+//     //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo);
+//     //cluster_ssbo.bind(1);
+//     //light_ssbo.bind(2);
+//     //Texture_Manager::bind(ssao_texture, 0);
 
-    //for (size_t i = 0; i < draw_commands.size(); i++) {
-    //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
-    //    Per_Object_Data pod = per_object_data[i];
+//     //for (size_t i = 0; i < draw_commands.size(); i++) {
+//     //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
+//     //    Per_Object_Data pod = per_object_data[i];
 
-    //    Texture_Manager::bind(pod.albedo, 0);
-    //    Texture_Manager::bind(pod.normal, 1);
-    //    Texture_Manager::bind(pod.met_rough, 2);
-    //    Texture_Manager::bind(pod.emissive, 3);
-    //    Texture_Manager::bind(pod.amb_occ, 4);
-    //    shader->set_uint("draw_id", i);
+//     //    Texture_Manager::bind(pod.albedo, 0);
+//     //    Texture_Manager::bind(pod.normal, 1);
+//     //    Texture_Manager::bind(pod.met_rough, 2);
+//     //    Texture_Manager::bind(pod.emissive, 3);
+//     //    Texture_Manager::bind(pod.amb_occ, 4);
+//     //    shader->set_uint("draw_id", i);
 
-    //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-    //                                        cmd.count,
-    //                                        GL_UNSIGNED_INT,
-    //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
-    //                                        cmd.instance_count,
-    //                                        cmd.base_vertex,
-    //                                        cmd.base_instance);
-    //}
-    //glBindVertexArray(0);
-    ///////////////////////////////////////////////////////////////////////////////////////////////////
-    //shader = Shader_Manager::get_shader("skinned");
-    //shader->use();
-    //shader->set_mat4("vp", viewproj);
-    //shader->set_uint("bone", bone);
-    ////printf("bone: %d\n", bone);
+//     //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+//     //                                        cmd.count,
+//     //                                        GL_UNSIGNED_INT,
+//     //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
+//     //                                        cmd.instance_count,
+//     //                                        cmd.base_vertex,
+//     //                                        cmd.base_instance);
+//     //}
+//     //glBindVertexArray(0);
+//     ///////////////////////////////////////////////////////////////////////////////////////////////////
+//     //shader = Shader_Manager::get_shader("skinned");
+//     //shader->use();
+//     //shader->set_mat4("vp", viewproj);
+//     //shader->set_uint("bone", bone);
+//     ////printf("bone: %d\n", bone);
 
-    //vao = Model_Manager::get_rigged_vao();
-    //glBindVertexArray(vao);
+//     //vao = Model_Manager::get_rigged_vao();
+//     //glBindVertexArray(vao);
 
-    //// draw commands and transform
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
+//     //// draw commands and transform
+//     //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, per_object_ssbo_skinned);
+//     //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, Model_Manager::get_skinned_bone_ssbo());
 
-    //for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
-    //    Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
-    //    Per_Object_Data pod = per_object_data_skinned[i];
+//     //for (size_t i = 0; i < draw_commands_skinned.size(); i++) {
+//     //    Draw_Elements_Indirect_Command cmd = draw_commands_skinned[i];
+//     //    Per_Object_Data pod = per_object_data_skinned[i];
 
-    //    Texture_Manager::bind(pod.albedo, 0);
-    //    Texture_Manager::bind(pod.normal, 1);
-    //    Texture_Manager::bind(pod.met_rough, 2);
-    //    Texture_Manager::bind(pod.emissive, 3);
-    //    Texture_Manager::bind(pod.amb_occ, 4);
-    //    shader->set_uint("draw_id", i);
+//     //    Texture_Manager::bind(pod.albedo, 0);
+//     //    Texture_Manager::bind(pod.normal, 1);
+//     //    Texture_Manager::bind(pod.met_rough, 2);
+//     //    Texture_Manager::bind(pod.emissive, 3);
+//     //    Texture_Manager::bind(pod.amb_occ, 4);
+//     //    shader->set_uint("draw_id", i);
 
-    //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
-    //                                        cmd.count,
-    //                                        GL_UNSIGNED_INT,
-    //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
-    //                                        cmd.instance_count,
-    //                                        cmd.base_vertex,
-    //                                        cmd.base_instance);
-    //}
+//     //    glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+//     //                                        cmd.count,
+//     //                                        GL_UNSIGNED_INT,
+//     //                                        (void*)(cmd.first_index * sizeof(uint32_t)),
+//     //                                        cmd.instance_count,
+//     //                                        cmd.base_vertex,
+//     //                                        cmd.base_instance);
+//     //}
 
-    //glBindVertexArray(0);
-#endif
+//     //glBindVertexArray(0);
+// #endif
 
-}
+// }
 
-//void Renderer::sort_blended_draws() { // todo move to gpu?
-// 
-//      barrier command buffer
-//      dispatch sort shader
-// 
-// 
-//    // sort draw commands by center of aabb
-//    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
-//        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
-//            return distances[d1] > distances[d2];
-//        });
-//
-//    // order draw command per obj
-//    uint32_t count = blended_draw_commands.size();
-//    // TODO I HATE THIS FIND BETTER WAY
-//    auto sorted_draw_commands = blended_draw_commands;
-//    auto sorted_per_object_data = blended_object_data;
-//    for (uint32_t i = 0; i < count; ++i) {
-//        blended_draw_commands[i] = sorted_draw_commands[blended_draw_command_indices[i]];
-//        blended_object_data[i] = sorted_per_object_data[blended_draw_command_indices[i]];
-//    }
-//
-//    if (count) {
-//        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * count, blended_draw_commands.data());
-//        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * count, blended_object_data.data());
-//    }
-//}
+// //void Renderer::sort_blended_draws() { // todo move to gpu?
+// // 
+// //      barrier command buffer
+// //      dispatch sort shader
+// // 
+// // 
+// //    // sort draw commands by center of aabb
+// //    std::sort(blended_draw_command_indices.begin(), blended_draw_command_indices.end(),
+// //        [&distances = blended_draw_command_distances](size_t d1, size_t d2) {
+// //            return distances[d1] > distances[d2];
+// //        });
+// //
+// //    // order draw command per obj
+// //    uint32_t count = blended_draw_commands.size();
+// //    // TODO I HATE THIS FIND BETTER WAY
+// //    auto sorted_draw_commands = blended_draw_commands;
+// //    auto sorted_per_object_data = blended_object_data;
+// //    for (uint32_t i = 0; i < count; ++i) {
+// //        blended_draw_commands[i] = sorted_draw_commands[blended_draw_command_indices[i]];
+// //        blended_object_data[i] = sorted_per_object_data[blended_draw_command_indices[i]];
+// //    }
+// //
+// //    if (count) {
+// //        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * count, blended_draw_commands.data());
+// //        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * count, blended_object_data.data());
+// //    }
+// //}
 
 void Renderer::debug_cascades(Scene& scene) {
 
@@ -1226,7 +1254,8 @@ void Renderer::composite() {
 
 void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection) {
     glDepthFunc(GL_GEQUAL);
-
+    glDepthMask(GL_FALSE); 
+    glDisable(GL_BLEND);
     Shader* shader = Shader_Manager::get_shader("skybox");
     shader->use();
 
@@ -1309,16 +1338,19 @@ void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::
     GLuint zero = 0;
     glNamedBufferSubData(num_commands, 0, sizeof(GLuint), &zero); // clear draw cmds
     glNamedBufferSubData(num_commands, 4, sizeof(GLuint), &zero); // clear num csm commands
+    glNamedBufferSubData(num_commands, 8, sizeof(GLuint), &zero);
 
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // barrier for entity updates
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, compute_culled_commands);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, num_commands);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, num_commands);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, compute_culled_commands);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, blended_draw_command_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, csm_commands);
     // entities buffer 2
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, scene.gpu_entity_ssbo);
     // meshes buffer 3
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, scene.gpu_mesh_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, scene.per_mesh_ssbo);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, csm_commands);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, scene.gpu_mesh_ssbo);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, scene.per_mesh_ssbo);
 
     // set cull uinforms
     glm::mat4 projectionT = glm::transpose(cull_proj);
@@ -1349,67 +1381,12 @@ void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::
     c_shader->set_uint("num_entities", num_entities);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
 
-    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
 }
-
-//void Renderer::submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb) {
-//    // if opaque / alpha mask
-//    // todo probably sort by shader for special effects?!
-//    if (blend_mode == Blend_Mode::disabled) {
-//        draw_command.base_instance = opaque_draw_count;
-//        opaque_draw_commands.push_back(draw_command);
-//        opaque_object_data.push_back(object_data);
-//        opaque_draw_count++;
-//    }
-//    else { // assume non additive blending for now
-//        draw_command.base_instance = blended_draw_count;
-//        blended_draw_commands.push_back(draw_command);
-//        blended_object_data.push_back(object_data);
-//        blended_draw_command_indices.push_back(blended_draw_count);
-//
-//        glm::vec3 aabb_center = (aabb.max + aabb.min) * 0.5f;
-//        glm::vec3 world_center = glm::vec3(object_data.model_matrix * glm::vec4(aabb_center, 1.0f));
-//        blended_draw_command_distances.push_back(glm::distance(view_pos, world_center));
-//        blended_draw_count++;
-//    }
-//}
-
-//void Renderer::submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data) {
-//    draw_command.base_instance = skinned_draw_count;
-//    skinned_draw_commands.push_back(draw_command);
-//    skinned_object_data.push_back(object_data);
-//    skinned_draw_count++;
-//}
-
-//void Renderer::upload_render_commands() {
-//    if (opaque_draw_count > 0) {
-//        glNamedBufferSubData(opaque_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * opaque_draw_count, opaque_draw_commands.data());
-//        glNamedBufferSubData(opaque_object_ssbo, 0, sizeof(Per_Object_Data) * opaque_draw_count, opaque_object_data.data());
-//    }
-//
-//    if (blended_draw_count > 0) {
-//        glNamedBufferSubData(blended_draw_command_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * blended_draw_count, blended_draw_commands.data());
-//        glNamedBufferSubData(blended_object_ssbo, 0, sizeof(Per_Object_Data) * blended_draw_count, blended_object_data.data());
-//    }
-//
-//    if (skinned_draw_count > 0) {
-//        glNamedBufferSubData(skinned_draw_commands_ssbo, 0, sizeof(Draw_Elements_Indirect_Command) * skinned_draw_count, skinned_draw_commands.data());
-//        glNamedBufferSubData(skinned_object_ssbo, 0, sizeof(Per_Object_Data) * skinned_draw_count, skinned_object_data.data());
-//    }
-//
-//    // skinned draw count todo prob not will just be in normal buffers
-//    //glNamedBufferSubData(per_object_ssbo_skinned, 0, sizeof(Per_Object_Data) * blended_draw_count, per_object_data_skinned.data());
-//
-//}
-
-//void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
-//// todo probably move CSM to some kind of light system along with other lights
-//int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
 
 glm::vec4 Renderer::normalize_plane(glm::vec4 p) {
     return p / glm::length(glm::vec3(p));
 }
-
 
 void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
     // use skeleton debug shader

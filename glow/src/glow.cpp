@@ -15,6 +15,7 @@
 #include "asset/particle_manager.h"
 
 #include "player/player.h"
+#include "util/colors.h"
 #include "util/profiler.h"
 
 #include "glm/glm.hpp"
@@ -124,12 +125,12 @@ namespace Glow {
 		//printf(loaded ? "good\n" : "bad\n");
 		scene.init("sky");
 
-		// model_handle plane = Model_Manager::load_model("plane.obj");
-		// glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		// glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		// glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		// Entity e23223(pos, rot, scale, plane, false);
-		// scene.include(e23223);
+		model_handle plane = Model_Manager::load_model("plane.obj");
+		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
+		Entity e23223(pos, rot, scale, plane, false);
+		scene.include(e23223);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -204,8 +205,8 @@ namespace Glow {
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
 		
-		Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
-		scene.include(e5555);
+		// Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
+		// scene.include(e5555);
 
 		// Entity e55553 = Entity::Animated_Entity(glm::vec3(-10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.5f), "tiger/scene.gltf", false);
 		// scene.include(e55553);
@@ -216,14 +217,14 @@ namespace Glow {
 		// Entity e2323 = Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		// scene.include(e2323);
 
-		Entity raccoon23333 = Entity::Animated_Entity(glm::vec3(-15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "goku/scene.gltf", false);
+		Entity raccoon23333 = Entity(glm::vec3(-15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
 		scene.include(raccoon23333);
 
-		Entity raccoon233332 = Entity::Animated_Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
 		scene.include(raccoon233332);
 
-		Entity raccoon2333323 = Entity(glm::vec3(50.0f, 25.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "tiger/scene.gltf", false);
-		scene.include(raccoon2333323);
+		// Entity raccoon2333323 = Entity(glm::vec3(50.0f, 25.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "tiger/scene.gltf", false);
+		// scene.include(raccoon2333323);
 		
 		// Entity e55552 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "AnimatedCube/glTF/AnimatedCube.gltf", false);
 		// scene.include(e55552);
@@ -276,9 +277,9 @@ namespace Glow {
 
 		// model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
-			// model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-			// Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
-			// scene.include(sadasd23232323232332323);
+			model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+			Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+			scene.include(sadasd23232323232332323);
 		}
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
@@ -416,16 +417,21 @@ namespace Glow {
 			if (renderer.do_draw_light_quads)
 				renderer.draw_light_quads(player_proj, player_view);
 
-			if (renderer.draw_skeletons)
+			if (renderer.draw_skeletons && player.key_toggles['y'])
 				renderer.debug_skeletons(scene, active_viewproj);
 
-			renderer.render_skybox(scene.skybox, player_view, player_proj);
+			// renderer.render_skybox(scene.skybox, player_view, player_proj);
 
 			{ PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
 			  renderer.composite(); }
 
 			{ PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-			  if (player.key_toggles[(unsigned)'r']) renderer.render_debug(active_view, active_proj, scene); }
+			  if (player.key_toggles[(unsigned)'r']) {
+				renderer.render_debug(active_view, active_proj, scene); 
+			
+				renderer.debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, player.camera.zoom, aspect_ratio, 0.1, 10000, Util::red);
+			  }
+			}
 			
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 			if (player.key_toggles['l'])
@@ -454,21 +460,6 @@ namespace Glow {
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
-
-			ImGui::Begin("particle");
-			ImGui::Checkbox("compute culling", &compute_culling);
-			ImGui::Checkbox("skele", &renderer.draw_skeletons);
-			ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
-			ImGui::SliderFloat3("acceleration dir", &renderer.acceleration_direction.x, -1.0f, 1.0f);
-			ImGui::SliderFloat("acceleration mag", &renderer.acceleration_force, -17.0f, 19.0f);
-			ImGui::SliderFloat2("life_range", &renderer.life_range.x, 0.0, 10.0f);
-			ImGui::SliderFloat4("color_start_base", &renderer.color_start_base.x, 0.0f, 1.0f);
-			ImGui::SliderFloat4("color_start_end", &renderer.color_end_base.x, 0.0f, 1.0f);
-			ImGui::SliderFloat3("velocity_base", &renderer.velocity_base.x, -20.0f, 20.0f);
-			ImGui::SliderFloat3("velocity_random_bias", &renderer.velocity_random_bias.x, -1.0, 1.0);
-			ImGui::SliderFloat("velocity_mag", &renderer.velocity_mag, -100.0f, 100.0f);
-			ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
-			ImGui::End();
 
 			scene.imgui();
 

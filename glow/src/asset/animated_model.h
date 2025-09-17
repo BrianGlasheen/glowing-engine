@@ -34,9 +34,10 @@ public:
 	void calculate_aabb() {
 		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
 
-		for (const Mesh& mesh : m_meshes) {
+		for (Mesh& mesh : m_meshes) {
 			m_aabb.min = glm::min(mesh.aabb.min, m_aabb.min);
 			m_aabb.max = glm::max(mesh.aabb.max, m_aabb.max);
+			// mesh.transform = mat4
 		}
 
 		animation_offset = m_meshes[0].base_vertex - base_animation_vertex;

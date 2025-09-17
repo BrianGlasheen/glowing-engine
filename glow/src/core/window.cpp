@@ -249,7 +249,10 @@ void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {
 
     if (key == 't')
         this_window->renderer->terrain_draw_type = (this_window->renderer->terrain_draw_type + 1) % 3;
-
+    
+    if (key == 'p')
+        this_window->renderer->cascade_vis = !this_window->renderer->cascade_vis;
+    
     if (key == '\'')
         Shader_Manager::hot_reload_all();
 
