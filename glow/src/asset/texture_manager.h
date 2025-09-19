@@ -1,8 +1,8 @@
-#ifndef TEXTURE_MANAGER_H
-#define TEXTURE_MANAGER_H
+#pragma once
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 typedef size_t texture_handle;
 
@@ -10,7 +10,11 @@ namespace Texture_Manager {
     void init();
     void cleanup();
 
-    texture_handle load_from_path(const std::string& file_path);
+    bool loaded_already(const std::string& new_path, size_t& existing_idx);
+    uint64_t load(const std::string& file_path);
+    uint64_t load_dds(const std::string& file_path);    
+    uint64_t load_non_dds(const std::string& file_path);
+
     void resize(const texture_handle handle, int width, int height, int mips = 1);
 
     texture_handle load_msdf(const std::string& file_path);
@@ -29,8 +33,6 @@ namespace Texture_Manager {
     size_t get_texture_count();
     std::string get_name(texture_handle texture_id);
 
-    bool bindless_loaded_already(const std::string& new_path, size_t& existing_idx);
-    uint64_t load_bindless_from_path(const std::string& file_path);
 
+    uint32_t get_ogl_format(uint32_t fourCC);
 }
-#endif

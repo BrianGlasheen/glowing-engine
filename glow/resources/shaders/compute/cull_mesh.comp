@@ -15,7 +15,9 @@ struct Draw_Elements_Indirect_Command {
 struct GPU_Entity { // todo can maybe just be pos
     mat4 transform;
     uint is_dirty;
-    uint padding[3];
+    uint animation_command_index; // todo actually dont need i think
+    uint any_mesh_visible; // only animate bones if some mesh visible
+    uint padding;
 };
 
 struct GPU_Mesh {
@@ -26,7 +28,10 @@ struct GPU_Mesh {
     uint index_count;
     vec4 bounding_sphere; // maybe use transform for some
     uint entity_index;
-    uint padding[3];
+    uint skinned_to_static_offset; // offset from  
+    // could add needs skin flag?  // only do skinning if needed
+    uint bone_offset;
+    uint transparent;
 };
 
 struct Per_Object_Data {
@@ -48,29 +53,34 @@ struct Per_Object_Data {
     uint bone_offset; // todo remove
 };
 
-layout(std430, binding = 0) buffer Draw_Commands {
+layout(std430, binding = 0) buffer Draw_Command_Count {
+    uint draw_count;
+    uint csm_draw_count;
+    uint transparent_draw_count;
+};
+
+layout(std430, binding = 1) buffer Draw_Commands {
     Draw_Elements_Indirect_Command draw_commands[];
 };
 
-layout(std430, binding = 1) buffer Draw_Command_Count {
-    uint draw_count;
-    uint csm_draw_count;
+layout(std430, binding = 2) buffer Transparent_Draw_Commands {
+    Draw_Elements_Indirect_Command transparent_draw_commands[];
 };
 
-layout(std430, binding = 2) buffer Entities {
+layout(std430, binding = 3) buffer CSM_Draw_Commands {
+    Draw_Elements_Indirect_Command csm_draw_commands[];
+};
+
+layout(std430, binding = 4) buffer Entities {
     GPU_Entity entities[];
 };
 
-layout(std430, binding = 3) buffer Meshes {
+layout(std430, binding = 5) buffer Meshes {
     GPU_Mesh meshes[];
 };
 
-layout(std430, binding = 4) buffer Per_Mesh_Data {
+layout(std430, binding = 6) buffer Per_Mesh_Data {
     Per_Object_Data per_mesh_data[];
-};
-
-layout(std430, binding = 5) buffer CSM_Draw_Commands {
-    Draw_Elements_Indirect_Command csm_draw_commands[];
 };
 
 uniform uint num_meshes;
@@ -83,22 +93,20 @@ uniform bool infinite_far;
 // max meshes
 
 bool visible(uint index) {
-	//grab sphere cull data from the object buffer
-	vec4 sphereBounds = meshes[index].bounding_sphere;
-
-	vec3 center = sphereBounds.xyz;
-	center += entities[meshes[index].entity_index].transform[3].xyz;
-
-	center = (view * vec4(center,1.f)).xyz;
-	float radius = sphereBounds.w;
+    mat4 entity_transform = entities[meshes[index].entity_index].transform;
+    
+    vec3 local_center = meshes[index].bounding_sphere.xyz;
+    vec3 world_center = (entity_transform * vec4(local_center, 1.0)).xyz;
+    
+    vec3 center = (view * vec4(world_center, 1.0)).xyz;
+    float radius = meshes[index].bounding_sphere.w;
 
 	bool visible = true;
-
 	// the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
 	visible = visible && center.z * frustum[1] - abs(center.x) * frustum[0] > -radius;
 	visible = visible && center.z * frustum[3] - abs(center.y) * frustum[2] > -radius;
 	// the near/far plane culling uses camera space Z directly
-    visible = visible && -center.z + radius > .1 && -center.z - radius < 1000;
+    // visible = visible && -center.z + radius > .1 && -center.z - radius < 1000;
 	// visible = visible; // || cullData.cullingEnabled == 0;
 	return visible;
 }
@@ -107,7 +115,6 @@ void main() {
 	uint gID = gl_GlobalInvocationID.x;
 
 	if(gID < num_meshes) {
-    
         GPU_Mesh mesh = meshes[gID];
         uint entity_idx = meshes[gID].entity_index;
         
@@ -130,20 +137,23 @@ void main() {
 
         // cull view frustum if has flag
         // todo could maybe do lod-ing?
-		if(true/*visible(gID)*/) {
-			uint index = atomicAdd(draw_count, 1);
-
+		if(visible(gID)) {
             Draw_Elements_Indirect_Command draw_command;
             draw_command.count = mesh.index_count;
             draw_command.instance_count = 1;
             draw_command.first_index = mesh.base_index;
             draw_command.base_vertex = mesh.base_vertex;
             draw_command.base_instance = gID;
-        
-            draw_commands[index] = draw_command;
 
+            if (mesh.transparent == 0) {
+                uint index = atomicAdd(draw_count, 1);
+                draw_commands[index] = draw_command;
+
+            } else if (mesh.transparent == 1) {
+                uint index = atomicAdd(transparent_draw_count, 1);
+                transparent_draw_commands[index] = draw_command;
+            }
         }
-
         // cull animated against frustum if has flag
             // submit animation command (if gpu animation)
             // submit draw command

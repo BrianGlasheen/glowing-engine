@@ -1,5 +1,8 @@
 #pragma once
 
+//#include "core/scene.h"
+class Scene;
+
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -64,6 +67,10 @@ namespace Model_Manager {
     //glm::vec3 interpolate_scale(aiNodeAnim* channel, double time);
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
+    void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone);
+    uint32_t find_or_create_fake_bone(const std::string& node_name, const aiScene* scene, uint32_t base_bone);
+    void get_world_transform(aiNode* node, aiNode* root, aiMatrix4x4& out_transform);
+
     Model get_model_ind(uint32_t idx);
     Animated_Model& get_animated_model(uint32_t idx);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
@@ -77,16 +84,23 @@ namespace Model_Manager {
     uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene * scene, uint32_t base_bone);
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
     void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
-
-
+    
+    void print_animated_model_info(const Animated_Model& model);
+    void print_bone_tree(uint32_t base_bone, uint32_t num_bones);
+    void tree(const std::unordered_map<int, std::vector<int>>& childrenMap, int boneIndex, const std::string& indent = "", bool isLast = true);
+    void print_node_hierarchy(const aiNode* node, int depth);
 
     void begin_animation_frame();
+    uint32_t get_num_animation_commands();
     //void submit_animation_command(Animation_Command cmd);
     void submit_animation_command(uint32_t model_id);
-    void update_bones_from_animation_compute(uint32_t animation_index, float time);
+    void upload_animation_commands();
+    void update_bones_from_animation_compute(float time);
+    void update_animated_vertices(Scene& scene);
 
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();
+    uint32_t get_absolute_bones();
     uint32_t get_num_animated_models();
     uint32_t get_animation_command_ssbo();
 

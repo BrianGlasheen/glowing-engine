@@ -120,13 +120,11 @@ Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
 Entity::~Entity() = default;
 
 glm::mat4 Entity::get_model_matrix() const { // todo cache matrix with is_dirty so dont do this every time
-    glm::mat4 model_matrix(1.0f);
     glm::mat4 translation = glm::translate(glm::mat4(1.0f), physics_enabled ? Physics::get_body_position(physics_id) : position);
     glm::mat4 rot = glm::mat4_cast(physics_enabled ? Physics::get_body_rotation(physics_id) : rotation);
     glm::mat4 scaling = glm::scale(glm::mat4(1.0f), scale);
 
-    model_matrix = translation * rot * scaling;
-    return model_matrix;
+    return translation * rot * scaling;
 }
 
 void Entity::check_moved() {

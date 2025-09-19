@@ -1,0 +1,112 @@
+#version 460
+
+layout(local_size_x = 32) in;
+
+// maybe entity buffer
+
+struct Vertex {
+    vec4 position; // normal x in w
+    vec4 tangent;  // normal y in w
+    vec4 bitangent; // normal z in w
+    vec2 tex_coords;
+    uint padding[2];
+};
+
+struct Rigged_Vertex {
+    vec4 position; // normal x in w
+    vec4 tangent;  // normal y in w
+    vec4 bitangent; // normal z in w
+    uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
+    vec4 bone_weights;
+    vec2 tex_coords;
+    uint padding[2];
+};
+
+struct GPU_Mesh {
+    mat4 transform;
+    int base_vertex;
+    uint vertex_count;
+    uint base_index;
+    uint index_count;
+    vec4 bounding_sphere; // maybe use transform for some
+    uint entity_index;
+    uint skinned_to_static_offset; // offset from  
+    uint bone_offset;
+    // could add needs skin flag?
+    uint padding;
+};
+
+// target vertex buffer
+layout(std430, binding = 0) buffer Vertices {
+    Vertex vertices[];
+};  
+
+// base vertex ssbo
+layout(std430, binding = 1) buffer Rigged_Vertices {
+    Rigged_Vertex rigged_vertices[];
+};  
+
+layout(std430, binding = 2) buffer Animated_Indices {
+    uint animated_indices[]; // stores index of animated mesh in the main gpu mesh buffer
+};                            // so if we have 10 meshes, 5 animated, this buffer will have
+                              // 5 elements that store the index in the main buffer, and this
+                              // shader will be dispatched 5 times
+layout(std430, binding = 3) buffer Meshes {
+    GPU_Mesh meshes[];
+};
+
+layout(std430, binding = 4) buffer GPU_Bones_Skinned {
+    mat4 bones[];
+};
+
+uniform uint animated_count;
+
+void main() {
+    // uint idx = gl_GlobalInvocationID.x;
+    // if (idx >= vertices.length()) return;
+    
+    // vertices[idx].position.y += 0.1;
+    // return;
+    // return ;
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= animated_count) return;
+    
+    GPU_Mesh mesh = meshes[animated_indices[idx]];
+
+    for (uint vertex_idx = mesh.base_vertex; vertex_idx < mesh.base_vertex + mesh.vertex_count; vertex_idx++) {
+        Rigged_Vertex rv = rigged_vertices[vertex_idx - mesh.skinned_to_static_offset];
+
+        vec4 skinned_pos = vec4(0.0);
+        vec3 skinned_normal = vec3(0.0);
+        vec3 skinned_tangent = vec3(0.0);
+        vec3 skinned_bitangent = vec3(0.0);
+
+        for (int i = 0; i < 4; i++) {
+            uint bone_idx = rv.bone_ids[i];
+            float weight = rv.bone_weights[i];
+
+            if (weight > 0.0) {
+                mat4 bone = bones[bone_idx + mesh.bone_offset];
+
+                skinned_pos += weight * (bone * vec4(rv.position.xyz, 1.0));
+
+                mat3 rot_scale = mat3(bone);
+                vec3 norm = vec3(rv.position.w, rv.tangent.w, rv.bitangent.w);
+
+                skinned_normal += weight * (rot_scale * norm);
+                skinned_tangent += weight * (rot_scale * rv.tangent.xyz);
+                skinned_bitangent += weight * (rot_scale * rv.bitangent.xyz);
+            }
+        }
+
+        skinned_normal = normalize(skinned_normal);
+        skinned_tangent = normalize(skinned_tangent);
+        skinned_bitangent = normalize(skinned_bitangent);
+
+        vertices[vertex_idx].position = vec4(skinned_pos.xyz, skinned_normal.x);
+        // vertices[vertex_idx].position = vec4(0, 0, 0, skinned_normal.x);
+        vertices[vertex_idx].tangent = vec4(skinned_tangent, skinned_normal.y);
+        vertices[vertex_idx].bitangent = vec4(skinned_bitangent, skinned_normal.z);
+        vertices[vertex_idx].tex_coords = rv.tex_coords; // todo probably dont need
+    }   
+}

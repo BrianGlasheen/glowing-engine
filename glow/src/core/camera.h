@@ -1,6 +1,6 @@
 #pragma once
 
-#define NEAR_PLANE 1.f
+#define NEAR_PLANE 0.1f
 
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>

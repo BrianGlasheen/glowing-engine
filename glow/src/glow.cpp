@@ -12,11 +12,11 @@
 #include "asset/text.h"
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
+#include "asset/particle_manager.h"
 
 #include "player/player.h"
-#include "core/ssbo.h"
+#include "util/colors.h"
 #include "util/profiler.h"
-#include "util/frustum.h"
 
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -28,27 +28,6 @@
 #include <vector>
 
 namespace Glow {
-	void iterate_entities(Scene& scene, const glm::vec3& view_pos, const float& aspect_ratio); // hm forward declaration i guess it works
-
-	// ▀█▀ █▀█ █▀▄ █▀█   █▄░█ █░█ █▄▀ █▀▀
-	// ░█░ █▄█ █▄▀ █▄█   █░▀█ █▄█ █░█ ██▄
-	struct Particle {
-		glm::vec3 position;
-		float ttl;
-		glm::vec3 velocity;
-		float max_ttl;
-		glm::vec4 color_start;
-		glm::vec4 color_end;
-		float size_start;
-		float size_end;
-		glm::vec2 padding;
-	};
-
-	SSBO particle_ssbo;
-
-	// ▀█▀ █▀█ █▀▄ █▀█   █▄░█ █░█ █▄▀ █▀▀
-	// ░█░ █▄█ █▄▀ █▄█   █░▀█ █▄█ █░█ ██▄
-
 	float delta_time = 0.0f;
 	float last_frame = 0.0f;
 	bool editor_mode = 0;
@@ -72,6 +51,53 @@ namespace Glow {
 			return -1;
 
 		//Texture_Manager::init();
+		Particle_Manager::init();
+
+		Particle_Paramaters a = {
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f),  // Up
+			2.0f,
+			glm::vec2(1.0f, 3.0f),
+			glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
+			glm::vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
+			glm::vec3(0.0f, 2.0f, 0.0f),
+			glm::vec3(1.5f, 0.5f, 1.5f),       // Spread outward
+			3.0f,
+			150.0f,
+			5000
+		};
+
+		Particle_Paramaters b = {
+			glm::vec3(-250.0f, 2.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
+			0.5f,
+			glm::vec2(2.0f, 5.0f),
+			glm::vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
+			glm::vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
+			glm::vec3(0.0f, 1.0f, 0.0f),
+			glm::vec3(2.0f, 1.0f, 2.0f),       // Wide spread
+			1.5f,
+			75.0f,
+			3000
+		};
+
+		Particle_Paramaters c = {
+			glm::vec3(250.0f, 1.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gravity down
+			8.0f,
+			glm::vec2(0.5f, 2.0f),
+			glm::vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
+			glm::vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
+			12.0f,
+			500.0f,  // High burst rate
+			8000
+		};
+
+		// Particle_Manager::add_effect("a", a, 10.0f);
+		// Particle_Manager::add_effect("b", b, 10.0f);
+		// Particle_Manager::add_effect("c", c, 10.0f);
 
 		if (editor.init())
 			return -1;
@@ -103,8 +129,8 @@ namespace Glow {
 		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e(pos, rot, scale, plane, false);
-		scene.include(e);
+		Entity e23223(pos, rot, scale, plane, false);
+		scene.include(e23223);
 
 		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
@@ -148,34 +174,68 @@ namespace Glow {
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		for (int j = 0; j < 100; j++) {
-			printf("%d\n", j);
-			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
-			scene.include(dsadasdasdasda);
-		}
+		//for (int j = 0; j < 100; j++) {
+		//	printf("%d\n", j);
+		//	Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
+		//	scene.include(dsadasdasdasda);
+		//}
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-		//model_handle raccoon5 = Model_Manager::load_animated_model("glockhell/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon3 = Model_Manager::load_animated_model("hkm23/scene.gltf");
 		//model_handle raccoon6 = Model_Manager::load_animated_model_cgltf("hkm23/scene.gltf");
 		//model_handle raccoon6ddd = Model_Manager::load_animated_model("hkm23/source/Mark23.fbx");
 
-		//model_handle raccoon226 = Model_Manager::load_animated_model_cgltf("gun/scene.gltf");
+		// Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "mp5/scene.gltf", false);
+		// scene.include(raccoon226);
+		// Entity raccoon226 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "akakak/scene.gltf", false);
+		// scene.include(raccoon226);
+
+		// Entity raccoon5 = Entity::Animated_Entity(glm::vec3(5.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "glockhell/scene.gltf", false);
+		// scene.include(raccoon5);
+
+		// Entity raccoon233323 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "goku/scene.gltf", false);
+		// scene.include(raccoon233323);
+
+		// Entity raccoon2333233 = Entity(glm::vec3(5.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(3.0f), "924/scene.gltf", false);
+		// scene.include(raccoon2333233);
+
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
-		Entity e5555 = Entity::Animated_Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
-		scene.include(e5555);
-		printf("here\n");
+		
+		// Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
+		// scene.include(e5555);
 
-		Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		// Entity e55553 = Entity::Animated_Entity(glm::vec3(-10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.5f), "tiger/scene.gltf", false);
+		// scene.include(e55553);
+
+		// Entity e555533 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		// scene.include(e555533);
+
+		// Entity e2323 = Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		// scene.include(e2323);
+
+		Entity raccoon23333 = Entity(glm::vec3(-15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		scene.include(raccoon23333);
+
+		Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		scene.include(raccoon233332);
+
+		// Entity raccoon2333323 = Entity(glm::vec3(50.0f, 25.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "tiger/scene.gltf", false);
+		// scene.include(raccoon2333323);
+		
+		// Entity e55552 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "AnimatedCube/glTF/AnimatedCube.gltf", false);
+		// scene.include(e55552);
+
+
+	/*	Entity d23 = Entity(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(d23);
-		printf("here\n");
+		printf("here\n");*/
 
 		//model_handle raccoon2 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
-		//model_handle raccoon23333 = Model_Manager::load_animated_model("goku/scene.gltf");
+		
 		//model_handle raccoon2333333 = Model_Manager::load_animated_model("m4a1/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model_cgltf("akm/scene.gltf");
 		//model_handle raccoon2333d333 = Model_Manager::load_animated_model("pistol2/source/Glock_Anim.fbx");
@@ -215,11 +275,11 @@ namespace Glow {
 			//Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
 			//scene.include(fsfsfsf);
 
-		//model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
+		// model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
-			//model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-			//Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), loaded, false);
-			//scene.include(sadasd23232323232332323);
+			model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+			Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+			scene.include(sadasd23232323232332323);
 		}
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
@@ -251,26 +311,8 @@ namespace Glow {
 		Text screen_text3(font3, u8"我爱你", 600, 200, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));
 		Text screen_text4(font3, "hello world!?", 800, 300, 50.0f, glm::vec3(1.0f, 0.1f, 0.1f));*/
 
-
-		// todo move
-		const int MAX_PARTICLES = 10000;
-		std::vector<Particle> particles(MAX_PARTICLES);
-		for (auto& p : particles) {
-			p.position = glm::vec3(0.0f);
-			p.ttl = 0.0f;
-			p.velocity = glm::vec3(0.0f);
-			p.max_ttl = 0.0f;
-			p.color_start = glm::vec4(0.0f);
-			p.color_end = glm::vec4(0.0f);
-			p.size_start = 0.0f;
-			p.size_end = 0.0f;
-			// p.padding;
-		}
-		//SSBO particle_ssbo;
-		particle_ssbo.init();
-		particle_ssbo.set_data(sizeof(Particle) * MAX_PARTICLES, particles.data(), GL_DYNAMIC_DRAW);
-		///////////////////////////////////////////////////////////
 		Model_Manager::setup_ssbos();
+		Model_Manager::upload_animation_commands();
 
 		return 0;
 	}
@@ -286,18 +328,14 @@ namespace Glow {
 			last_frame = current_time;
 
 			//if (!editor_mode) {
-			
 			// todo this controller step will also update holding / player viewmodel visibility stuff like that
-			player.controller_step(window.get_window(), delta_time, scene);
-			{
-				PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
-				Physics::update(); // default 1/60 delta time
-			}
 
-			{
-				PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
-				scene.update_dirty();
-			}
+			player.controller_step(window.get_window(), delta_time, scene);
+			{ PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
+			  Physics::update(); } // default 1/60 delta time
+
+			{ PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
+			  scene.update_dirty(); }
 
 			// grab per frame values
 			float aspect_ratio = (float)renderer.scr_width / (float)renderer.scr_height;
@@ -326,12 +364,15 @@ namespace Glow {
 			active_inv_view = glm::inverse(active_view);
 			active_inv_proj = glm::inverse(active_proj);
 
-			{
-				PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
-				renderer.begin_frame(scene, player_view, player_proj); // pass scene
-			}
+			{ PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
+			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
+			
+			{ PROFILE_SCOPE_COLOR("compute update bones", legit::Colors::nephritis);
+			  Model_Manager::update_bones_from_animation_compute(window.get_time()); }
+			
+			{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
+			  Model_Manager::update_animated_vertices(scene); }
 
-			Model_Manager::begin_animation_frame();
 
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
@@ -342,37 +383,21 @@ namespace Glow {
 				//PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
 				//renderer.sort_blended_draws();
 			}
-			
-			// player submit render items
-			//player.submit_animation_items(); todo this will be done via main cull shader
-			//player.submit_render_items(renderer); same here
 
 			// iterate particles + submit etc
 			// other cool things todo! B)
 
-			//renderer.upload_render_commands();
+			{ PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+			  if (renderer.forward_plus)
+				renderer.build_cluster_pass(active_inv_proj); } // todo pass calc'd already
 
-			{
-				PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-				if (renderer.forward_plus)
-					renderer.build_cluster_pass(active_inv_proj); // todo pass calc'd already
-			}
+			{ PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+			  if (renderer.forward_plus)
+				renderer.cull_cluster_pass(active_view); } // todo pass calc'd alre
 
-			{
-				PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-				if (renderer.forward_plus)
-					renderer.cull_cluster_pass(active_view);// todo pass calc'd alre
-			}
-			{
-				PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
-				if (renderer.ssao_enabled)
-					renderer.ssao_pass(active_proj, active_inv_proj);
-			}
-			{
-				PROFILE_SCOPE_COLOR("update_bones", legit::Colors::sunFlower);
-				//Model_Manager::update_bones_from_animation_compute(0, current_time);
-			}
-			// compute skin rigged models -> main buffer
+			{ PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
+			  if (renderer.ssao_enabled)
+				renderer.ssao_pass(active_proj, active_inv_proj); }
 			
 			{ PROFILE_SCOPE_COLOR("CSM shadow pass", legit::Colors::sunFlower);
 			  renderer.shadow_pass(scene); }
@@ -380,10 +405,11 @@ namespace Glow {
 			{ PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
 			  renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj); }
 
-			//{
-			//	PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
-			//	renderer.particle_pass(delta_time, particles, player);
-			//}
+			{
+				PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
+				Particle_Manager::step_particles(delta_time);
+				renderer.particle_pass(delta_time, active_proj, active_view);
+			}
 			// post process pass theoretically
 			{ PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
 			  if (renderer.bloom_enabled) renderer.bloom_pass(); }
@@ -391,13 +417,21 @@ namespace Glow {
 			if (renderer.do_draw_light_quads)
 				renderer.draw_light_quads(player_proj, player_view);
 
-			renderer.render_skybox(scene.skybox, player_view, player_proj);
+			if (renderer.draw_skeletons && player.key_toggles['y'])
+				renderer.debug_skeletons(scene, active_viewproj);
+
+			// renderer.render_skybox(scene.skybox, player_view, player_proj);
 
 			{ PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
 			  renderer.composite(); }
 
 			{ PROFILE_SCOPE_COLOR("debug", legit::Colors::carrot);
-			  if (player.key_toggles[(unsigned)'r']) renderer.render_debug(active_view, active_proj); }
+			  if (player.key_toggles[(unsigned)'r']) {
+				renderer.render_debug(active_view, active_proj, scene); 
+			
+				renderer.debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, player.camera.zoom, aspect_ratio, 0.1, 10000, Util::red);
+			  }
+			}
 			
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 			if (player.key_toggles['l'])
@@ -427,19 +461,7 @@ namespace Glow {
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
-			ImGui::Begin("particle");
-			ImGui::Checkbox("compute culling", &compute_culling);     
-			ImGui::SliderFloat3("pos", &renderer.emitter_position.x, 0.0f, 50.0f); // 1.0f;     
-			ImGui::SliderFloat3("acceleration dir", &renderer.acceleration_direction.x, -1.0f, 1.0f);
-			ImGui::SliderFloat("acceleration mag", &renderer.acceleration_force, -17.0f, 19.0f);
-			ImGui::SliderFloat2("life_range", &renderer.life_range.x, 0.0, 10.0f);
-			ImGui::SliderFloat4("color_start_base", &renderer.color_start_base.x, 0.0f, 1.0f);
-			ImGui::SliderFloat4("color_start_end", &renderer.color_end_base.x, 0.0f, 1.0f);
-			ImGui::SliderFloat3("velocity_base", &renderer.velocity_base.x, -20.0f, 20.0f);
-			ImGui::SliderFloat3("velocity_random_bias", &renderer.velocity_random_bias.x, -1.0, 1.0);
-			ImGui::SliderFloat("velocity_mag", &renderer.velocity_mag, -100.0f, 100.0f);
-			ImGui::SliderFloat("emission_rate", &renderer.emission_rate, 0.0f, 20000.0f);
-			ImGui::End();
+			scene.imgui();
 
 			player.debug_hud();
 			renderer.imgui_pass();

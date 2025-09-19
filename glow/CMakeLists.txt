@@ -4,9 +4,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(ENABLE_FMOD "Enable FMOD" OFF)
+option(ENABLE_FMOD "enable fmod" OFF)
 if(ENABLE_FMOD)
-    add_compile_definitions(FMOD)
+    add_compile_definitions(USE_FMOD)
 endif()
 
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
@@ -49,12 +49,13 @@ set(SOURCES
     #"src/asset/model.cpp"
     "src/asset/material_manager.cpp"
     "src/asset/model_indirect.cpp"
+    "src/asset/particle_manager.cpp"
     "src/asset/model_manager.cpp"
-    "src/asset/text.cpp"
-    "src/asset/texture_manager.cpp"
     "src/asset/shader.cpp"
     "src/asset/shader_manager.cpp"
     "src/asset/skybox.cpp"
+    "src/asset/text.cpp"
+    "src/asset/texture_manager.cpp"
 
     "src/core/audio.cpp"
     "src/core/editor.cpp"

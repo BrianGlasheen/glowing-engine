@@ -32,9 +32,6 @@ layout(std430, binding = 2) restrict buffer lightSSBO {
     GPU_Light lights[];
 };
 
-layout(binding = 0) uniform sampler2D ssao;
-layout(binding = 1) uniform sampler2DArray directional_shadow_map;
-
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
@@ -60,6 +57,8 @@ in flat float alpha_cutoff;
     layout(binding = 4) uniform sampler2D occlusion_texture;
 #endif
 
+layout(binding = 7) uniform sampler2D ssao;
+layout(binding = 8) uniform sampler2DArray directional_shadow_map;
 layout(binding = 9) uniform samplerCube skybox;
 uniform uint num_skybox_mips;
 
@@ -75,6 +74,7 @@ uniform bool forward_plus;
 uniform float zNear;
 uniform float zFar;
 uniform mat4 viewMatrix;
+uniform mat4 playerViewMatrix;
 uniform uvec3 gridSize;
 uniform uvec2 screenDimensions;
 
@@ -84,6 +84,8 @@ uniform int num_cascades;
 uniform vec3 directional_light_direction;
 uniform vec3 directional_light_color;
 uniform float directional_light_intensity;
+
+uniform bool cascade_vis;
 
 //uniform sampler2D shadow_map; // todo shadow atlas
 
@@ -182,7 +184,7 @@ int GetCascadeIndex(float depth) {
     return num_cascades - 1;
 }
 
-float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos) {
+float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos, vec3 N) {
     int cascadeIndex = GetCascadeIndex(abs(fragViewPos.z));
 
     vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
@@ -193,8 +195,9 @@ float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos) {
     float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
 
     float currentDepth = projCoords.z;
-  //  float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
-    float shadow = currentDepth + 0.005 < shadowDepth ? 1.0 : 0.0;
+//    float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
+    float bias = max(0.0005 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
+    float shadow = currentDepth + bias < shadowDepth ? 1.0 : 0.0;
 
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
         projCoords.y < 0.0 || projCoords.y > 1.0) {
@@ -212,9 +215,8 @@ vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metal
     
     float shadow = 0.0;
     //if (shadows_enabled) {
-        shadow = DirectionalShadowCalculation(FragPos, fragViewPos);
+        shadow = DirectionalShadowCalculation(FragPos, fragViewPos, N);
     //}
-    
     return lighting * (1.0 - shadow);
 }
 
@@ -235,28 +237,34 @@ vec3 CalculateEnvironmentReflection(vec3 N, vec3 V, vec3 F0, float roughness, fl
     return envColor * kS * reflectionStrength * 1.0;
 }
 
-void main() { 
+void main() {
 
-/*
-    vec3 fragViewPos2 = vec3(viewMatrix * vec4(FragPos, 1.0));
-    float depth = abs(fragViewPos2.z);
-    int cascadeIndex = GetCascadeIndex(depth);
+    if (cascade_vis) {
+        vec3 playerfragViewPos2 = vec3(playerViewMatrix * vec4(FragPos, 1.0));
+        float depth = playerfragViewPos2.z;
 
-    vec3 color23;
-    if (cascadeIndex == 0)
-        color23 = vec3(1.0, 0.0, 0.0);
-    if (cascadeIndex == 1)
-        color23 = vec3(0.0, 1.0, 0.0);
-    if (cascadeIndex == 2)
-        color23 = vec3(0.0, 0.0, 1.0);
-    if (cascadeIndex == 3)
-        color23 = vec3(0.0, 1.0, 1.0);
-    if (cascadeIndex == 4)
-        color23 = vec3(1.0, 1.0, 1.0);
+        if (depth > 0.0) {
+            FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            return ;
+        }
 
-    FragColor = vec4(color23, 1.0);
-    return;
-    */
+        int cascadeIndex = GetCascadeIndex(abs(depth) / 2.0);
+
+        vec3 color23;
+        if (cascadeIndex == 0)
+            color23 = vec3(1.0, 0.0, 0.0);
+        if (cascadeIndex == 1)
+            color23 = vec3(0.0, 1.0, 0.0);
+        if (cascadeIndex == 2)
+            color23 = vec3(0.0, 0.0, 1.0);
+        if (cascadeIndex == 3)
+            color23 = vec3(0.0, 1.0, 1.0);
+        if (cascadeIndex == 4)
+            color23 = vec3(1.0, 1.0, 1.0);
+
+        FragColor = vec4(color23, 1.0);
+        return;
+    }
 
     //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
     //FragColor = color;
@@ -272,9 +280,9 @@ void main() {
 
     vec4 baseColorSample = vec4(1.0);
     if (albedo_handle != 0) {
-        #if BINDLESS
-            sampler2D albedo_texture = sampler2D(albedo_handle);
-        #endif
+#if BINDLESS
+        sampler2D albedo_texture = sampler2D(albedo_handle);
+#endif
         baseColorSample = texture(albedo_texture, TexCoord);
     }
     vec4 baseColor = base_color_factor * baseColorSample;
@@ -287,9 +295,9 @@ void main() {
 
     vec3 N = normalize(Normal);
     if (normal_handle != 0) {
-        #if BINDLESS
-            sampler2D normal_texture = sampler2D(normal_handle);
-        #endif
+#if BINDLESS
+        sampler2D normal_texture = sampler2D(normal_handle);
+#endif
         vec3 normalMap = texture(normal_texture, TexCoord).rgb;
         normalMap = normalMap * 2.0 - 1.0;
     
@@ -299,9 +307,9 @@ void main() {
         N = normalize(TBN * normalMap);
     }
     
-    #if BINDLESS
-        sampler2D metallic_roughness = sampler2D(met_rough_handle); // todo maybe check
-    #endif
+#if BINDLESS
+    sampler2D metallic_roughness = sampler2D(met_rough_handle); // todo maybe check
+#endif
     vec3 mrSample = texture(metallic_roughness, TexCoord).rgb;
     float metallic = mrSample.b * metallic_factor;
     float roughness = mrSample.g * roughness_factor;
@@ -314,6 +322,7 @@ void main() {
     F0 = mix(F0, albedo, metallic);
 
     // Locating which cluster this fragment is part of
+    vec3 playerFragViewPos = vec3(playerViewMatrix * vec4(FragPos, 1.0));
     vec3 fragViewPos = vec3(viewMatrix * vec4(FragPos, 1.0));
     uint zTile = uint((log(abs(fragViewPos.z) / zNear) * gridSize.z) / log(zFar / zNear));
     vec2 tileSize = screenDimensions / gridSize.xy;
@@ -353,15 +362,15 @@ void main() {
             //Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness, light);
         }
     }
-    Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness, fragViewPos); // todo CSM
+    Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness, playerFragViewPos); // todo CSM
 
     vec3 envReflection = CalculateEnvironmentReflection(N, V, F0, roughness, metallic);
     Lo += envReflection;
 
     if (emissive_handle != 0) {
-        #if BINDLESS
-            sampler2D emissive_texture = sampler2D(emissive_handle);
-        #endif
+#if BINDLESS
+        sampler2D emissive_texture = sampler2D(emissive_handle);
+#endif
         Lo += texture(emissive_texture, TexCoord).rgb * emissive.rgb * emissive.a;
     } 
     else
@@ -376,9 +385,9 @@ void main() {
 
     float ao = 1.0;
     if (amb_occ_handle != 0) {
-        #if BINDLESS
+#if BINDLESS
             sampler2D occlusion_texture = sampler2D(amb_occ_handle);
-        #endif
+#endif
         ao = texture(occlusion_texture, TexCoord).r; 
     }
 
@@ -386,7 +395,7 @@ void main() {
     //if (ssao_enabled) {
         vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
         ssao_val = texture(ssao, screenUV).r;
-        ssao_val = 0.0;
+        // ssao_val = 0.0;
     //}
 
     vec3 ambient = vec3(ambient_light) * albedo * ao * ssao_val;

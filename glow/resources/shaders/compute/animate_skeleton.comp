@@ -15,6 +15,8 @@ struct Animation_Command {
 
     uint leaf_thread_offset; // explain
     bool loop;
+
+    // todo add entity index to check if needs animate
     uint padding[2];
 };
 
@@ -388,7 +390,8 @@ void main() {
         absolute_bone_transforms[bone_idx + command.bone_offset] = absolute_transform;
         transform_times[bone_idx + command.bone_offset] = dispatch_time;
         
-        // output current skinned bone (* IB)
         gpu_bones_skinned[bone_idx + command.bone_offset].transform = absolute_transform * gpu_bones[bone_idx].inverse_bind;
+        // gpu_bones_skinned[bone_idx].transform = glm::mat4(1.0f); // Identity
+        // gpu_bones_skinned[bone_idx].transform = gpu_bones[bone_idx].inverse_bind;
     }
 }

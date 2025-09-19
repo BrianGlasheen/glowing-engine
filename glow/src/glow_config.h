@@ -6,4 +6,5 @@
 //#define GPU_ANIMATION 1	// compute skeletal transforms on gpu
 //#define FMOD                        // with cmake
 
+// #define USE_FMOD 0
 // define max draw commands?

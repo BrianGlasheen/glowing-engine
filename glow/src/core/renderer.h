@@ -76,14 +76,14 @@ public:
     // todo grab random stuff from
     //void render(Player& player, Scene& scene, float delta_time, SSBO& particles); // todo rm
 
-    void particle_pass(float delta_time, SSBO& particle_ssbo, const glm::mat4& proj, const glm::mat4& view);
+    void particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view);
     
     void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
     void bloom_pass();
     void ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj);
     void composite();
 
-    void render_debug(const glm::mat4& view, const glm::mat4& proj);
+    void render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene);
 
     void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
 
@@ -110,6 +110,8 @@ public:
     void debug_cascades(Scene& scene);
 
     glm::vec4 normalize_plane(glm::vec4 p);
+    void debug_skeletons(Scene& scene, const glm::mat4& vp);
+
 
 // private:
 
@@ -142,6 +144,8 @@ public:
 
     bool use_depth_prepass = false;
     bool do_draw_light_quads = false;
+    bool draw_skeletons = true;
+    bool cascade_vis = false;
 
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
@@ -157,21 +161,6 @@ public:
     texture_handle csm_texture;
     std::vector<std::vector<Draw_Elements_Indirect_Command>> csm_draw_commands;
     std::vector<std::vector<Per_Object_Data>> csm_per_object_data;
-
-    glm::vec3 emitter_position = glm::vec3(0.0f, 25.0f, 0.0f);
-    glm::vec3 acceleration_direction = glm::vec3(0.0f, 1.0f, 0.0f);
-    float acceleration_force = 9.8f;
-    
-    glm::vec2 life_range = glm::vec2(3.0f, 6.0f);
-    glm::vec4 color_start_base = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 color_end_base = glm::vec4(1.0, 1.0, 1.0f, 0.0f);
-    glm::vec3 velocity_base = glm::vec3(0.0f);           // base spawn velocity
-    glm::vec3 velocity_random_bias = glm::vec3(0.0f);
-    float velocity_mag = 0.0f;
-
-    float emission_rate = 1;
-    int max_particles = 10000;
-    ////////
 
     uint32_t opaque_draw_command_ssbo, opaque_object_ssbo;
     std::vector<Draw_Elements_Indirect_Command> opaque_draw_commands;
