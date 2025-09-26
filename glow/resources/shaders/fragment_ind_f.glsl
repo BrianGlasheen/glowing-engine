@@ -185,7 +185,7 @@ int GetCascadeIndex(float depth) {
 }
 
 float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos, vec3 N) {
-    int cascadeIndex = GetCascadeIndex(abs(fragViewPos.z));
+    int cascadeIndex = GetCascadeIndex((fragViewPos.z) / 2.0);
 
     vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
 
@@ -238,34 +238,6 @@ vec3 CalculateEnvironmentReflection(vec3 N, vec3 V, vec3 F0, float roughness, fl
 }
 
 void main() {
-
-    if (cascade_vis) {
-        vec3 playerfragViewPos2 = vec3(playerViewMatrix * vec4(FragPos, 1.0));
-        float depth = playerfragViewPos2.z;
-
-        if (depth > 0.0) {
-            FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            return ;
-        }
-
-        int cascadeIndex = GetCascadeIndex(abs(depth) / 2.0);
-
-        vec3 color23;
-        if (cascadeIndex == 0)
-            color23 = vec3(1.0, 0.0, 0.0);
-        if (cascadeIndex == 1)
-            color23 = vec3(0.0, 1.0, 0.0);
-        if (cascadeIndex == 2)
-            color23 = vec3(0.0, 0.0, 1.0);
-        if (cascadeIndex == 3)
-            color23 = vec3(0.0, 1.0, 1.0);
-        if (cascadeIndex == 4)
-            color23 = vec3(1.0, 1.0, 1.0);
-
-        FragColor = vec4(color23, 1.0);
-        return;
-    }
-
     //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
     //FragColor = color;
     //FragColor = vec4(metallic_factor, 0, 0, 1);'
@@ -404,7 +376,36 @@ void main() {
     // HDR tonemapping and gamma correction
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2));
-    
+
+    if (cascade_vis) {
+        vec3 playerfragViewPos2 = vec3(playerViewMatrix * vec4(FragPos, 1.0));
+        float depth = playerfragViewPos2.z;
+
+        if (depth >= 0.0) {
+            int cascadeIndex = GetCascadeIndex((depth) / 2.0);
+            vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(FragPos, 1.0);
+
+            vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+            projCoords = projCoords * 0.5 + 0.5;
+
+            if (!(projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
+                projCoords.y < 0.0 || projCoords.y > 1.0)) {
+                vec3 color23 = vec3(1.0, 1.0, 1.0);
+
+                if (cascadeIndex == 0)
+                    color23 = vec3(1.0, 0.0, 0.0);
+                if (cascadeIndex == 1)
+                    color23 = vec3(0.0, 1.0, 0.0);
+                if (cascadeIndex == 2)
+                    color23 = vec3(0.0, 0.0, 1.0);
+                if (cascadeIndex == 3)
+                    color23 = vec3(0.0, 1.0, 1.0);
+
+                color = mix(color, color23, 0.5);
+            }
+        }
+    }
+
     if (blend)
         FragColor = vec4(color, alpha);
     else

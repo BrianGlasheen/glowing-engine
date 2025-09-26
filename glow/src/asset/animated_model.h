@@ -75,7 +75,7 @@ public:
 	uint32_t base_animation;
 	uint32_t animation_count;
 
-	float animation_time = 0.0; // local time
-	bool animation_direction = true; // true forward false back? maybe add loop / bounce flags
-	uint32_t current_animation = 0;
+	float animation_time; // local time
+	bool animation_direction; // true forward false back? maybe add loop / bounce flags
+	uint32_t current_animation;
 };

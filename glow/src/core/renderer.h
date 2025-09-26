@@ -105,7 +105,7 @@ public:
 
     void draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj);
 
-    void compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj);
+    void compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj, bool wireframe);
 
     void debug_cascades(Scene& scene);
 
@@ -135,7 +135,7 @@ public:
     int num_lights = 4;
     bool forward_plus = true;
     
-    bool ssao_enabled = true;
+    bool ssao_enabled = false;
     float ssao_radius = 0.5;
     float ssao_bias = 0.025;
     int ssao_samples = 64;

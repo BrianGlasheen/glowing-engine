@@ -1,29 +1,31 @@
-particle class
+SHOULD
+    world representation & physics tie ins
+        spline geom
+        heightmap 
+        walls
+        floors
 
-world representation
-    spline geom
-    heightmap
-    walls
-    floors
+    animation blending
+    point & spotlight shadow atlas
+    fix SSAO
 
-weapon / holdable class
-    animate weapons (same system, blending, IK)
+    networking
 
-shadow atlas
-
-post processing (ssao + more maybe)
-
-
-controllers
-    physics (jolt?)
-    cars
-    planes
-    integrate controller into entities
-    interaction
-    player (use)
+    GI!!!!!
 
 
-weather atmosphere rendering
+PROBABLY
+    IK
+    deferred
 
-deferred
-GI!!!!!
+    controllers
+        physics (jolt?)
+        cars
+        planes
+        integrate controller into entities
+        interaction
+        player (use)
+
+
+MAYBE
+    weather atmosphere rendering

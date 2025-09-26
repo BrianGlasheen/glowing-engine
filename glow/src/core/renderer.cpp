@@ -717,7 +717,7 @@ void Renderer::indirect_depth_prepass(const glm::mat4& viewproj) {
     glBindVertexArray(0);
 }
 
-void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& player_view, const glm::mat4& cull_proj) {
+void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& player_view, const glm::mat4& cull_proj, bool wireframe) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -734,6 +734,11 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
         glDepthFunc(GL_GREATER);
         glDepthMask(GL_TRUE);
     }
+
+    if (wireframe)
+       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else
+       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     Shader* shader = Shader_Manager::get_shader("indirect");
     shader->use();
@@ -839,7 +844,9 @@ void Renderer::compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const 
         Texture_Manager::bind(pod.amb_occ, 4);
         shader->set_uint("instance_id", cmd.base_instance);
 
-        glDrawElementsBaseVertex(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.base_vertex);
+        // glDrawElementsBaseVertex(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.base_vertex);
+
+        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.instance_count, cmd.base_vertex, cmd.base_instance);
     }
 
 #endif
@@ -1239,6 +1246,7 @@ void Renderer::composite() {
     glViewport(0, 0, scr_width, scr_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     Shader* shader = Shader_Manager::get_shader("quad");
     shader->use();
@@ -1256,6 +1264,8 @@ void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const 
     glDepthFunc(GL_GEQUAL);
     glDepthMask(GL_FALSE); 
     glDisable(GL_BLEND);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    
     Shader* shader = Shader_Manager::get_shader("skybox");
     shader->use();
 

@@ -217,11 +217,20 @@ namespace Glow {
 		// Entity e2323 = Entity(glm::vec3(50.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		// scene.include(e2323);
 
-		Entity raccoon23333 = Entity(glm::vec3(-15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
-		scene.include(raccoon23333);
+		// Entity raccoon23333 = Entity(glm::vec3(-15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		// scene.include(raccoon23333);
 
-		Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		// Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
+		// scene.include(raccoon233332);
+
+		Entity raccoon233332 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "teapot.obj", false);
 		scene.include(raccoon233332);
+
+		Entity raccoon2333323 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "turtle/scene.gltf", false);
+		scene.include(raccoon2333323);
+
+		Entity raccoon23333232 = Entity::Animated_Entity(glm::vec3(20.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "turtle/scene.gltf", false);
+		scene.include(raccoon23333232);
 
 		// Entity raccoon2333323 = Entity(glm::vec3(50.0f, 25.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "tiger/scene.gltf", false);
 		// scene.include(raccoon2333323);
@@ -277,9 +286,9 @@ namespace Glow {
 
 		// model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
-			model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
-			Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
-			scene.include(sadasd23232323232332323);
+			// model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
+			// Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
+			// scene.include(sadasd23232323232332323);
 		}
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
@@ -367,8 +376,8 @@ namespace Glow {
 			{ PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
 			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
 			
-			{ PROFILE_SCOPE_COLOR("compute update bones", legit::Colors::nephritis);
-			  Model_Manager::update_bones_from_animation_compute(window.get_time()); }
+			{ PROFILE_SCOPE_COLOR("update bones", legit::Colors::nephritis);
+			  Model_Manager::update_bones(delta_time); }
 			
 			{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
 			  Model_Manager::update_animated_vertices(scene); }
@@ -403,7 +412,7 @@ namespace Glow {
 			  renderer.shadow_pass(scene); }
 
 			{ PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
-			  renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj); }
+			  renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj, player.key_toggles['t']); }
 
 			{
 				PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
@@ -420,7 +429,7 @@ namespace Glow {
 			if (renderer.draw_skeletons && player.key_toggles['y'])
 				renderer.debug_skeletons(scene, active_viewproj);
 
-			// renderer.render_skybox(scene.skybox, player_view, player_proj);
+			renderer.render_skybox(scene.skybox, player_view, player_proj);
 
 			{ PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
 			  renderer.composite(); }

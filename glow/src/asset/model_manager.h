@@ -89,6 +89,7 @@ namespace Model_Manager {
     void print_bone_tree(uint32_t base_bone, uint32_t num_bones);
     void tree(const std::unordered_map<int, std::vector<int>>& childrenMap, int boneIndex, const std::string& indent = "", bool isLast = true);
     void print_node_hierarchy(const aiNode* node, int depth);
+    void dfs(int bone, const std::unordered_map<int, std::vector<int>>& childrenMap, std::vector<int>& linear_bones);
 
     void begin_animation_frame();
     uint32_t get_num_animation_commands();
@@ -97,6 +98,7 @@ namespace Model_Manager {
     void upload_animation_commands();
     void update_bones_from_animation_compute(float time);
     void update_animated_vertices(Scene& scene);
+    void update_bones(float time);
 
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();

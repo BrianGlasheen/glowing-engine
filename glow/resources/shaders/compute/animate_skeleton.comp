@@ -110,7 +110,7 @@ uniform uint num_animation_cmds;
 //uniform uint animation_count;
 
 
-int find_bone_animation(uint bone_idx, uint base_bone_animation, uint bone_animation_count) { // todo dont do for each keyframe, just once
+int find_bone_animation(uint bone_idx, uint base_bone_animation, uint bone_animation_count) {
     for (uint i = base_bone_animation; i < base_bone_animation + bone_animation_count; i++) {
         if (gpu_bone_animations[i].bone_index == bone_idx) {
             return int(i);
