@@ -50,7 +50,10 @@ namespace Glow {
 		if (renderer.init())
 			return -1;
 
-		//Texture_Manager::init();
+		Texture_Manager::init();
+
+		renderer.setup();
+
 		Particle_Manager::init();
 
 		Particle_Paramaters a = {
@@ -223,14 +226,14 @@ namespace Glow {
 		// Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
 		// scene.include(raccoon233332);
 
-		Entity raccoon233332 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "teapot.obj", false);
+		Entity raccoon233332 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "road/scene.gltf", false);
 		scene.include(raccoon233332);
 
-		Entity raccoon2333323 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "turtle/scene.gltf", false);
+		Entity raccoon2333323 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		scene.include(raccoon2333323);
 
-		Entity raccoon23333232 = Entity::Animated_Entity(glm::vec3(20.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "turtle/scene.gltf", false);
-		scene.include(raccoon23333232);
+		//Entity raccoon23333232 = Entity::Animated_Entity(glm::vec3(20.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
+		//scene.include(raccoon23333232);
 
 		// Entity raccoon2333323 = Entity(glm::vec3(50.0f, 25.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), "tiger/scene.gltf", false);
 		// scene.include(raccoon2333323);
@@ -292,7 +295,6 @@ namespace Glow {
 		}
 
 		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
-		renderer.setup_indirect();
 		scene.upload_buffers();
 
 		// Setup Dear ImGui context
@@ -382,7 +384,6 @@ namespace Glow {
 			{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
 			  Model_Manager::update_animated_vertices(scene); }
 
-
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
 				renderer.shadow_setup(player_view, player_inv_view, aspect_ratio, player.camera.zoom);
@@ -412,7 +413,7 @@ namespace Glow {
 			  renderer.shadow_pass(scene); }
 
 			{ PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
-			  renderer.compute_cull_draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj, player.key_toggles['t']); }
+			  renderer.draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj, player.key_toggles['t']); }
 
 			{
 				PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);

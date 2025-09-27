@@ -30,9 +30,11 @@ struct Debug_cube {
 class Renderer_Debug {
 public:
     Renderer_Debug() = default;
-    ~Renderer_Debug() {}
+    ~Renderer_Debug() = default; 
 
     void init();
+    void shutdown();
+
     void add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color);
     //void add_axes(const glm::vec3& position, const glm::quat& orientation, float length = 1.0f);
     void add_bbox(const glm::vec3& min, const glm::vec3& max, const glm::vec3& color);

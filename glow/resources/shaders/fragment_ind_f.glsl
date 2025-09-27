@@ -379,10 +379,10 @@ void main() {
 
     if (cascade_vis) {
         vec3 playerfragViewPos2 = vec3(playerViewMatrix * vec4(FragPos, 1.0));
-        float depth = playerfragViewPos2.z;
+        float depth = -1 * playerfragViewPos2.z;
 
-        if (depth >= 0.0) {
-            int cascadeIndex = GetCascadeIndex((depth) / 2.0);
+        //if (depth >= 0.0) {
+            int cascadeIndex = GetCascadeIndex((depth * .5) + .5);
             vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(FragPos, 1.0);
 
             vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -403,7 +403,7 @@ void main() {
 
                 color = mix(color, color23, 0.5);
             }
-        }
+        //}
     }
 
     if (blend)

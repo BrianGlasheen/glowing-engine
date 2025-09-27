@@ -53,79 +53,58 @@ public:
     Renderer() = default;
     ~Renderer() = default;
 
-    void resize(const int width, const int height);
 
     int init();
+    void resize(const int width, const int height);
+    void shutdown();
 
-    bool setup_buffers();
+    void setup();
+    void setup_shaders();
+    void setup_buffers();
     void setup_ssao();
 
-    void init_shaders(); // todo!
+    void begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj);
 
-    void setup_indirect(); // todo move to other func ^
-    //void build_command_buffer(Player& player, Scene& scene, float delta_time); // todo scene maybe const
-    void indirect_depth_prepass(const glm::mat4& viewproj);
-    void sort_blended_draws();
-
+    // setting up stuff for rendering
     void build_cluster_pass(const glm::mat4& inv_proj);
     void cull_cluster_pass(const glm::mat4& view);
-
     void shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, const float& aspect_ratio, const float& zoom);
+
+    // rendering
+    void depth_prepass(const glm::mat4& viewproj);
     void shadow_pass(Scene& scene);
-
-    // todo grab random stuff from
-    //void render(Player& player, Scene& scene, float delta_time, SSBO& particles); // todo rm
-
+    void draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj, bool wireframe);
     void particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view);
-    
-    void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
+    void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
+
+    // rendering 2d / screenspace
+    void render_crosshair(const Crosshair& crosshair);
+    void render_hud_text(const Text& text);
+
+    // post processing
     void bloom_pass();
     void ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj);
     void composite();
 
-    void render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene);
-
-    void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
-
-    void render_crosshair(const Crosshair& crosshair);
-    void render_hud_text(const Text& text);
-
-    void imgui_pass();
-
-    void shutdown();
-
-    void begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj);
-    void submit_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data, const Blend_Mode blend_mode, const glm::vec3 view_pos, const Util::AABB aabb);
-    void submit_animated_render_command(Draw_Elements_Indirect_Command draw_command, const Per_Object_Data object_data);
-    void upload_render_commands();
-
-    void submit_shadow_command(Draw_Elements_Indirect_Command draw_command, Per_Object_Data object_data, Blend_Mode blend_mode);
-    // todo probably move CSM to some kind of light system along with other lights
-    int get_cascade_level(const Entity& entity, glm::mat4 view); // returns which cascade an object belongs to, -1 if no cascade
-
-    void draw(Scene& scene, const glm::mat4& view, const glm::mat4& viewproj, const glm::vec3& view_pos, const glm::mat4& proj);
-
-    void compute_cull_draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj, bool wireframe);
-
+    // debug
     void debug_cascades(Scene& scene);
-
-    glm::vec4 normalize_plane(glm::vec4 p);
+    void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
+    void render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene);
     void debug_skeletons(Scene& scene, const glm::mat4& vp);
 
+    // utility
+    void imgui_pass();
+    glm::vec4 normalize_plane(glm::vec4 p);
 
 // private:
-
     int scr_width = 1600, scr_height = 900;
     Renderer_Debug debug_renderer;
 
-    Light spotlight, directional_light, point_light;
+    //Light spotlight, directional_light, point_light;
     std::vector<GPU_Light> lights;
     SSBO light_ssbo; // todo maybe remove ssbo class? raw code not bad
-    SSBO cluster_ssbo;
 
-    float penis = 25.0f;
-    float close_plane = 0.5f;
-    float ambient_light = 0.01f;
+    //float ambient_light = 0.01f;
     float sun_strength = 0.5f;
 
     bool use_alpha_clipping = true;
@@ -146,43 +125,22 @@ public:
     bool do_draw_light_quads = false;
     bool draw_skeletons = true;
     bool cascade_vis = false;
+    uint32_t terrain_draw_type = 0;
 
     // deferred pipeline
     //Shader deferred_shader, deferred_lighting_shader, debug_gbuffer_shader;
     //uint32_t g_buffer, g_position, g_normal, g_albedo_specular;
-
-    uint32_t terrain_draw_type = 0;
+    SSBO cluster_ssbo;
 
     uint32_t render_target, render_depth_buffer;
     texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture;
-    shader_handle quad_shader;
 
     uint32_t csm_fbo;
     texture_handle csm_texture;
-    std::vector<std::vector<Draw_Elements_Indirect_Command>> csm_draw_commands;
-    std::vector<std::vector<Per_Object_Data>> csm_per_object_data;
 
-    uint32_t opaque_draw_command_ssbo, opaque_object_ssbo;
-    std::vector<Draw_Elements_Indirect_Command> opaque_draw_commands;
-    std::vector<Per_Object_Data> opaque_object_data;
-    uint32_t opaque_draw_count;
-
-    // todo
-    uint32_t blended_draw_command_ssbo, blended_object_ssbo;
-    std::vector<Draw_Elements_Indirect_Command> blended_draw_commands;
-    std::vector<Per_Object_Data> blended_object_data;
-    std::vector<uint32_t> blended_draw_command_indices;
-    std::vector<float> blended_draw_command_distances;
-    uint32_t blended_draw_count;
-
-    uint32_t skinned_draw_commands_ssbo, skinned_object_ssbo;
-    std::vector<Draw_Elements_Indirect_Command> skinned_draw_commands;
-    std::vector<Per_Object_Data> skinned_object_data;
-    uint32_t skinned_draw_count;
-    // todo maybe blended skinned draws
-
-    uint32_t compute_culled_commands, csm_commands;
-    uint32_t num_commands; // ssbo for ^ ^
+    // buffers for compute culling
+    uint32_t opaque_draw_commands, blended_draw_commands, csm_draw_commands;
+    uint32_t num_commands;
 
     uint32_t quadVAO;
 

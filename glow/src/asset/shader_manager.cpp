@@ -195,7 +195,7 @@ namespace Shader_Manager {
                 shader_data.vertex_last_modified = current_vertex_time;
                 shader_data.fragment_last_modified = current_fragment_time;
 
-                printf("[SHADER] reloaded: %s & %s", shader_data.vertex_name.c_str(), shader_data.fragment_name.c_str());
+                printf("[SHADER] reloaded: %s & %s\n", shader_data.vertex_name.c_str(), shader_data.fragment_name.c_str());
                 return true;
             }
             else {
@@ -215,7 +215,7 @@ namespace Shader_Manager {
 
         Compute_Data& shader_data = it->second;
         const std::string path = base_path + "compute/" + name + ".comp";
-        printf("%s\n", path.c_str());
+        //printf("%s\n", path.c_str());
 
         fs::file_time_type current_time = get_file_time(path);
 
@@ -233,11 +233,11 @@ namespace Shader_Manager {
                 shader_data.shader = new_shader;
                 shader_data.last_modified = current_time;
 
-                printf("[SHADER] Successfully reloaded compute shader: %s", name.c_str());
+                printf("[SHADER] Successfully reloaded compute shader: %s\n", name.c_str());
                 return true;
             }
             else {
-                printf("[SHADER] Failed to reload compute shader: %s", name.c_str());
+                printf("[SHADER] Failed to reload compute shader: %s\n", name.c_str());
             }
         }
 

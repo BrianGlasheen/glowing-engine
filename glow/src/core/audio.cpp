@@ -1,7 +1,7 @@
 // tokyo spliff
 #include "core/audio.h"
 
-#ifdef FMOD
+#ifdef USE_FMOD
 #include <iostream>
 #include <vector>
 #include <unordered_map>

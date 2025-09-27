@@ -12,19 +12,19 @@
 
 #ifdef USE_FMOD
 struct Audio_handle {
-    #ifdef FMOD
+#ifdef USE_FMOD
     FMOD::Sound* sound = nullptr;
     FMOD::Channel* channel = nullptr;
     std::string filename;
-    #endif
+#endif
 };
 #endif
 
 struct Audio_effect_info {
-    #ifdef FMOD
+#ifdef USE_FMOD
     std::string filename = "";
     float volume = 0.0f;
-    #endif
+#endif
 };
 
 namespace Audio {

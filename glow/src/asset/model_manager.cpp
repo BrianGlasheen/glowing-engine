@@ -2450,7 +2450,7 @@ namespace Model_Manager {
         // }
     }
 
-    int32_t find_bone_animation(uint bone_idx, uint base_bone_animation, uint bone_animation_count) {
+    int32_t find_bone_animation(uint32_t bone_idx, uint32_t base_bone_animation, uint32_t bone_animation_count) {
         for (int32_t i = base_bone_animation; i < base_bone_animation + bone_animation_count; i++) {
             if (g_bone_animations[i].bone_index == bone_idx) {
                 return i;
@@ -2460,7 +2460,7 @@ namespace Model_Manager {
     }
 
 
-    glm::vec3 interpolate_position(uint anim_idx, float time) {
+    glm::vec3 interpolate_position(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
             return glm::vec3(0.0);
         
@@ -2488,7 +2488,7 @@ namespace Model_Manager {
         return position_keyframes[anim.base_position_keyframe + anim.position_keyframe_count - 1].position;
     }
 
-    glm::quat interpolate_rotation(uint anim_idx, float time) {
+    glm::quat interpolate_rotation(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
             return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
         
@@ -2516,7 +2516,7 @@ namespace Model_Manager {
         return rotation_keyframes[anim.base_rotation_keyframe + anim.rotation_keyframe_count - 1].rotation;
     }
 
-    glm::vec3 interpolate_scale(uint anim_idx, float time) {
+    glm::vec3 interpolate_scale(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
             return glm::vec3(1.0);
         
@@ -2552,7 +2552,7 @@ namespace Model_Manager {
             if (am.animation_time >= animation.duration)
                 am.animation_time = 0;
 
-            printf("i: %d, t: %f\n", i, am.animation_time);
+            //printf("i: %d, t: %f\n", i, am.animation_time);
             i++;
 
             for (uint32_t i = 0; i < am.bone_count; i++) {

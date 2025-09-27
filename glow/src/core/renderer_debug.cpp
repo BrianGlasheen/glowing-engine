@@ -34,7 +34,7 @@ void Renderer_Debug::init() {
     sphere_vertices.clear();
     
     const int segments = 32;
-    const float step = 2.0f * M_PI / segments;
+    const float step = 2.0f * 3.1415 / segments;
     
     // xy
     for (int i = 0; i <= segments; ++i) {
@@ -71,6 +71,10 @@ void Renderer_Debug::init() {
     glEnableVertexAttribArray(0);
     
     glBindVertexArray(0);
+}
+
+void Renderer_Debug::shutdown() {
+    // todo
 }
 
 void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color) {
