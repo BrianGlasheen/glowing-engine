@@ -1,3 +1,7 @@
 [submodule "glow/ext/assimp"]
 	path = glow/ext/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "glow/ext/dearimgui"]
+	path = glow/ext/dearimgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking

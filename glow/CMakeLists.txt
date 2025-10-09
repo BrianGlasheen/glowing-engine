@@ -18,11 +18,11 @@ set(USE_LZCNT ON CACHE BOOL "" FORCE)
 set(USE_TZCNT ON CACHE BOOL "" FORCE)
 set(USE_F16C ON CACHE BOOL "" FORCE)
 set(USE_FMADD ON CACHE BOOL "" FORCE)
-add_subdirectory(ext/JoltPhysics-5.3.0/Build)
 
 # Add GLFW (modify path to your built GLFW folder)
-add_subdirectory(ext/glfw-3.4)
 add_subdirectory(ext/assimp)
+add_subdirectory(ext/glfw-3.4) # todo submodule
+add_subdirectory(ext/JoltPhysics-5.3.0/Build) # submodule
 
 # Update path for FMOD on Windows
 set(FMOD_ROOT "${CMAKE_SOURCE_DIR}/ext/FMOD Studio API Windows")
@@ -30,9 +30,11 @@ set(FMOD_ROOT "${CMAKE_SOURCE_DIR}/ext/FMOD Studio API Windows")
 # Include directories
 include_directories(
     ext
-    ext/glfw-3.4/include
     ext/assimp/include
-    ext/JoltPhysics-5.3.0
+    ext/dearimgui
+    ext/dearimgui/backends
+    ext/glfw-3.4/include # todo submodule?
+    ext/JoltPhysics-5.3.0 # todo submodule?
     "${FMOD_ROOT}/api/core/inc"  # Updated FMOD include path
     src
     src/general
@@ -72,12 +74,14 @@ set(SOURCES
     "src/player/player.cpp"
 
     "ext/glad/glad.c"
+
     "ext/dearimgui/imgui.cpp"
     "ext/dearimgui/imgui_draw.cpp"
     "ext/dearimgui/imgui_widgets.cpp"
     "ext/dearimgui/imgui_tables.cpp"
-    "ext/dearimgui/imgui_impl_glfw.cpp"
-    "ext/dearimgui/imgui_impl_opengl3.cpp"
+    "ext/dearimgui/backends/imgui_impl_glfw.cpp"
+    "ext/dearimgui/backends/imgui_impl_opengl3.cpp"
+    
     "ext/imguizmo/ImGuizmo.cpp"
 )
 
@@ -113,9 +117,21 @@ endif()
 target_link_libraries(${PROJECT_NAME} 
     glfw ${GLFW_LIBRARIES}
     assimp
-    $<$<BOOL:${ENABLE_FMOD}>:${FMOD_LIBRARY}> 
     Jolt
 )
+
+if(ENABLE_FMOD)
+    target_link_libraries(${PROJECT_NAME} ${FMOD_LIBRARY})
+endif()
+
+if(UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    if(NOT X11_FOUND)
+        message(FATAL_ERROR "X11 library not found. Install with: sudo apt-get install libx11-dev")
+    endif()
+
+    target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES})
+endif()
 
 # Copy FMOD DLL to output directory (for Windows)
 if(WIN32)

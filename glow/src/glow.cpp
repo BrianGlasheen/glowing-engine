@@ -22,8 +22,8 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/random.hpp"
 
-#include "dearimgui/imgui_impl_glfw.h"
-#include "dearimgui/imgui_impl_opengl3.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 #include <vector>
 
@@ -301,6 +301,7 @@ namespace Glow {
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 		ImGui_ImplGlfw_InitForOpenGL(window.get_window(), true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
 		ImGui_ImplOpenGL3_Init();
 

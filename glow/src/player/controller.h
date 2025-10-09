@@ -4,9 +4,7 @@
 
 #include "core/opengl.h"
 
-#include <dearimgui/imgui.h>
-#include <dearimgui/imgui_impl_glfw.h>
-#include <dearimgui/imgui_impl_opengl3.h>
+#include <imgui.h>
 
 #include "core/scene.h"
 #include "core/camera.h"
