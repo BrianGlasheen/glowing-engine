@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(CORE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17) # todo 20+?
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(ENABLE_FMOD "enable fmod" OFF)
@@ -9,6 +9,7 @@ if(ENABLE_FMOD)
     add_compile_definitions(USE_FMOD)
 endif()
 
+# jolt
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
 set(USE_AVX2 ON CACHE BOOL "" FORCE)
 set(USE_AVX ON CACHE BOOL "" FORCE)
@@ -19,9 +20,8 @@ set(USE_TZCNT ON CACHE BOOL "" FORCE)
 set(USE_F16C ON CACHE BOOL "" FORCE)
 set(USE_FMADD ON CACHE BOOL "" FORCE)
 
-# Add GLFW (modify path to your built GLFW folder)
 add_subdirectory(ext/assimp)
-add_subdirectory(ext/glfw-3.4) # todo submodule
+add_subdirectory(ext/glfw-3.4)
 add_subdirectory(ext/JoltPhysics-5.3.0/Build) # submodule
 
 # Update path for FMOD on Windows
@@ -34,9 +34,9 @@ include_directories(
     ext/dearimgui
     ext/dearimgui/backends
     ext/glm
-    ext/glfw-3.4/include # todo submodule?
+    ext/glfw-3.4/include
     ext/JoltPhysics-5.3.0 # todo submodule?
-    "${FMOD_ROOT}/api/core/inc"  # Updated FMOD include path
+    "${FMOD_ROOT}/api/core/inc"  # todo replace fk fmod
     src
 )
 
