@@ -1,14 +1,12 @@
 #pragma once
 
 #include "asset/mesh.h"
-#include "asset/material_manager.h"
 #include "util/aabb.h"
 
 #include "glm/glm.hpp"
 
 #include <string>
 #include <vector>
-#include <cstdint>
 
 class Model {
 public:
@@ -49,8 +47,6 @@ public:
 //private:
 	std::string m_name;
 	std::vector<Mesh> m_meshes;
-	// todo maybe huge buffer of all meshes or something
-	// store index into it? instead of whole mesh
 	Util::AABB m_aabb;
 	glm::vec4 m_bounding_sphere;
 };
