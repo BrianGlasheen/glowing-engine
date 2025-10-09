@@ -33,6 +33,7 @@ include_directories(
     ext/assimp/include
     ext/dearimgui
     ext/dearimgui/backends
+    ext/glm
     ext/glfw-3.4/include # todo submodule?
     ext/JoltPhysics-5.3.0 # todo submodule?
     "${FMOD_ROOT}/api/core/inc"  # Updated FMOD include path
