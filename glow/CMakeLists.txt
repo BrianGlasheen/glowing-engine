@@ -38,7 +38,6 @@ include_directories(
     ext/JoltPhysics-5.3.0 # todo submodule?
     "${FMOD_ROOT}/api/core/inc"  # Updated FMOD include path
     src
-    src/general
 )
 
 set(SOURCES
