@@ -22,8 +22,11 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/random.hpp"
 
+#include "imgui.h"
+#include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+
 
 #include <vector>
 
@@ -98,9 +101,9 @@ namespace Glow {
 			8000
 		};
 
-		// Particle_Manager::add_effect("a", a, 10.0f);
-		// Particle_Manager::add_effect("b", b, 10.0f);
-		// Particle_Manager::add_effect("c", c, 10.0f);
+		Particle_Manager::add_effect("a", a, 10.0f);
+		Particle_Manager::add_effect("b", b, 10.0f);
+		Particle_Manager::add_effect("c", c, 10.0f);
 
 		if (editor.init())
 			return -1;
@@ -114,7 +117,6 @@ namespace Glow {
 
 		// bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("ABeautifulGame/glTF/ABeautifulGame.gltf");
-		//bool loaded = Model_Manager::load_model_indirect("bistro/Scene.gltf");
 
 		//bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("track/scene.gltf");
@@ -177,11 +179,11 @@ namespace Glow {
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		//for (int j = 0; j < 100; j++) {
-		//	printf("%d\n", j);
-		//	Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
-		//	scene.include(dsadasdasdasda);
-		//}
+		for (int j = 0; j < 100; j++) {
+			printf("%d\n", j);
+			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
+			scene.include(dsadasdasdasda);
+		}
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
@@ -302,6 +304,7 @@ namespace Glow {
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		ImGui_ImplGlfw_InitForOpenGL(window.get_window(), true); // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
 		ImGui_ImplOpenGL3_Init();
 
@@ -342,16 +345,19 @@ namespace Glow {
 			//if (!editor_mode) {
 			// todo this controller step will also update holding / player viewmodel visibility stuff like that
 
-			player.controller_step(window.get_window(), delta_time, scene);
-			{ PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
-			  Physics::update(); } // default 1/60 delta time
+			if (!editor_mode) {
+				player.controller_step(window.get_window(), delta_time, scene);
+				{ PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
+				Physics::update(); } // default 1/60 delta time
 
-			{ PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
-			  scene.update_dirty(); }
-
+				{ PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
+				scene.update_dirty(); }
+			}
+				
 			// grab per frame values
 			float aspect_ratio = (float)renderer.scr_width / (float)renderer.scr_height;
-
+			
+			// todo editor camera vs player camera
 			// cull against these no matter what
 			glm::mat4 player_view = player.get_body_view_matrix();
 			glm::mat4 player_proj = player.camera.get_projection(aspect_ratio);
@@ -379,49 +385,53 @@ namespace Glow {
 			{ PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
 			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
 			
-			{ PROFILE_SCOPE_COLOR("update bones", legit::Colors::nephritis);
-			  Model_Manager::update_bones(delta_time); }
-			
-			{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
-			  Model_Manager::update_animated_vertices(scene); }
+			// todo decide if do during editor
+				{ PROFILE_SCOPE_COLOR("update bones", legit::Colors::nephritis);
+				Model_Manager::update_bones(delta_time); }
+				
+				{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
+				Model_Manager::update_animated_vertices(scene); }
 
+			// todo use editor or player camera?
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
 				renderer.shadow_setup(player_view, player_inv_view, aspect_ratio, player.camera.zoom);
 			}
 
+			// todo implement!!!!
 			{
 				//PROFILE_SCOPE_COLOR("sort transparent", legit::Colors::nephritis);
 				//renderer.sort_blended_draws();
 			}
 
-			// iterate particles + submit etc
-			// other cool things todo! B)
+			// todo can also probably stuff into begin_frame()
+			// todo prob editor camera
+				{ PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
+				if (renderer.forward_plus)
+					renderer.build_cluster_pass(active_inv_proj); } // todo pass calc'd already
 
-			{ PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
-			  if (renderer.forward_plus)
-				renderer.build_cluster_pass(active_inv_proj); } // todo pass calc'd already
-
-			{ PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
-			  if (renderer.forward_plus)
-				renderer.cull_cluster_pass(active_view); } // todo pass calc'd alre
-
+				// todo prob editor camera
+				{ PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
+				if (renderer.forward_plus)
+					renderer.cull_cluster_pass(active_view); } // todo pass calc'd alre
+			
+			// need for main draw
 			{ PROFILE_SCOPE_COLOR("SSAO", legit::Colors::sunFlower);
 			  if (renderer.ssao_enabled)
 				renderer.ssao_pass(active_proj, active_inv_proj); }
 			
+			// hm
 			{ PROFILE_SCOPE_COLOR("CSM shadow pass", legit::Colors::sunFlower);
 			  renderer.shadow_pass(scene); }
 
 			{ PROFILE_SCOPE_COLOR("draw", legit::Colors::clouds);
 			  renderer.draw(scene, view_pos, active_view, active_viewproj, player_view, player_proj, player.key_toggles['t']); }
 
-			{
-				PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
-				Particle_Manager::step_particles(delta_time);
-				renderer.particle_pass(delta_time, active_proj, active_view);
-			}
-			// post process pass theoretically
+			{ PROFILE_SCOPE_COLOR("particles", legit::Colors::wisteria);
+		 	  Particle_Manager::step_particles(delta_time);
+			  renderer.particle_pass(delta_time, active_proj, active_view); }
+			
+			  // post process pass theoretically
 			{ PROFILE_SCOPE_COLOR("bloom", legit::Colors::nephritis);
 			  if (renderer.bloom_enabled) renderer.bloom_pass(); }
 			
@@ -448,45 +458,61 @@ namespace Glow {
 			if (player.key_toggles['l'])
 				renderer.debug_cascades(scene);
 
-			//if (!(frame++ % 10)) {
-			//    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
-			//    weapon_ammo_text.update_text(std::to_string(player.active_weapon->current_ammo));
-			//    reserve_ammo_text.update_text(std::to_string(player.active_weapon->reserve_ammo));
-			//   /* player_position.updateText("pos 1 00 1 00 1 00");
-			//    player_facing.updateText("dir 1 00 1 00 1 00");*/
-			//    player_holding.update_text("hand " + player.active_weapon->name);
-			//}
+			// todo figure out whole 2d text system
+			// screen space & world space
 
-			//renderer.render_crosshair(crosshair);
-			//renderer.render_hud_text(fpscounter);
-			//renderer.render_hud_text(weapon_ammo_text);
-			//renderer.render_hud_text(reserve_ammo_text);
-			//renderer.render_hud_text(player_position);
-			//renderer.render_hud_text(player_facing);
-			//renderer.render_hud_text(player_holding);
+				//if (!(frame++ % 10)) {
+				//    fpscounter.update_text(std::to_string((int)(1.0f / delta_time)));
+				//    weapon_ammo_text.update_text(std::to_string(player.active_weapon->current_ammo));
+				//    reserve_ammo_text.update_text(std::to_string(player.active_weapon->reserve_ammo));
+				//   /* player_position.updateText("pos 1 00 1 00 1 00");
+				//    player_facing.updateText("dir 1 00 1 00 1 00");*/
+				//    player_holding.update_text("hand " + player.active_weapon->name);
+				//}
+				//renderer.render_crosshair(crosshair);
+				//renderer.render_hud_text(fpscounter);
+				//renderer.render_hud_text(weapon_ammo_text);
+				//renderer.render_hud_text(reserve_ammo_text);
+				//renderer.render_hud_text(player_position);
+				//renderer.render_hud_text(player_facing);
+				//renderer.render_hud_text(player_holding);
 
-			// render scene deferred pipeline
-			// renderer.render_scene_deferred(player, scene, delta_time);
+			if (editor_mode) {
+				ImGui_ImplOpenGL3_NewFrame();
+				ImGui_ImplGlfw_NewFrame();
+				ImGui::NewFrame();
 
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
+				ImGui::ShowDemoWindow(); // Show demo window! :)
 
-			scene.imgui();
+				ImGui::Begin("Texture Viewer");
+				ImGui::Text("Here is the texture:");
+				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.scene_texture)), ImVec2(256, 256));
+				ImGui::End();
 
-			player.debug_hud();
-			renderer.imgui_pass();
+				scene.imgui();
 
-			// collect memory stats
-			// model vram, texture vram, maybe ssbo vram
+				player.debug_hud();
+				renderer.imgui_pass();
 
-			legit::Profiler::Instance().EndFrame();
-			auto& tasks = legit::Profiler::Instance().GetTasks();
-			gpuGraph.LoadFrameData(tasks.data(), tasks.size());
-			gpuGraph.RenderTimings(300, 200, 150, 0, 1.0f / 60.0f);
+				// collect memory stats
+				// model vram, texture vram, maybe ssbo vram
 
-			ImGui::Render();
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+				legit::Profiler::Instance().EndFrame();
+				auto& tasks = legit::Profiler::Instance().GetTasks();
+				gpuGraph.LoadFrameData(tasks.data(), tasks.size());
+				gpuGraph.RenderTimings(300, 200, 150, 0, 1.0f / 60.0f);
+
+				ImGui::Render();
+				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+				// if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+				// {
+					ImGui::UpdatePlatformWindows();
+					ImGui::RenderPlatformWindowsDefault();
+					// TODO for OpenGL: restore current GL context.
+					glfwMakeContextCurrent(window.get_window());
+				// }
+			}
 
 			window.present();
 			Audio::update();

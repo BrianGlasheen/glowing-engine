@@ -90,8 +90,16 @@ namespace Particle_Manager {
 		particle->use();
 		particle->set_float("dt", dt);
 
-		for (auto it = effects.begin(); it != effects.end(); it++) {
-			const Effect& e = it->second;
+		for (auto it = effects.begin(); it != effects.end();) {
+			Effect& e = it->second;
+			e.remaining_lifetime -= dt;
+			if (e.remaining_lifetime < 0) {
+				it = effects.erase(it);
+				continue;
+			}
+			else
+				it++;
+
 			const Particle_Paramaters p = e.parameters;
 
 			particle->set_vec3("emitter_position", p.emitter_position);

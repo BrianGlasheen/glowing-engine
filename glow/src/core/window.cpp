@@ -188,7 +188,13 @@ void Window::static_mouse_callback(GLFWwindow* glfw_window, double xpos, double 
     //        }
         //}
         //else {
+
+        // todo change this should be player code.
+        // prob manually just track mouse pos last frame
+        // and pos this frame, diff, move camera angles
+        // instead of firing callback
             this_window->player->mouse_callback(glfw_window, xpos, ypos);
+        
         //}
 }
 
@@ -206,7 +212,11 @@ void Window::static_scroll_callback(GLFWwindow* glfw_window, double xoffset, dou
     //    }
     //}
     //else {
+
+        // todo maybe change this?
         this_window->player->scroll_callback(glfw_window, xoffset, yoffset);
+
+
     //}
 }
 
@@ -216,6 +226,15 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
     // exit
     if (key == GLFW_KEY_C && (mods & GLFW_MOD_CONTROL))
         glfwSetWindowShouldClose(glfw_window, true);
+
+    if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
+        *this_window->editor_mode = !(*this_window->editor_mode);
+
+        if (*this_window->editor_mode)
+            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        else
+            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
 
     Renderer* renderer = this_window->renderer;
     if (renderer) {
@@ -237,15 +256,6 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
 
 void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
-
-    if (key == 'm') {
-        *this_window->editor_mode = !(*this_window->editor_mode);
-
-        if (*this_window->editor_mode) 
-            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        else
-            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    }
 
     if (key == 't')
         this_window->renderer->terrain_draw_type = (this_window->renderer->terrain_draw_type + 1) % 3;

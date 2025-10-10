@@ -130,9 +130,10 @@ void main() {
             // else
             // normal <- model
 
-            per_mesh_data[gID].emissive_factor = vec4(4.0);
-        } else {
-            per_mesh_data[gID].emissive_factor = vec4(0.0);
+            // per_mesh_data[gID].emissive_factor = vec4(4.0);
+        }
+        else {
+            // per_mesh_data[gID].emissive_factor = vec4(0.0);
         }
 
         // cull view frustum if has flag
@@ -148,8 +149,8 @@ void main() {
             if (mesh.transparent == 0) {
                 uint index = atomicAdd(draw_count, 1);
                 draw_commands[index] = draw_command;
-
-            } else if (mesh.transparent == 1) {
+            }
+            else if (mesh.transparent == 1) {
                 uint index = atomicAdd(transparent_draw_count, 1);
                 transparent_draw_commands[index] = draw_command;
             }

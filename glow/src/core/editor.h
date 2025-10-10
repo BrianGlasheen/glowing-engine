@@ -27,180 +27,180 @@ enum gizmo_modes {
 };
 static std::string gize_mode_strs[]{ "none", "translate", "rotate", "scale" };
 
-struct view_type_data {
-    view_type type;
+// struct view_type_data {
+//     view_type type;
 
-    // TODO make not shit
-    Font FIX_font;
+//     // TODO make not shit
+//     Font FIX_font;
 
-    // Camera positioning
-    float zoom_level;           // Orthographic size multiplier (smaller = more zoomed in)
-    glm::vec2 pan_offset;       // X/Y offset for panning in view space
-    float camera_distance;      // Distance from target point
+//     // Camera positioning
+//     float zoom_level;           // Orthographic size multiplier (smaller = more zoomed in)
+//     glm::vec2 pan_offset;       // X/Y offset for panning in view space
+//     float camera_distance;      // Distance from target point
 
-    // View bounds and limits
-    float min_zoom;            // Minimum zoom level (max zoom in)
-    float max_zoom;            // Maximum zoom level (max zoom out)
-    float zoom_speed;          // How fast zoom responds to input
-    float pan_speed;           // How fast panning responds to input
-    glm::vec2 pan_limits;      // Maximum pan distance from center
+//     // View bounds and limits
+//     float min_zoom;            // Minimum zoom level (max zoom in)
+//     float max_zoom;            // Maximum zoom level (max zoom out)
+//     float zoom_speed;          // How fast zoom responds to input
+//     float pan_speed;           // How fast panning responds to input
+//     glm::vec2 pan_limits;      // Maximum pan distance from center
 
-    // Input state
-    bool is_panning;           // Currently panning with mouse
-    glm::vec2 last_mouse_pos;  // Last mouse position for delta calculation
-    bool is_zooming;           // Currently zooming
-    gizmo_modes gizmo_mode;
+//     // Input state
+//     bool is_panning;           // Currently panning with mouse
+//     glm::vec2 last_mouse_pos;  // Last mouse position for delta calculation
+//     bool is_zooming;           // Currently zooming
+//     gizmo_modes gizmo_mode;
 
-    // Visual settings
-    bool show_grid;            // Show grid overlay
-    float grid_size;           // Grid cell size in world units
-    glm::vec3 grid_color;      // Grid line color
-    bool show_axes;            // Show world axes
-    bool show_bounds;          // Show scene bounds
-    Text view_text;
+//     // Visual settings
+//     bool show_grid;            // Show grid overlay
+//     float grid_size;           // Grid cell size in world units
+//     glm::vec3 grid_color;      // Grid line color
+//     bool show_axes;            // Show world axes
+//     bool show_bounds;          // Show scene bounds
+//     Text view_text;
 
-    view_type_data(view_type view_type = view_type::TOP_DOWN)
-        : type(view_type)
-        , zoom_level(1.0f)
-        , pan_offset(0.0f, 0.0f)
-        , camera_distance(50.0f)
-        , min_zoom(0.1f)
-        , max_zoom(10.0f)
-        , zoom_speed(0.1f)
-        , pan_speed(0.1f)
-        , pan_limits(100.0f, 100.0f)
-        , is_panning(false)
-        , last_mouse_pos(0.0f, 0.0f)
-        , is_zooming(false)
-        , gizmo_mode(gizmo_modes::NONE)
-        , show_grid(true)
-        , grid_size(1.0f)
-        , grid_color(0.3f, 0.3f, 0.3f)
-        , show_axes(true)
-        , show_bounds(false)
-    {
-    }
+//     view_type_data(view_type view_type = view_type::TOP_DOWN)
+//         : type(view_type)
+//         , zoom_level(1.0f)
+//         , pan_offset(0.0f, 0.0f)
+//         , camera_distance(50.0f)
+//         , min_zoom(0.1f)
+//         , max_zoom(10.0f)
+//         , zoom_speed(0.1f)
+//         , pan_speed(0.1f)
+//         , pan_limits(100.0f, 100.0f)
+//         , is_panning(false)
+//         , last_mouse_pos(0.0f, 0.0f)
+//         , is_zooming(false)
+//         , gizmo_mode(gizmo_modes::NONE)
+//         , show_grid(true)
+//         , grid_size(1.0f)
+//         , grid_color(0.3f, 0.3f, 0.3f)
+//         , show_axes(true)
+//         , show_bounds(false)
+//     {
+//     }
 
-    void init_text(std::string text) {
-        FIX_font = Font("tx02");
-        view_text.load(FIX_font, text, 0, 1, 100.0f, glm::vec3(1.0f));
-    }
+//     void init_text(std::string text) {
+//         FIX_font = Font("tx02");
+//         view_text.load(FIX_font, text, 0, 1, 100.0f, glm::vec3(1.0f));
+//     }
 
-    // Calculate the actual orthographic size based on zoom
-    float get_ortho_size() const {
-        return 20.0f * zoom_level; // Base size * zoom multiplier
-    }
+//     // Calculate the actual orthographic size based on zoom
+//     float get_ortho_size() const {
+//         return 20.0f * zoom_level; // Base size * zoom multiplier
+//     }
 
-    glm::vec3 get_camera_position() const {
-        switch (type) {
-        case view_type::TOP_DOWN:
-            return glm::vec3(0.0f, camera_distance, 0.0f);
-        case view_type::FRONT:
-            return glm::vec3(0.0f, 0.0f, camera_distance);
-        case view_type::SIDE:
-            return glm::vec3(camera_distance, 0.0f, 0.0f);
-        default:
-            assert(false);
-        }
-    }
+//     glm::vec3 get_camera_position() const {
+//         switch (type) {
+//         case view_type::TOP_DOWN:
+//             return glm::vec3(0.0f, camera_distance, 0.0f);
+//         case view_type::FRONT:
+//             return glm::vec3(0.0f, 0.0f, camera_distance);
+//         case view_type::SIDE:
+//             return glm::vec3(camera_distance, 0.0f, 0.0f);
+//         default:
+//             assert(false);
+//         }
+//     }
 
-    glm::vec3 get_target_position() const {
-        glm::vec3 target = glm::vec3(0.0f);
+//     glm::vec3 get_target_position() const {
+//         glm::vec3 target = glm::vec3(0.0f);
 
-        switch (type) {
-        case view_type::TOP_DOWN:
-            target.x += pan_offset.x;
-            target.z += pan_offset.y;
-            break;
-        case view_type::FRONT:
-            target.x += pan_offset.x;
-            target.y += pan_offset.y;
-            break;
-        case view_type::SIDE:
-            target.z += pan_offset.x;
-            target.y += pan_offset.y;
-            break;
-        }
+//         switch (type) {
+//         case view_type::TOP_DOWN:
+//             target.x += pan_offset.x;
+//             target.z += pan_offset.y;
+//             break;
+//         case view_type::FRONT:
+//             target.x += pan_offset.x;
+//             target.y += pan_offset.y;
+//             break;
+//         case view_type::SIDE:
+//             target.z += pan_offset.x;
+//             target.y += pan_offset.y;
+//             break;
+//         }
 
-        return target;
-    }
+//         return target;
+//     }
 
-    glm::vec3 get_up_vector() const {
-        switch (type) {
-        case view_type::TOP_DOWN:
-            return glm::vec3(0.0f, 0.0f, -1.0f);
-        case view_type::FRONT:
-        case view_type::SIDE:
-            return glm::vec3(0.0f, 1.0f, 0.0f);
-        default:
-            return glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-    }
+//     glm::vec3 get_up_vector() const {
+//         switch (type) {
+//         case view_type::TOP_DOWN:
+//             return glm::vec3(0.0f, 0.0f, -1.0f);
+//         case view_type::FRONT:
+//         case view_type::SIDE:
+//             return glm::vec3(0.0f, 1.0f, 0.0f);
+//         default:
+//             return glm::vec3(0.0f, 1.0f, 0.0f);
+//         }
+//     }
 
-    void handle_zoom(float zoom_delta) {
-        if (zoom_delta != 0.0f) {
-            is_zooming = true;
-            zoom_level = glm::clamp(zoom_level + zoom_delta * zoom_speed, min_zoom, max_zoom);
-        }
-        else {
-            is_zooming = false;
-        }
-    }
+//     void handle_zoom(float zoom_delta) {
+//         if (zoom_delta != 0.0f) {
+//             is_zooming = true;
+//             zoom_level = glm::clamp(zoom_level + zoom_delta * zoom_speed, min_zoom, max_zoom);
+//         }
+//         else {
+//             is_zooming = false;
+//         }
+//     }
 
-    // Handle pan input
-    void handle_pan(const glm::vec2& mouse_delta) {
-        if (is_panning) {
-            glm::vec2 pan_delta = mouse_delta * pan_speed * zoom_level;
+//     // Handle pan input
+//     void handle_pan(const glm::vec2& mouse_delta) {
+//         if (is_panning) {
+//             glm::vec2 pan_delta = mouse_delta * pan_speed * zoom_level;
 
-            switch (type) {
-            case view_type::TOP_DOWN:
-                pan_delta *= -1;
-                break;
-            case view_type::FRONT:
-                pan_delta.x *= -1;
-                break;
-            case view_type::SIDE:
-                //pan_delta.y *= -1;
-                break;
-            default:
-                assert(false);
-            }
-            pan_offset.x = glm::clamp(pan_offset.x + pan_delta.x, -pan_limits.x, pan_limits.x);
-            pan_offset.y = glm::clamp(pan_offset.y + pan_delta.y, -pan_limits.y, pan_limits.y);
-        }
-    }
+//             switch (type) {
+//             case view_type::TOP_DOWN:
+//                 pan_delta *= -1;
+//                 break;
+//             case view_type::FRONT:
+//                 pan_delta.x *= -1;
+//                 break;
+//             case view_type::SIDE:
+//                 //pan_delta.y *= -1;
+//                 break;
+//             default:
+//                 assert(false);
+//             }
+//             pan_offset.x = glm::clamp(pan_offset.x + pan_delta.x, -pan_limits.x, pan_limits.x);
+//             pan_offset.y = glm::clamp(pan_offset.y + pan_delta.y, -pan_limits.y, pan_limits.y);
+//         }
+//     }
 
-    // Start panning
-    void start_pan(const glm::vec2& mouse_pos) {
-        is_panning = true;
-        last_mouse_pos = mouse_pos;
-    }
+//     // Start panning
+//     void start_pan(const glm::vec2& mouse_pos) {
+//         is_panning = true;
+//         last_mouse_pos = mouse_pos;
+//     }
 
-    // Stop panning
-    void stop_pan() {
-        is_panning = false;
-    }
+//     // Stop panning
+//     void stop_pan() {
+//         is_panning = false;
+//     }
 
-    void set_gizmo_mode(gizmo_modes gm) {
-        gizmo_mode = gm;
-        view_text.update_text(gize_mode_strs[gm]);
-    }
-};
+//     void set_gizmo_mode(gizmo_modes gm) {
+//         gizmo_mode = gm;
+//         view_text.update_text(gize_mode_strs[gm]);
+//     }
+// };
 
-struct editor_viewports_struct {
-    view_type_data top;
-    view_type_data side;
-    view_type_data front;
-    view_type_data scene;
+// struct editor_viewports_struct {
+//     view_type_data top;
+//     view_type_data side;
+//     view_type_data front;
+//     view_type_data scene;
 
-    editor_viewports_struct()
-        : top(view_type::TOP_DOWN)
-        , side(view_type::SIDE)
-        , front(view_type::FRONT)
-        , scene(view_type::SCENE)
-    {
-    }
-};
+//     editor_viewports_struct()
+//         : top(view_type::TOP_DOWN)
+//         , side(view_type::SIDE)
+//         , front(view_type::FRONT)
+//         , scene(view_type::SCENE)
+//     {
+//     }
+// };
 
 class Editor {
 public:
@@ -208,10 +208,10 @@ public:
 
     int init() {
         // make viewports
-        editor_viewports.top.init_text("top------"); // pad to 9 xD
-        editor_viewports.front.init_text("front----");
-        editor_viewports.side.init_text("side-----");
-        editor_viewports.scene.init_text("scene----");
+        // editor_viewports.top.init_text("top------"); // pad to 9 xD
+        // editor_viewports.front.init_text("front----");
+        // editor_viewports.side.init_text("side-----");
+        // editor_viewports.scene.init_text("scene----");
 
         Shader_Manager::load_from_name("editor");
 
@@ -451,9 +451,8 @@ public:
 
 
 
-    editor_viewports_struct editor_viewports;
+    // editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
-    bool editor_mode = false;
-    std::vector<size_t> selected_entites = { 0, 1, 2, 3, 4 };
+    std::vector<size_t> selected_entites;
     float outline_scale = 0.1f;
 };

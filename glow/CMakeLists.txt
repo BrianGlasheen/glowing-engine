@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(CORE)
+
+project(glow)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17) # todo 20+?
+set(CMAKE_CXX_STANDARD 20) # todo 20+?
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 option(ENABLE_FMOD "enable fmod" OFF)
@@ -40,6 +42,7 @@ include_directories(
     src
 )
 
+# todo just glob bruh
 set(SOURCES
     ext/stb_image_impl.cpp
     "src/main.cpp"
@@ -81,6 +84,7 @@ set(SOURCES
     "ext/dearimgui/imgui_tables.cpp"
     "ext/dearimgui/backends/imgui_impl_glfw.cpp"
     "ext/dearimgui/backends/imgui_impl_opengl3.cpp"
+    "ext/dearimgui/imgui_demo.cpp"
     
     "ext/imguizmo/ImGuizmo.cpp"
 )
