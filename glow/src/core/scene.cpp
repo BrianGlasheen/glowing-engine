@@ -2,12 +2,14 @@
 
 #include "asset/material_manager.h"
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#include "dearimgui/imgui.h"
+#include <dearimgui/imgui.h>
+#include <yaml-cpp/yaml.h>
 
+#include <fstream>
 #include <algorithm>
 
 Scene::Scene() {
@@ -320,6 +322,75 @@ void Scene::imgui() {
     ImGui::End();
 }
 
+
+namespace YAML {
+    template<>
+    struct convert<glm::vec3> {
+        static Node encode(const glm::vec3& v) {
+            Node node;
+            node.push_back(v.x);
+            node.push_back(v.y);
+            node.push_back(v.z);
+            return node;
+        }
+    };
+
+    template<>
+    struct convert<glm::quat> {
+        static Node encode(const glm::quat& q) {
+            Node node;
+            node.push_back(q.w);
+            node.push_back(q.x);
+            node.push_back(q.y);
+            node.push_back(q.z);
+            return node;
+        }
+    };
+
+    inline Emitter& operator<<(Emitter& out, const glm::vec3& v) {
+        out << YAML::Flow;
+        out << YAML::BeginSeq << v.x << v.y << v.z << YAML::EndSeq;
+        return out;
+    }
+
+    inline Emitter& operator<<(Emitter& out, const glm::quat& q) {
+        out << YAML::Flow;
+        out << YAML::BeginSeq << q.w << q.x << q.y << q.z << YAML::EndSeq;
+        return out;
+    }
+}
+
+void Scene::serialize(std::string path) {
+
+    printf("WRITING SCENE\n");
+
+    YAML::Emitter out;
+    out << YAML::BeginMap;
+
+    // todo scene name
+    out << YAML::Key << "Scene" << YAML::Value << "Untitled";
+
+    out << YAML::Key << "Skybox" << YAML::Value << skybox.name;
+
+    out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
+    for (const auto& entity : entities) {
+        out << YAML::BeginMap;
+
+        out << YAML::Key << "position" << YAML::Value << entity.position;
+        out << YAML::Key << "rotation" << YAML::Value << entity.rotation;
+        out << YAML::Key << "scale"    << YAML::Value << entity.scale;
+        out << YAML::Key << "model" << YAML::Value << Model_Manager::get_model_name(entity.model_id, entity.is_animated);
+        out << YAML::Key << "physics" << YAML::Value << entity.physics_enabled;
+        out << YAML::Key << "animated" << YAML::Value << entity.is_animated;
+
+        out << YAML::EndMap;
+    }
+
+    out << YAML::EndSeq;
+    out << YAML::EndMap;
+    std::ofstream fout(path);
+    fout << out.c_str();
+}
 
 //int Scene::cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos) {
 //    int hits = 0;

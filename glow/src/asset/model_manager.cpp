@@ -259,7 +259,7 @@ namespace Model_Manager {
         model_index = m_indirect_models.size();
 
         m_indirect_models.push_back(model_ind);
-        m_indirect_model_names.push_back(full_path);
+        m_indirect_model_names.push_back(path);
 
         printf("num verts after model %llu\n", g_vertices.size());
         printf("num idx after model %llu\n", g_indices.size());
@@ -306,7 +306,7 @@ namespace Model_Manager {
         model_index = m_indirect_models.size();
 
         m_indirect_models.push_back(model);
-        m_indirect_model_names.push_back(full_path);
+        m_indirect_model_names.push_back(path);
 
         printf("num verts after model %llu\n", g_vertices.size());
         printf("num idx after model %llu\n", g_indices.size());
@@ -380,7 +380,7 @@ namespace Model_Manager {
 
             model_index = m_animated_models.size();
             m_animated_models.push_back(copy);
-            m_animated_model_names.push_back(full_path);
+            m_animated_model_names.push_back(path);
 
             //printf("offset: %d, tot: %d\n", copy.bone_offset, num_skinned_bones);
             printf("num verts after model %llu\n", g_vertices.size());
@@ -461,7 +461,7 @@ namespace Model_Manager {
         model_index = m_animated_models.size();
 
         m_animated_models.push_back(model);
-        m_animated_model_names.push_back(full_path);
+        m_animated_model_names.push_back(path);
 
         printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
         printf("num idx after model %llu\n", g_indices.size());
@@ -658,7 +658,7 @@ namespace Model_Manager {
 
         model_index = m_animated_models.size();
         m_animated_models.push_back(model);
-        m_animated_model_names.push_back(full_path);
+        m_animated_model_names.push_back(path);
 
         printf("num rigged verts after model %llu\n", g_rigged_vertices.size());
         printf("num idx after model %llu\n", g_indices.size());
@@ -2618,4 +2618,11 @@ namespace Model_Manager {
 
     uint32_t get_big_vao() { return big_buffer_vao; }
     uint32_t get_rigged_vao() { return rigged_vao; }
+
+    std::string get_model_name(model_handle model_id, bool animated) {
+        if (animated)
+            return m_animated_model_names[model_id];
+        else
+            return m_indirect_model_names[model_id];
+    }
 }

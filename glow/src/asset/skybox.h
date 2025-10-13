@@ -17,7 +17,8 @@ public:
     void draw() const;
 
     uint32_t num_mips;
-
+    std::string name;
+    
 private:
     uint32_t vao, vbo, texture_id;
 

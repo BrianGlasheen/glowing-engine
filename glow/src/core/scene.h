@@ -41,6 +41,7 @@ public:
     void upload_buffers();
     void update_dirty();
     void imgui();
+    void serialize(std::string path = "../resources/scenes/scene.yaml");
     // returns the number of hits
     //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
 

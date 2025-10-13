@@ -6,6 +6,7 @@
 #include "asset/texture_manager.h"
 
 void Skybox::load(const std::string& skybox_name) {
+    name = skybox_name;
     std::vector<std::string> faceNames = {
         "px.png", "nx.png", "py.png", "ny.png", "pz.png", "nz.png"
     };

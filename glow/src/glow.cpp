@@ -179,7 +179,7 @@ namespace Glow {
 		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
 		//scene.include(d12321313d1233);
 
-		for (int j = 0; j < 100; j++) {
+		for (int j = 0; j < 10; j++) {
 			printf("%d\n", j);
 			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
 			scene.include(dsadasdasdasda);
@@ -328,6 +328,8 @@ namespace Glow {
 
 		Model_Manager::setup_ssbos();
 		Model_Manager::upload_animation_commands();
+
+		// scene.serialize();
 
 		return 0;
 	}

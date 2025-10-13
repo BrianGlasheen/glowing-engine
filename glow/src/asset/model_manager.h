@@ -108,4 +108,6 @@ namespace Model_Manager {
 
     uint32_t get_big_vao();
     uint32_t get_rigged_vao();
+
+    std::string get_model_name(model_handle model_id, bool animated);
 }

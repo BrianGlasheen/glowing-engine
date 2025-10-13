@@ -25,6 +25,7 @@ set(USE_FMADD ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/assimp)
 add_subdirectory(ext/glfw-3.4)
 add_subdirectory(ext/JoltPhysics-5.3.0/Build) # submodule
+add_subdirectory(ext/yaml-cpp)
 
 # Update path for FMOD on Windows
 set(FMOD_ROOT "${CMAKE_SOURCE_DIR}/ext/FMOD Studio API Windows")
@@ -40,43 +41,14 @@ include_directories(
     ext/JoltPhysics-5.3.0 # todo submodule?
     "${FMOD_ROOT}/api/core/inc"  # todo replace fk fmod
     src
+    ext/yaml-cpp/include
 )
 
-# todo just glob bruh
-set(SOURCES
-    ext/stb_image_impl.cpp
-    "src/main.cpp"
-    "src/glow.cpp"
-    
-    "src/asset/compute_shader.cpp"
-    "src/asset/crosshair.cpp"
-    #"src/asset/mesh.cpp"
-    #"src/asset/model.cpp"
-    "src/asset/material_manager.cpp"
-    "src/asset/model_indirect.cpp"
-    "src/asset/particle_manager.cpp"
-    "src/asset/model_manager.cpp"
-    "src/asset/shader.cpp"
-    "src/asset/shader_manager.cpp"
-    "src/asset/skybox.cpp"
-    "src/asset/text.cpp"
-    "src/asset/texture_manager.cpp"
+file(GLOB_RECURSE SOURCES
+    "src/*.cpp"
 
-    "src/core/audio.cpp"
-    "src/core/editor.cpp"
-    "src/core/entity.cpp"
-    "src/core/light.cpp"
-    "src/core/physics.cpp"
-    "src/core/renderer.cpp"
-    "src/core/renderer_debug.cpp"
-    "src/core/scene.cpp"
-    "src/core/ssbo.cpp"
-    "src/core/terrain.cpp"
-    "src/core/window.cpp"
-
-    "src/player/player.cpp"
-
-    "ext/glad/glad.c"
+    "ext/stb_image_impl.cpp"
+    "ext/glad/*.c"
 
     "ext/dearimgui/imgui.cpp"
     "ext/dearimgui/imgui_draw.cpp"
@@ -85,7 +57,7 @@ set(SOURCES
     "ext/dearimgui/backends/imgui_impl_glfw.cpp"
     "ext/dearimgui/backends/imgui_impl_opengl3.cpp"
     "ext/dearimgui/imgui_demo.cpp"
-    
+
     "ext/imguizmo/ImGuizmo.cpp"
 )
 
@@ -122,6 +94,7 @@ target_link_libraries(${PROJECT_NAME}
     glfw ${GLFW_LIBRARIES}
     assimp
     Jolt
+    yaml-cpp
 )
 
 if(ENABLE_FMOD)
