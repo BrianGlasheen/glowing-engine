@@ -346,6 +346,11 @@ namespace Glow {
 			if (player.key_toggles['l'])
 				renderer.debug_cascades(scene);
 
+			if (editor_mode)
+				renderer.infinite_grid(active_viewproj, player.camera.position);
+
+			renderer.blit_to_screen();
+
 			// todo figure out whole 2d text system
 			// screen space & world space
 
@@ -372,7 +377,7 @@ namespace Glow {
 			if (editor_mode) {
 				editor.show();
 
-				ImGui::ShowDemoWindow(); // Show demo window! :)
+				// ImGui::ShowDemoWindow(); // Show demo window! :)
 
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 				ImGui::Begin("Preview");
@@ -382,7 +387,7 @@ namespace Glow {
 					renderer.resize((int)size.x, (int)size.y);
 					last_size = size;
 				}
-				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.scene_texture)), size, ImVec2(0, 1), ImVec2(1, 0));
+				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.output_texture)), size, ImVec2(0, 1), ImVec2(1, 0));
 				ImGui::End();
 				ImGui::PopStyleVar();
 

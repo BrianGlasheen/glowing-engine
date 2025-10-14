@@ -84,6 +84,7 @@ void Renderer::resize(const int width, const int height) {
     Texture_Manager::resize(bright_texture, scr_width, scr_height, 6);
     Texture_Manager::resize(ssao_texture, scr_width, scr_height);
     Texture_Manager::resize(depth_texture, scr_width, scr_height);
+    Texture_Manager::resize(output_texture, scr_width, scr_height);
 
     // update per shader "constant-ish" uniforms (screen size, etc)
 }
@@ -191,6 +192,20 @@ void Renderer::setup_buffers() {
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         printf("[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT\n");
+        assert(false);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // final output texture
+    glGenFramebuffers(1, &output_framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
+
+    output_texture = Texture_Manager::create_render_texture(scr_width, scr_height, true);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(output_texture), 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        printf("[RENDERER] OUTPUT BUFFER FAILLLLLED TF OUT\n");
         assert(false);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -866,7 +881,7 @@ void Renderer::ssao_pass(const mat4& proj, const mat4& inv_proj) {
 }
 
 void Renderer::composite() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
     glViewport(0, 0, scr_width, scr_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
@@ -881,11 +896,26 @@ void Renderer::composite() {
     Texture_Manager::bind(bright_texture, 1);
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
     glBindVertexArray(0); // unbind quad
 }
 
-void Renderer::debug_cascades(Scene& scene) {
+void Renderer::blit_to_screen() {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, output_framebuffer);
 
+    // Bind the destination (default framebuffer — the screen)
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // 0 is default framebuffer
+
+    // Blit the color buffer from composite FBO to screen
+    glBlitFramebuffer(
+        0, 0, scr_width, scr_height,        // src rect
+        0, 0, scr_width, scr_height,        // dst rect
+        GL_COLOR_BUFFER_BIT,
+        GL_NEAREST // or GL_LINEAR for smooth scaling
+    );
+}
+
+void Renderer::debug_cascades(Scene& scene) {
         glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
         Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
         shader->use();
@@ -913,7 +943,30 @@ void Renderer::debug_cascades(Scene& scene) {
         // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glBindVertexArray(0); // unbind quad
+}
 
+void Renderer::infinite_grid(const mat4& vp, const vec3& cam_pos) {
+    Shader* shader = Shader_Manager::get_shader("grid");
+    shader->use();
+    shader->set_mat4("vp", vp);
+    shader->set_vec3("gCameraWorldPos", cam_pos);
+    
+    static GLuint dummyvao = 0;
+    if (dummyvao == 0) {
+        glGenVertexArrays(1, &dummyvao);
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+
+    glDepthFunc(GL_ALWAYS);  // Always pass
+
+    glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
+    glViewport(0, 0, scr_width, scr_height);
+
+    glBindVertexArray(dummyvao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void Renderer::draw_light_quads(const mat4& proj, const mat4& view) {

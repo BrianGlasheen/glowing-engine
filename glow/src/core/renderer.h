@@ -83,9 +83,11 @@ public:
     void bloom_pass();
     void ssao_pass(const mat4& proj, const mat4& inv_proj);
     void composite();
+    void blit_to_screen();
 
     // debug
     void debug_cascades(Scene& scene);
+    void infinite_grid(const mat4& vp, const vec3& cam_pos);
     void draw_light_quads(const mat4& proj, const mat4& view);
     void render_debug(const mat4& view, const mat4& proj, Scene& scene);
     void debug_skeletons(Scene& scene, const mat4& vp);
@@ -132,6 +134,9 @@ public:
 
     uint32_t render_target, render_depth_buffer;
     texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture;
+
+    uint32_t output_framebuffer;
+    texture_handle output_texture;
 
     uint32_t csm_fbo;
     texture_handle csm_texture;

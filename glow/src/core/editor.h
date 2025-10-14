@@ -217,6 +217,7 @@ public:
         // editor_viewports.scene.init_text("scene----");
 
         Shader_Manager::load_from_name("editor");
+        Shader_Manager::load_from_name("grid");
 
         return 0;
     }
@@ -537,6 +538,10 @@ public:
     //    }
 
     //}
+
+    void draw_grid(const mat4& vp, const vec3& cam_pos) {
+
+    }
 
 
     //void render_debug(Player& player) {
