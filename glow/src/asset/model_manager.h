@@ -3,9 +3,10 @@
 //#include "core/scene.h"
 class Scene;
 
-#include <string>
-#include <vector>
-#include <unordered_map>
+#include "asset/model_indirect.h" // todo could maybe combine still
+#include "asset/animated_model.h"
+#include "util/math.h"
+#include "util/aabb.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -13,15 +14,14 @@ class Scene;
 #include <cgltf.h>
 #include <glm/gtc/quaternion.hpp>
 
-#include "shader.h"
-#include "util/aabb.h"
-#include "asset/model_indirect.h" // todo could maybe combine still
-#include "asset/animated_model.h"
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 typedef uint32_t model_handle;
 
 namespace Model_Manager {
-    glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat);
+    mat4 assimp_to_glm(const aiMatrix4x4& ai_mat);
 
     void init(std::string path);
     void cleanup();
@@ -39,10 +39,10 @@ namespace Model_Manager {
 
     void compare_animation_data(uint32_t first, uint32_t second);
 
-    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const glm::mat4& parent_transform);
-    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, glm::mat4 parent_transform);
-    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const glm::mat4& parent_transform, uint32_t base_bone);
-    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, glm::mat4 parent_transform, uint32_t base_bone);
+    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const mat4& parent_transform);
+    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, mat4 parent_transform);
+    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const mat4& parent_transform, uint32_t base_bone);
+    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, mat4 parent_transform, uint32_t base_bone);
 
     Mesh process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path);
     Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path);
@@ -62,9 +62,9 @@ namespace Model_Manager {
     void load_all_skins(const cgltf_data* data, uint32_t base_bone);
     void load_animations_from_scene(const aiScene* scene, uint32_t base_bone);
     void load_keyframes_from_channel(aiNodeAnim* channel, double ticks_per_second);
-    //glm::vec3 interpolate_position(aiNodeAnim* channel, double time);
-    //glm::quat interpolate_rotation(aiNodeAnim* channel, double time);
-    //glm::vec3 interpolate_scale(aiNodeAnim* channel, double time);
+    //vec3 interpolate_position(aiNodeAnim* channel, double time);
+    //quat interpolate_rotation(aiNodeAnim* channel, double time);
+    //vec3 interpolate_scale(aiNodeAnim* channel, double time);
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
 
     void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone);

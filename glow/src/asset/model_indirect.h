@@ -3,7 +3,7 @@
 #include "asset/mesh.h"
 #include "util/aabb.h"
 
-#include "glm/glm.hpp"
+#include "util/math.h"
 
 #include <string>
 #include <vector>
@@ -18,26 +18,26 @@ public:
 	}
 
 	void add_mesh(Mesh& mesh) {
-		glm::vec3 center = (mesh.aabb.min + mesh.aabb.max) * 0.5f;
-		glm::vec3 extent = (mesh.aabb.max - mesh.aabb.min) * 0.5f;
-		float radius = glm::length(extent);
-		mesh.bounding_sphere = glm::vec4(center, radius);
+		vec3 center = (mesh.aabb.min + mesh.aabb.max) * 0.5f;
+		vec3 extent = (mesh.aabb.max - mesh.aabb.min) * 0.5f;
+		float radius = length(extent);
+		mesh.bounding_sphere = vec4(center, radius);
 
 		m_meshes.push_back(mesh);
 	}
 
 	void calculate_aabb() {
-		m_aabb = { glm::vec3(FLT_MAX), glm::vec3(-FLT_MAX) };
+		m_aabb = { vec3(FLT_MAX), vec3(-FLT_MAX) };
 
 		for (const Mesh& mesh : m_meshes) {
-			m_aabb.min = glm::min(mesh.aabb.min, m_aabb.min);
-			m_aabb.max = glm::max(mesh.aabb.max, m_aabb.max);
+			m_aabb.min = min(mesh.aabb.min, m_aabb.min);
+			m_aabb.max = max(mesh.aabb.max, m_aabb.max);
 		}
 
-		//glm::vec3 center = (m_aabb.min + m_aabb.max) * 0.5f;
-		//glm::vec3 extent = (m_aabb.max - m_aabb.min) * 0.5f;
-		//float radius = glm::length(extent);
-		//m_bounding_sphere = glm::vec4(center, radius);
+		//vec3 center = (m_aabb.min + m_aabb.max) * 0.5f;
+		//vec3 extent = (m_aabb.max - m_aabb.min) * 0.5f;
+		//float radius = length(extent);
+		//m_bounding_sphere = vec4(center, radius);
 	}
 
 	Util::AABB get_aabb() {
@@ -48,5 +48,5 @@ public:
 	std::string m_name;
 	std::vector<Mesh> m_meshes;
 	Util::AABB m_aabb;
-	glm::vec4 m_bounding_sphere;
+	vec4 m_bounding_sphere;
 };

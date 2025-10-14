@@ -4,15 +4,14 @@
 // #include <GLFW/glfw3.h>
 #include "core/opengl.h"
 
-#include "glm/glm.hpp"
+#include "util/math.h"
 
-#include "renderer.h"
+#include "core/renderer.h"
 #include "player/player.h"
-#include "editor.h"
+#include "core/editor.h"
 
 class Window {
 public:
-
 	Window() = default;
     ~Window();
 
@@ -23,7 +22,7 @@ public:
 
     float get_time();
     bool open();
-    glm::vec2 get_window_size();
+    vec2 get_window_size();
     GLFWwindow* get_window();
 
     void sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor);

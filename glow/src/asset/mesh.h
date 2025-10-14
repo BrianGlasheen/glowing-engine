@@ -2,8 +2,7 @@
 
 #include "asset/material_manager.h"
 #include "util/aabb.h"
-
-#include "glm/glm.hpp"
+#include "util/math.h"
 
 #include <string>
 #include <cstdint>
@@ -17,9 +16,9 @@ struct Mesh {
 	std::string name;
 
 	// parent? 
-	glm::mat4 transform; // relative to parent
+	mat4 transform; // relative to parent
 
 	Material material;
 
-	glm::vec4 bounding_sphere;
+	vec4 bounding_sphere;
 };

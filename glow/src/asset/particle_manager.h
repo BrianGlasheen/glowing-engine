@@ -1,24 +1,23 @@
 #pragma once
 
-#include "core/ssbo.h"
-
-#include "glm/glm.hpp"
+// #include "core/ssbo.h"
+#include "util/math.h"
 
 #include <string>
 
 typedef uint32_t particle_handle;
 
 struct Particle_Paramaters {
-	glm::vec3 emitter_position;
-	glm::vec3 acceleration_direction;
+	vec3 emitter_position;
+	vec3 acceleration_direction;
 	float acceleration_force;
-	glm::vec2 life_range;              // min/max particle lifetime
+	vec2 life_range;              // min/max particle lifetime
 
-	glm::vec4 color_start_base;        // base colors for variation
-	glm::vec4 color_end_base;
+	vec4 color_start_base;        // base colors for variation
+	vec4 color_end_base;
 
-	glm::vec3 velocity_base;           // base spawn velocity
-	glm::vec3 velocity_random_bias;
+	vec3 velocity_base;           // base spawn velocity
+	vec3 velocity_random_bias;
 	float velocity_mag;
 	
 	float emission_rate;          // particles per second

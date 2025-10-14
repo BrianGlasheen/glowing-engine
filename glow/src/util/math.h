@@ -1,5 +1,6 @@
 #pragma once
 
+#include "glm/gtc/type_ptr.hpp"
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -15,5 +16,21 @@ using glm::mat3;
 using glm::mat4;
 using glm::quat;
 using glm::vec2;
+using glm::ivec2;
+using glm::uvec2;
 using glm::vec3;
+using glm::ivec3;
+using glm::uvec3;
 using glm::vec4;
+using glm::ivec4;
+using glm::uvec4;
+
+using glm::radians;
+using glm::value_ptr;
+using glm::mat4_cast;
+using glm::scale;
+using glm::translate;
+using glm::rotate;
+using glm::max;
+using glm::min;
+using glm::ortho;

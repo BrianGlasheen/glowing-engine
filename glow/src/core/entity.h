@@ -1,14 +1,12 @@
 #pragma once
 
-#include <string>
-
-#include "glm/glm.hpp"
-#include <glm/gtc/quaternion.hpp>
-
 #include "asset/model_manager.h"
 #include "asset/shader.h"
 #include "util/aabb.h"
+#include "util/math.h"
 #include "physics.h"
+
+#include <string>
 
 //struct entity_creation {
 //    
@@ -17,9 +15,9 @@
 class Entity {
 public:
     Entity(
-        glm::vec3 position,
-        glm::quat rotation,
-        glm::vec3 scale,
+        vec3 position,
+        quat rotation,
+        vec3 scale,
         model_handle model_id,
         bool physics_enabled,
         bool fade = false,
@@ -29,9 +27,9 @@ public:
     );
 
     Entity(
-        glm::vec3 position,
-        glm::quat rotation,
-        glm::vec3 scale,
+        vec3 position,
+        quat rotation,
+        vec3 scale,
         std::string model_name,
         bool physics_enabled,
         bool fade = false,
@@ -41,9 +39,9 @@ public:
     );
 
     static Entity Animated_Entity(
-        glm::vec3 position,
-        glm::quat rotation,
-        glm::vec3 scale,
+        vec3 position,
+        quat rotation,
+        vec3 scale,
         std::string model_name,
         bool physics_enabled,
         bool fade = false,
@@ -52,9 +50,9 @@ public:
     );
 
     static Entity Animated_Entity(
-        glm::vec3 position,
-        glm::quat rotation,
-        glm::vec3 scale,
+        vec3 position,
+        quat rotation,
+        vec3 scale,
         model_handle model_id,
         bool physics_enabled,
         bool fade = false,
@@ -64,24 +62,24 @@ public:
     
     ~Entity();
 
-    glm::mat4 get_model_matrix() const;
-    glm::vec3 get_physics_position() const;
+    mat4 get_model_matrix() const;
+    vec3 get_physics_position() const;
     void check_moved();
     //Util::AABB get_aabb() const; // return model or physics, or mesh?
 
 // private:
-    glm::vec3 position;
-    glm::quat rotation;
-    glm::vec3 scale;
+    vec3 position;
+    quat rotation;
+    vec3 m_scale;
     // todo cache transform
-    // todo cache normal matrix glm::transpose(glm::inverse(obj_data.model_matrix));
+    // todo cache normal matrix transpose(inverse(obj_data.model_matrix));
     model_handle model_id;
     bool physics_enabled;
     JPH::BodyID physics_id;
 
     bool is_dirty;
-    glm::vec3 prev_pos;
-    glm::quat prev_rot;
+    vec3 prev_pos;
+    quat prev_rot;
 
     bool fade;
     float ttl;

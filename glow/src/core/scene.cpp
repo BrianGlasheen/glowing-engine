@@ -96,7 +96,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
             gpu_m.base_index = m.base_index;
             gpu_m.index_count = m.index_count;
             gpu_m.bounding_sphere = m.bounding_sphere;
-            gpu_m.bounding_sphere.w *= std::max(ntitty.scale.x, std::max(ntitty.scale.y, ntitty.scale.z));
+            gpu_m.bounding_sphere.w *= std::max(ntitty.m_scale.x, std::max(ntitty.m_scale.y, ntitty.m_scale.z));
             gpu_m.entity_index = index;
             gpu_m.skinned_to_static_offset = skinned_to_static_offset;
             gpu_m.bone_offset = bone_offset;
@@ -213,7 +213,7 @@ void Scene::imgui() {
                 if (ImGui::TreeNode("Transform")) {
                     vec3 pos = entity.physics_enabled ? entity.get_physics_position() : entity.position;
                     ImGui::Text("Position: %.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
-                    ImGui::Text("Scale: %.2f, %.2f, %.2f", entity.scale.x, entity.scale.y, entity.scale.z);
+                    ImGui::Text("Scale: %.2f, %.2f, %.2f", entity.m_scale.x, entity.m_scale.y, entity.m_scale.z);
                     ImGui::Text("Rotation: %.2f, %.2f, %.2f, %.2f", 
                                entity.rotation.x, entity.rotation.y, entity.rotation.z, entity.rotation.w);
                     
@@ -360,7 +360,7 @@ namespace YAML {
             return node;
         }
 
-        static bool decode(const Node& node, glm::quat& rhs) {
+        static bool decode(const Node& node, quat& rhs) {
             if (!node.IsSequence() || node.size() != 4) {
                 return false;
             }
@@ -404,7 +404,7 @@ void Scene::serialize(std::string path) {
 
         out << YAML::Key << "position" << YAML::Value << entity.position;
         out << YAML::Key << "rotation" << YAML::Value << entity.rotation;
-        out << YAML::Key << "scale"    << YAML::Value << entity.scale;
+        out << YAML::Key << "scale"    << YAML::Value << entity.m_scale;
         out << YAML::Key << "model" << YAML::Value << Model_Manager::get_model_name(entity.model_id, entity.is_animated);
         out << YAML::Key << "physics" << YAML::Value << entity.physics_enabled;
         out << YAML::Key << "animated" << YAML::Value << entity.is_animated;

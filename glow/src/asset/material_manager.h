@@ -1,7 +1,8 @@
 #pragma once
 
+#include "util/math.h"
+
 #include <cstdint>
-#include "glm/glm.hpp"
 
 enum Blend_Mode {
 	disabled = 0, // opaque / clipped
@@ -11,12 +12,12 @@ enum Blend_Mode {
 
 struct Material {
 	uint64_t albedo; // bindless handles
-	glm::vec4 base_color;
+	vec4 base_color;
 	uint64_t normal;
 	uint64_t met_rough;
 	uint64_t emissive;
 	uint64_t amb_occ;
-	glm::vec4 emissive_factor; // r g b strength
+	vec4 emissive_factor; // r g b strength
 	float metallic_factor;
 	float roughness_factor;
 	float alpha_cutoff;

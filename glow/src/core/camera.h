@@ -2,8 +2,7 @@
 
 #define NEAR_PLANE 0.1f
 
-#include "glm/glm.hpp"
-#include <glm/gtc/matrix_transform.hpp>
+#include "util/math.h"
 
 // Default camera values
 const float YAW         = -90.0f;
@@ -13,11 +12,11 @@ const float ZOOM        =  45.0f;
 
 class Camera {
 public:
-    glm::vec3 position;
-    glm::vec3 front;
-    glm::vec3 up;
-    glm::vec3 right;
-    glm::vec3 world_up;
+    vec3 position;
+    vec3 front;
+    vec3 up;
+    vec3 right;
+    vec3 world_up;
     float yaw;
     float pitch;
     // camera options
@@ -27,10 +26,10 @@ public:
     float lastX = 800, lastY = 450; // todo constructor arg
 
     // constructor with vectors
-    Camera(glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f), 
-           glm::vec3 world_up_ = glm::vec3(0.0f, 1.0f, 0.0f), 
+    Camera(vec3 pos = vec3(0.0f, 0.0f, 0.0f), 
+           vec3 world_up_ = vec3(0.0f, 1.0f, 0.0f), 
            float yaw_ = YAW, float pitch_ = PITCH) 
-        : front(glm::vec3(0.0f, 0.0f, -1.0f)), 
+        : front(vec3(0.0f, 0.0f, -1.0f)), 
         mouse_sensitivity(SENSITIVITY), zoom(ZOOM) {
         position = pos;
         world_up = world_up_;
@@ -39,14 +38,14 @@ public:
         update_camera_vectors();
     }
 
-    glm::mat4 get_view_matrix() const {
-        return glm::lookAt(position, position + front, up);
+    mat4 get_view_matrix() const {
+        return lookAt(position, position + front, up);
     }
 
-    glm::mat4 get_projection(float aspect) const {
-        float f = 1.0f / std::tan(glm::radians(zoom) * 0.5f);
+    mat4 get_projection(float aspect) const {
+        float f = 1.0f / std::tan(radians(zoom) * 0.5f);
 
-        glm::mat4 result(0.0f);
+        mat4 result(0.0f);
         result[0][0] = f / aspect;
         result[1][1] = f;
         result[2][2] = 0.0f; // infinity
@@ -56,10 +55,10 @@ public:
         return result;
     }
 
-    glm::mat4 get_projection(float aspect, float requested_zoom) const {
-        float f = 1.0f / std::tan(glm::radians(requested_zoom) * 0.5f);
+    mat4 get_projection(float aspect, float requested_zoom) const {
+        float f = 1.0f / std::tan(radians(requested_zoom) * 0.5f);
 
-        glm::mat4 result(0.0f);
+        mat4 result(0.0f);
         result[0][0] = f / aspect;
         result[1][1] = f;
         result[2][2] = 0.0f; // infinity
@@ -69,13 +68,13 @@ public:
         return result;
     }
     
-    glm::mat4 get_view_rotation_only_matrix() {
+    mat4 get_view_rotation_only_matrix() {
         // We can obtain just the rotation by “looking” from origin (0) to front:
         //   eye = (0,0,0)
         //   center = front (the direction we’re “looking”)
         //   up = up
         // That yields a matrix that has no translation (camera at origin).
-        return glm::lookAt(glm::vec3(0.0f), front, up);
+        return lookAt(vec3(0.0f), front, up);
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -112,12 +111,12 @@ public:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void update_camera_vectors() {
         // calculate the new front vector
-        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        front.y = sin(glm::radians(pitch));
-        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        front = glm::normalize(front);
+        front.x = cos(radians(yaw)) * cos(radians(pitch));
+        front.y = sin(radians(pitch));
+        front.z = sin(radians(yaw)) * cos(radians(pitch));
+        front = normalize(front);
         // also re-calculate the right and up vector
-        right = glm::normalize(glm::cross(front, world_up));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-        up    = glm::normalize(glm::cross(right, front));
+        right = normalize(cross(front, world_up));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        up    = normalize(cross(right, front));
     }
 };

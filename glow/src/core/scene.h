@@ -4,6 +4,7 @@
 #include "asset/skybox.h"
 #include "core/terrain.h" // todo maybe an asset?
 #include "core/light.h"
+#include "util/math.h"
 
 #include "core/opengl.h"
 
@@ -12,7 +13,7 @@
 #include <cstdint>
 
 struct GPU_Entity { // todo can maybe just be pos if using BS not aabb
-    glm::mat4 transform;
+    mat4 transform;
     uint32_t is_dirty;
     uint32_t animation_command_index;
     uint32_t any_mesh_visible;
@@ -20,12 +21,12 @@ struct GPU_Entity { // todo can maybe just be pos if using BS not aabb
 };
 
 struct GPU_Mesh {
-    glm::mat4 transform;
+    mat4 transform;
     int32_t base_vertex;
     uint32_t vertex_count;
     uint32_t base_index;
     uint32_t index_count;
-    glm::vec4 bounding_sphere; // bounding sphere pos, r
+    vec4 bounding_sphere; // bounding sphere pos, r
     uint32_t entity_index;
     uint32_t skinned_to_static_offset;
     uint32_t bone_offset;
@@ -46,7 +47,7 @@ public:
     void serialize(std::string path = "../resources/scenes/scene.yaml");
     void load_from_file(std::string path = "../resources/scenes/scene.yaml");
     // returns the number of hits
-    //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
+    //int cast_ray(const vec3& pos, const vec3& dir, vec3& hit_pos);
 
     // dir light
     // gloabl scene parameters

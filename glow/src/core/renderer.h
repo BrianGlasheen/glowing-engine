@@ -1,12 +1,10 @@
 #pragma once
 
-#include "glm/glm.hpp"
-#include <glm/gtc/quaternion.hpp>
-
 #include "renderer_debug.h"
 #include "scene.h"
 #include "light.h"
 #include "core/ssbo.h"
+#include "util/math.h"
 
 #include "asset/compute_shader.h"
 #include "asset/crosshair.h"
@@ -16,8 +14,8 @@
 
 // todo move to light class maybe, maybe not
 struct Cluster {
-    glm::vec4 minPoint; // 16 bytes
-    glm::vec4 maxPoint; // 16 (32)
+    vec4 minPoint; // 16 bytes
+    vec4 maxPoint; // 16 (32)
     uint32_t count;     // 4 (36)
     uint32_t* lightIndices[99]; // 396 (432 / 16 = 27)
 };
@@ -63,19 +61,19 @@ public:
     void setup_buffers();
     void setup_ssao();
 
-    void begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj);
+    void begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull_proj);
 
     // setting up stuff for rendering
-    void build_cluster_pass(const glm::mat4& inv_proj);
-    void cull_cluster_pass(const glm::mat4& view);
-    void shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, const float& aspect_ratio, const float& zoom);
+    void build_cluster_pass(const mat4& inv_proj);
+    void cull_cluster_pass(const mat4& view);
+    void shadow_setup(const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom);
 
     // rendering
-    void depth_prepass(const glm::mat4& viewproj);
+    void depth_prepass(const mat4& viewproj);
     void shadow_pass(Scene& scene);
-    void draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& cull_view, const glm::mat4& cull_proj, bool wireframe);
-    void particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view);
-    void render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection);
+    void draw(Scene& scene, const vec3& view_pos, const mat4& view, const mat4& viewproj, const mat4& cull_view, const mat4& cull_proj, bool wireframe);
+    void particle_pass(float delta_time, const mat4& proj, const mat4& view);
+    void render_skybox(const Skybox& skybox, const mat4& view, const mat4& projection);
 
     // rendering 2d / screenspace
     void render_crosshair(const Crosshair& crosshair);
@@ -83,18 +81,18 @@ public:
 
     // post processing
     void bloom_pass();
-    void ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj);
+    void ssao_pass(const mat4& proj, const mat4& inv_proj);
     void composite();
 
     // debug
     void debug_cascades(Scene& scene);
-    void draw_light_quads(const glm::mat4& proj, const glm::mat4& view);
-    void render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene);
-    void debug_skeletons(Scene& scene, const glm::mat4& vp);
+    void draw_light_quads(const mat4& proj, const mat4& view);
+    void render_debug(const mat4& view, const mat4& proj, Scene& scene);
+    void debug_skeletons(Scene& scene, const mat4& vp);
 
     // utility
     void imgui_pass();
-    glm::vec4 normalize_plane(glm::vec4 p);
+    vec4 normalize_plane(vec4 p);
 
 // private:
     int scr_width = 1600, scr_height = 900;
@@ -144,5 +142,5 @@ public:
 
     uint32_t quadVAO;
 
-    std::vector<glm::vec3> samples;
+    std::vector<vec3> samples;
 };

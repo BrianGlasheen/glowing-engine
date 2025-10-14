@@ -5,7 +5,6 @@
 #include <sstream>
 #include <iostream>
 
-#include <core/opengl.h>
 
 //Compute_Shader::~Compute_Shader() {
 //    if (ID != 0) {
@@ -91,7 +90,7 @@ void Compute_Shader::set_float_array(const std::string& name, const float* float
     glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, floats);
 }
 
-void Compute_Shader::set_vec2(const std::string& name, const glm::vec2& value) const {
+void Compute_Shader::set_vec2(const std::string& name, const vec2& value) const {
     glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
@@ -99,7 +98,7 @@ void Compute_Shader::set_vec2(const std::string& name, float x, float y) const {
     glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
 }
 
-void Compute_Shader::set_vec3(const std::string& name, const glm::vec3& value) const {
+void Compute_Shader::set_vec3(const std::string& name, const vec3& value) const {
     glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
@@ -107,7 +106,7 @@ void Compute_Shader::set_vec3(const std::string& name, float x, float y, float z
     glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
 }
 
-void Compute_Shader::set_vec4(const std::string& name, const glm::vec4& value) const {
+void Compute_Shader::set_vec4(const std::string& name, const vec4& value) const {
     glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
@@ -115,19 +114,19 @@ void Compute_Shader::set_vec4(const std::string& name, float x, float y, float z
     glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
 }
 
-void Compute_Shader::set_ivec2(const std::string& name, const glm::ivec2& value) const {
+void Compute_Shader::set_ivec2(const std::string& name, const ivec2& value) const {
     glUniform2iv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
-void Compute_Shader::set_ivec3(const std::string& name, const glm::ivec3& value) const {
+void Compute_Shader::set_ivec3(const std::string& name, const ivec3& value) const {
     glUniform3iv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
-void Compute_Shader::set_ivec4(const std::string& name, const glm::ivec4& value) const {
+void Compute_Shader::set_ivec4(const std::string& name, const ivec4& value) const {
     glUniform4iv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
-void Compute_Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
+void Compute_Shader::set_uvec2(const std::string& name, const uvec2& value) const {
     glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
@@ -135,7 +134,7 @@ void Compute_Shader::set_uvec2(const std::string& name, unsigned int x, unsigned
     glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
 }
 
-void Compute_Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
+void Compute_Shader::set_uvec3(const std::string& name, const uvec3& value) const {
     glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 
@@ -144,15 +143,15 @@ void Compute_Shader::set_uvec3(const std::string& name, unsigned int x, unsigned
 }
 
 
-void Compute_Shader::set_mat2(const std::string& name, const glm::mat2& mat) const {
+void Compute_Shader::set_mat2(const std::string& name, const mat2& mat) const {
     glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
 
-void Compute_Shader::set_mat3(const std::string& name, const glm::mat3& mat) const {
+void Compute_Shader::set_mat3(const std::string& name, const mat3& mat) const {
     glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
 
-void Compute_Shader::set_mat4(const std::string& name, const glm::mat4& mat) const {
+void Compute_Shader::set_mat4(const std::string& name, const mat4& mat) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
 
@@ -160,16 +159,16 @@ void Compute_Shader::bind_image_texture(uint32_t unit, uint32_t texture, int32_t
     glBindImageTexture(unit, texture, level, layered ? GL_TRUE : GL_FALSE, layer, access, format);
 }
 
-glm::ivec3 Compute_Shader::get_max_work_group_count() {
-    glm::ivec3 maxCount;
+ivec3 Compute_Shader::get_max_work_group_count() {
+    ivec3 maxCount;
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &maxCount.x);
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &maxCount.y);
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &maxCount.z);
     return maxCount;
 }
 
-glm::ivec3 Compute_Shader::get_max_work_group_size() {
-    glm::ivec3 maxSize;
+ivec3 Compute_Shader::get_max_work_group_size() {
+    ivec3 maxSize;
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &maxSize.x);
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &maxSize.y);
     glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &maxSize.z);

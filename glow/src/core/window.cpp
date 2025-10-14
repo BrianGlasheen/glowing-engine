@@ -60,8 +60,8 @@ bool Window::open() {
     return !glfwWindowShouldClose(window);
 }
 
-glm::vec2 Window::get_window_size() {
-    return glm::vec2(width, height);
+vec2 Window::get_window_size() {
+    return vec2(width, height);
 }
 
 GLFWwindow* Window::get_window() {
@@ -137,7 +137,7 @@ void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, i
     //        view_type_data* active_viewport = this_window->renderer->get_viewport_at_mouse(xpos, ypos);
     //        if (active_viewport && active_viewport->type != view_type::SCENE) {
     //            if (action == GLFW_PRESS) {
-    //                active_viewport->start_pan(glm::vec2(xpos, ypos));
+    //                active_viewport->start_pan(vec2(xpos, ypos));
     //            }
     //            else if (action == GLFW_RELEASE) {
     //                active_viewport->stop_pan();
@@ -169,8 +169,8 @@ void Window::static_mouse_callback(GLFWwindow* glfw_window, double xpos, double 
 
         //    view_type_data* active_viewport = this_window->renderer->get_viewport_at_mouse(xpos, ypos);
         //    if (active_viewport && active_viewport->is_panning) {
-        //        glm::vec2 current_mouse(xpos, ypos);
-        //        glm::vec2 mouse_delta = current_mouse - active_viewport->last_mouse_pos;
+        //        vec2 current_mouse(xpos, ypos);
+        //        vec2 mouse_delta = current_mouse - active_viewport->last_mouse_pos;
         //        active_viewport->handle_pan(mouse_delta);
         //        active_viewport->last_mouse_pos = current_mouse;
         //    }

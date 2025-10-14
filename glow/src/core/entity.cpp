@@ -2,14 +2,10 @@
 #include "Jolt/Physics/PhysicsSystem.h"
 #include "core/physics.h"
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 //struct Entity_CreateInfo {
-//    glm::vec3 position;
-//    glm::quat rotation;
-//    glm::vec3 scale;
+//    vec3 position;
+//    quat rotation;
+//    vec3 scale;
 //    model_handle model_id;
 //    bool physics_enabled;
 //    bool fade;
@@ -30,16 +26,16 @@
 //        physics_id = Physics::add_box(position, (aabb.max - aabb.min) * scale, false);
 //}
 
-Entity::Entity(glm::vec3 position,
-               glm::quat rotation,
-               glm::vec3 scale,
+Entity::Entity(vec3 position,
+               quat rotation,
+               vec3 scale,
                model_handle model_id,
                bool physics_enabled,
                bool fade, float ttl, float max_ttl,
                bool is_animated) 
         : position(position),
           rotation(rotation),
-          scale(scale),
+          m_scale(scale),
           model_id(model_id),
           physics_enabled(physics_enabled),
           fade(fade), ttl(ttl), max_ttl(max_ttl), 
@@ -54,16 +50,16 @@ Entity::Entity(glm::vec3 position,
         physics_id = Physics::add_box(position, (aabb.max - aabb.min) * scale, false);
 }
 
-Entity::Entity(glm::vec3 position,
-               glm::quat rotation,
-               glm::vec3 scale,
+Entity::Entity(vec3 position,
+               quat rotation,
+               vec3 scale,
                std::string model_name,
                bool physics_enabled,
                bool fade, float ttl, float max_ttl,
                bool is_animated)
         : position(position),
           rotation(rotation),
-          scale(scale),
+          m_scale(scale),
           physics_enabled(physics_enabled),
           fade(fade), ttl(ttl), max_ttl(max_ttl), 
           is_dirty(true), prev_pos(position), prev_rot(rotation),
@@ -84,9 +80,9 @@ Entity::Entity(glm::vec3 position,
     }
 }
 
-Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
-                               glm::quat rotation,
-                               glm::vec3 scale,
+Entity Entity::Animated_Entity(vec3 position, // todo maybe dont even need
+                               quat rotation,
+                               vec3 scale,
                                model_handle model_id,
                                bool physics_enabled,
                                bool fade, float ttl, float max_ttl)
@@ -95,9 +91,9 @@ Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
     return Entity(position, rotation, scale, model_id, physics_enabled, fade, ttl, max_ttl, animated);
 }
 
-Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
-    glm::quat rotation,
-    glm::vec3 scale,
+Entity Entity::Animated_Entity(vec3 position, // todo maybe dont even need
+    quat rotation,
+    vec3 scale,
     std::string model_name,
     bool physics_enabled,
     bool fade, float ttl, float max_ttl)
@@ -107,9 +103,9 @@ Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
 }
 
 //Entity Animated_Entity(
-//    glm::vec3 position,
-//    glm::quat rotation,
-//    glm::vec3 scale,
+//    vec3 position,
+//    quat rotation,
+//    vec3 scale,
 //    model_handle model_id,
 //    bool physics_enabled,
 //    bool fade = false,
@@ -119,10 +115,10 @@ Entity Entity::Animated_Entity(glm::vec3 position, // todo maybe dont even need
 
 Entity::~Entity() = default;
 
-glm::mat4 Entity::get_model_matrix() const { // todo cache matrix with is_dirty so dont do this every time
-    glm::mat4 translation = glm::translate(glm::mat4(1.0f), physics_enabled ? Physics::get_body_position(physics_id) : position);
-    glm::mat4 rot = glm::mat4_cast(physics_enabled ? Physics::get_body_rotation(physics_id) : rotation);
-    glm::mat4 scaling = glm::scale(glm::mat4(1.0f), scale);
+mat4 Entity::get_model_matrix() const { // todo cache matrix with is_dirty so dont do this every time
+    mat4 translation = translate(mat4(1.0f), physics_enabled ? Physics::get_body_position(physics_id) : position);
+    mat4 rot = mat4_cast(physics_enabled ? Physics::get_body_rotation(physics_id) : rotation);
+    mat4 scaling = scale(mat4(1.0f), m_scale);
 
     return translation * rot * scaling;
 }
@@ -131,7 +127,7 @@ void Entity::check_moved() {
     if (physics_enabled) {
         if (Physics::is_active(physics_id)) 
         {
-            glm::vec3 pos = Physics::get_body_position(physics_id);
+            vec3 pos = Physics::get_body_position(physics_id);
             if (pos != prev_pos) {
                 prev_pos = pos;
                 is_dirty = true;
@@ -139,7 +135,7 @@ void Entity::check_moved() {
                 return;
             }
 
-            glm::quat rot = Physics::get_body_rotation(physics_id);
+            quat rot = Physics::get_body_rotation(physics_id);
             if (rot != prev_rot) {
                 prev_rot = rot;
                 is_dirty = true;
@@ -155,7 +151,7 @@ void Entity::check_moved() {
     is_dirty = false;
 }
 
-glm::vec3 Entity::get_physics_position() const {
+vec3 Entity::get_physics_position() const {
     return Physics::get_body_position(physics_id);
 }
 

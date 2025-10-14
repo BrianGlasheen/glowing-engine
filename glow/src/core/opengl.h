@@ -3,15 +3,16 @@
  #include <glad/glad.h>
  #include <GLFW/glfw3.h>
 
-#include "glm/glm.hpp"
+#include "util/math.h"
+
 #include <cstdint>
 
 // todo prob move to types or something
 struct Per_Object_Data {
-    glm::mat4 model_matrix; // 64
-    glm::mat4 normal_matrix; // 64
-    glm::vec4 base_color;
-    glm::vec4 emissive_factor; // 16
+    mat4 model_matrix; // 64
+    mat4 normal_matrix; // 64
+    vec4 base_color;
+    vec4 emissive_factor; // 16
 
     uint64_t albedo; // 8
     uint64_t normal; // 8    

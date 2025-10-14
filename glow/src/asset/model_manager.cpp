@@ -26,42 +26,42 @@
 #include "core/opengl.h"
 
 struct Vertex {
-    glm::vec4 position; // normal x in w
-    //glm::vec3 normal;
-    glm::vec4 tangent; // normal y in w
-    glm::vec4 bitangent; // normal z in w
-    glm::vec2 tex_coords;
+    vec4 position; // normal x in w
+    //vec3 normal;
+    vec4 tangent; // normal y in w
+    vec4 bitangent; // normal z in w
+    vec2 tex_coords;
     uint32_t padding[2];
 };
 
 //struct Rigged_Vertex {
-//    glm::vec3 position;
-//    glm::vec3 normal;
-//    glm::vec2 tex_coords;
-//    glm::vec3 tangent;
-//    glm::vec3 bitangent;
-//    glm::uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
-//    glm::vec4 bone_weights;
+//    vec3 position;
+//    vec3 normal;
+//    vec2 tex_coords;
+//    vec3 tangent;
+//    vec3 bitangent;
+//    uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
+//    vec4 bone_weights;
 //};
 
 struct Rigged_Vertex {
-    glm::vec4 position; // normal x in w
-    glm::vec4 tangent;  // normal y in w
-    glm::vec4 bitangent; // normal z in w
-    glm::uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
-    glm::vec4 bone_weights;
-    glm::vec2 tex_coords;
+    vec4 position; // normal x in w
+    vec4 tangent;  // normal y in w
+    vec4 bitangent; // normal z in w
+    uvec4 bone_ids; // index into global bone array, todo maybe more than 4 bones
+    vec4 bone_weights;
+    vec2 tex_coords;
     uint32_t padding[2];
 };
 
 struct Bone { // cpu bone
     std::string name;
     uint32_t parent_bone; // idx into bone array of parent
-    glm::mat4 inverse_bind;
+    mat4 inverse_bind;
 };
 
 struct GPU_Bone { // combine this bone with animation data to get skinned bone
-    glm::mat4 inverse_bind;
+    mat4 inverse_bind;
     uint32_t parent_bone;
     uint32_t padding[3];
 };
@@ -106,18 +106,18 @@ struct Animation_Command {
 };
 
 struct Position_Keyframe { // todo compress?
-    glm::vec3 position;
+    vec3 position;
     float time;
 };
 
 struct Rotation_Keyframe { // todo pack
-    glm::quat rotation;
+    quat rotation;
     float time;
     uint32_t padding[3];
 };
 
 struct Scale_Keyframe { // todo compress?
-    glm::vec3 scale;
+    vec3 scale;
     float time;
 };
 
@@ -127,8 +127,8 @@ namespace Model_Manager {
 
     static std::string base_path;
 
-    glm::mat4 assimp_to_glm(const aiMatrix4x4& ai_mat) {
-        return glm::mat4(
+    mat4 assimp_to_glm(const aiMatrix4x4& ai_mat) {
+        return mat4(
             ai_mat.a1, ai_mat.b1, ai_mat.c1, ai_mat.d1,
             ai_mat.a2, ai_mat.b2, ai_mat.c2, ai_mat.d2,
             ai_mat.a3, ai_mat.b3, ai_mat.c3, ai_mat.d3,
@@ -136,8 +136,8 @@ namespace Model_Manager {
         );
     }
 
-    glm::mat4 cgltf_to_glm(const cgltf_float* matrix) {
-        return glm::mat4(
+    mat4 cgltf_to_glm(const cgltf_float* matrix) {
+        return mat4(
             matrix[0], matrix[1], matrix[2], matrix[3],
             matrix[4], matrix[5], matrix[6], matrix[7],
             matrix[8], matrix[9], matrix[10], matrix[11],
@@ -145,16 +145,16 @@ namespace Model_Manager {
         );
     }
 
-    glm::vec3 cgltf_to_vec3(const cgltf_float* data) {
-        return glm::vec3(data[0], data[1], data[2]);
+    vec3 cgltf_to_vec3(const cgltf_float* data) {
+        return vec3(data[0], data[1], data[2]);
     }
 
-    glm::vec2 cgltf_to_vec2(const cgltf_float* data) {
-        return glm::vec2(data[0], data[1]);
+    vec2 cgltf_to_vec2(const cgltf_float* data) {
+        return vec2(data[0], data[1]);
     }
 
-    glm::quat cgltf_to_quat(const cgltf_float* data) {
-        return glm::quat(data[3], data[0], data[1], data[2]); // w, x, y, z
+    quat cgltf_to_quat(const cgltf_float* data) {
+        return quat(data[3], data[0], data[1], data[2]); // w, x, y, z
     }
 
     // indirect stuff
@@ -178,8 +178,8 @@ namespace Model_Manager {
     // bone data
     static std::vector<Bone> g_rigged_bones(0); // base bones! todo rename
     static uint32_t num_skinned_bones = 0; // number of output bones we need. if duplicate models then num_skinned_bones != num base bones
-    static std::vector<glm::mat4> absolute_transforms(0);
-    static std::vector<glm::mat4> skinned_bones(0);
+    static std::vector<mat4> absolute_transforms(0);
+    static std::vector<mat4> skinned_bones(0);
 
     // gpu animation
     static std::vector<uint32_t> g_leaf_bones(0); // index of bone that is a leaf for walking up bone hierarchy
@@ -199,7 +199,7 @@ namespace Model_Manager {
         base_path = path;
         // model_handle mh = load_model("teapot.obj");
 
-        // Bone b = { "default", 0xFFFFFFFF, glm::mat4(1.0f) };
+        // Bone b = { "default", 0xFFFFFFFF, mat4(1.0f) };
         // g_rigged_bones.push_back(b);
     }
 
@@ -252,7 +252,7 @@ namespace Model_Manager {
 
         Model model_ind;
         model_ind.m_name = path;
-        process_node(scene->mRootNode, scene, model_ind, path_without_filename, glm::mat4(1.0f));
+        process_node(scene->mRootNode, scene, model_ind, path_without_filename, mat4(1.0f));
 
         model_ind.calculate_aabb();
         
@@ -298,7 +298,7 @@ namespace Model_Manager {
         Model model;
         model.m_name = path;
         for (cgltf_size i = 0; i < data->scene->nodes_count; i++) {
-            process_node_cgltf(data->scene->nodes[i], data, model, path_without_filename, glm::mat4(1.0f));
+            process_node_cgltf(data->scene->nodes[i], data, model, path_without_filename, mat4(1.0f));
         }
 
         model.calculate_aabb();
@@ -357,11 +357,11 @@ namespace Model_Manager {
                 //     std::string name;
 
                 //     // parent? 
-                //     glm::mat4 transform; // relative to parent
+                //     mat4 transform; // relative to parent
 
                 //     Material material;
 
-                //     glm::vec4 bounding_sphere;
+                //     vec4 bounding_sphere;
                 // };
             }
 
@@ -420,7 +420,7 @@ namespace Model_Manager {
 
         model.base_bone = g_rigged_bones.size();
 
-        process_animated_node(scene->mRootNode, scene, model, path_without_filename, glm::mat4(1.0f), model.base_bone);
+        process_animated_node(scene->mRootNode, scene, model, path_without_filename, mat4(1.0f), model.base_bone);
 
         create_fake_bones_for_animation_targets(scene, model.base_bone);
 
@@ -636,7 +636,7 @@ namespace Model_Manager {
 
         uint32_t base_bone = g_rigged_bones.size();
         for (cgltf_size i = 0; i < data->scene->nodes_count; i++) {
-            process_node_animated_cgltf(data->scene->nodes[i], data, model, path_without_filename, glm::mat4(1.0f), base_bone);
+            process_node_animated_cgltf(data->scene->nodes[i], data, model, path_without_filename, mat4(1.0f), base_bone);
         }
 
         model.base_bone = base_bone;
@@ -667,8 +667,8 @@ namespace Model_Manager {
         return model_index;
     }
 
-    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const glm::mat4& parent_transform) {
-        glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
+    void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const mat4& parent_transform) {
+        mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
 
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
@@ -687,11 +687,11 @@ namespace Model_Manager {
         }
     }
 
-    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, glm::mat4 parent_transform) {
+    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, mat4 parent_transform) {
         cgltf_float c_transform[16];
         cgltf_node_transform_local(node, c_transform);
 
-        glm::mat4 transform = parent_transform * cgltf_to_glm(c_transform);
+        mat4 transform = parent_transform * cgltf_to_glm(c_transform);
 
         if (node->mesh) {
             const cgltf_mesh* mesh = node->mesh;
@@ -707,8 +707,8 @@ namespace Model_Manager {
                 Mesh mesh = process_mesh_cgltf(prim, data, i, path);
 
                 mesh.transform = transform;
-                // mesh.aabb.max = glm::vec3(transform * glm::vec4(mesh.aabb.max, 1.0f));
-                // mesh.aabb.min = glm::vec3(transform * glm::vec4(mesh.aabb.min, 1.0f));
+                // mesh.aabb.max = vec3(transform * vec4(mesh.aabb.max, 1.0f));
+                // mesh.aabb.min = vec3(transform * vec4(mesh.aabb.min, 1.0f));
 
                 model.add_mesh(mesh);
 
@@ -722,10 +722,10 @@ namespace Model_Manager {
         }
     }
 
-    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, glm::mat4 parent_transform, uint32_t base_bone) {
+    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, mat4 parent_transform, uint32_t base_bone) {
         cgltf_float c_transform[16];
         cgltf_node_transform_local(node, c_transform);
-        glm::mat4 transform = parent_transform * cgltf_to_glm(c_transform);
+        mat4 transform = parent_transform * cgltf_to_glm(c_transform);
 
         if (node->mesh) {
             const cgltf_mesh* mesh = node->mesh;
@@ -755,8 +755,8 @@ namespace Model_Manager {
                     //Animated_Mesh anim_mesh = process_animated_mesh_cgltf(prim, data, path, base_bone, skin, node_to_bone_index);
 
                     /*anim_mesh.transform = transform;
-                    anim_mesh.aabb.max = glm::vec3(transform * glm::vec4(anim_mesh.aabb.max, 1.0f));
-                    anim_mesh.aabb.min = glm::vec3(transform * glm::vec4(anim_mesh.aabb.min, 1.0f));*/
+                    anim_mesh.aabb.max = vec3(transform * vec4(anim_mesh.aabb.max, 1.0f));
+                    anim_mesh.aabb.min = vec3(transform * vec4(anim_mesh.aabb.min, 1.0f));*/
 
                     //model.add_mesh(anim_mesh);
                 }
@@ -768,8 +768,8 @@ namespace Model_Manager {
         }
     }
 
-    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const glm::mat4& parent_transform, uint32_t base_bone) {
-        glm::mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
+    void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const mat4& parent_transform, uint32_t base_bone) {
+        mat4 current_transform = parent_transform * assimp_to_glm(node->mTransformation);
 
         for (uint32_t i = 0; i < node->mNumMeshes; i++) {
             aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
@@ -793,8 +793,8 @@ namespace Model_Manager {
         mesh_ind.name = std::string(mesh->mName.C_Str());
         printf("loading mesh %s\n", mesh_ind.name.c_str());
 
-        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        mesh_ind.aabb.min = vec3(FLT_MAX);
+        mesh_ind.aabb.max = vec3(-FLT_MAX);
 
         mesh_ind.base_vertex = g_vertices.size();
         // uint32_t vertex_count = mesh->mNumVertices;
@@ -808,8 +808,8 @@ namespace Model_Manager {
             vertex.position.y = mesh->mVertices[i].y;
             vertex.position.z = mesh->mVertices[i].z;
 
-            mesh_ind.aabb.min = glm::min(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.min));
-            mesh_ind.aabb.max = glm::max(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.max));
+            mesh_ind.aabb.min = min(vec3(vertex.position), vec3(mesh_ind.aabb.min));
+            mesh_ind.aabb.max = max(vec3(vertex.position), vec3(mesh_ind.aabb.max));
 
             if (mesh->HasNormals()) {
                 vertex.position.w = mesh->mNormals[i].x;
@@ -823,7 +823,7 @@ namespace Model_Manager {
             }
 
             if (mesh->mTextureCoords[0]) {
-                glm::vec2 vec;
+                vec2 vec;
                 vec.x = mesh->mTextureCoords[0][i].x;
                 vec.y = mesh->mTextureCoords[0][i].y;
                 vertex.tex_coords = vec;
@@ -839,7 +839,7 @@ namespace Model_Manager {
                 vertex.bitangent.z = pBitangent.z;
             }
             else {
-                vertex.tex_coords = glm::vec2(0.0f, 0.0f);
+                vertex.tex_coords = vec2(0.0f, 0.0f);
                 vertex.tangent.x = 0;
                 vertex.tangent.y = 0;
                 vertex.tangent.z = 0;
@@ -876,8 +876,8 @@ namespace Model_Manager {
         //mesh_ind.name = mesh_name + "_primitive_" + std::to_string(primitive_index);
         //printf("loading mesh %s\n", mesh_ind.name.c_str());
 
-        //mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        //mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        //mesh_ind.aabb.min = vec3(FLT_MAX);
+        //mesh_ind.aabb.max = vec3(-FLT_MAX);
         //mesh_ind.base_vertex = g_vertices.size();
 
         //uint32_t vertex_count = 0;
@@ -907,33 +907,33 @@ namespace Model_Manager {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float pos[3];
         //            cgltf_accessor_read_float(accessor, v, pos, 3);
-        //            temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+        //            temp_vertices[v].position = vec3(pos[0], pos[1], pos[2]);
 
-        //            mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
-        //            mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+        //            mesh_ind.aabb.min = min(temp_vertices[v].position, mesh_ind.aabb.min);
+        //            mesh_ind.aabb.max = max(temp_vertices[v].position, mesh_ind.aabb.max);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_normal) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float normal[3];
         //            cgltf_accessor_read_float(accessor, v, normal, 3);
-        //            temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+        //            temp_vertices[v].normal = vec3(normal[0], normal[1], normal[2]);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_texcoord) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float texcoord[2];
         //            cgltf_accessor_read_float(accessor, v, texcoord, 2);
-        //            temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+        //            temp_vertices[v].tex_coords = vec2(texcoord[0], texcoord[1]);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_tangent) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float tangent[4];
         //            cgltf_accessor_read_float(accessor, v, tangent, 4);
-        //            temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+        //            temp_vertices[v].tangent = vec3(tangent[0], tangent[1], tangent[2]);
 
-        //            glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+        //            vec3 bitangent = cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
         //            temp_vertices[v].bitangent = bitangent;
         //        }
         //    }
@@ -941,17 +941,17 @@ namespace Model_Manager {
         //}
 
         //for (uint32_t v = 0; v < vertex_count; v++) {
-        //    if (glm::length(temp_vertices[v].normal) == 0.0f) {
-        //        temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        //    if (length(temp_vertices[v].normal) == 0.0f) {
+        //        temp_vertices[v].normal = vec3(0.0f, 1.0f, 0.0f);
         //    }
-        //    if (temp_vertices[v].tex_coords == glm::vec2(0.0f) && !has_attribute(prim, cgltf_attribute_type_texcoord)) {
-        //        temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+        //    if (temp_vertices[v].tex_coords == vec2(0.0f) && !has_attribute(prim, cgltf_attribute_type_texcoord)) {
+        //        temp_vertices[v].tex_coords = vec2(0.0f, 0.0f);
         //    }
-        //    if (glm::length(temp_vertices[v].tangent) == 0.0f) {
-        //        temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+        //    if (length(temp_vertices[v].tangent) == 0.0f) {
+        //        temp_vertices[v].tangent = vec3(1.0f, 0.0f, 0.0f);
         //    }
-        //    if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
-        //        temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+        //    if (length(temp_vertices[v].bitangent) == 0.0f) {
+        //        temp_vertices[v].bitangent = vec3(0.0f, 0.0f, 1.0f);
         //    }
         //}
 
@@ -998,8 +998,8 @@ namespace Model_Manager {
         printf("loading RIGGED mesh %s\n", mesh_ind.name.c_str());
         //mesh_ind.rigged = true;
 
-        mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        mesh_ind.aabb.min = vec3(FLT_MAX);
+        mesh_ind.aabb.max = vec3(-FLT_MAX);
 
         uint32_t num_vertices = mesh->mNumVertices;
         mesh_ind.vertex_count = num_vertices;
@@ -1038,10 +1038,10 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < num_vertices; i++) {
             Rigged_Vertex vertex = {};
 
-            vertex.position = glm::vec4(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 0.0f);
+            vertex.position = vec4(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 0.0f);
 
-            mesh_ind.aabb.min = glm::min(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.min));
-            mesh_ind.aabb.max = glm::max(glm::vec3(vertex.position), glm::vec3(mesh_ind.aabb.max));
+            mesh_ind.aabb.min = min(vec3(vertex.position), vec3(mesh_ind.aabb.min));
+            mesh_ind.aabb.max = max(vec3(vertex.position), vec3(mesh_ind.aabb.max));
 
             if (mesh->HasNormals()) {
                 vertex.position.w = mesh->mNormals[i].x;
@@ -1055,7 +1055,7 @@ namespace Model_Manager {
             }
 
             if (mesh->mTextureCoords[0]) {
-                glm::vec2 vec;
+                vec2 vec;
                 vec.x = mesh->mTextureCoords[0][i].x;
                 vec.y = mesh->mTextureCoords[0][i].y;
                 vertex.tex_coords = vec;
@@ -1071,7 +1071,7 @@ namespace Model_Manager {
                 vertex.bitangent.z = pBitangent.z;
             }
             else {
-                vertex.tex_coords = glm::vec2(0.0f, 0.0f);
+                vertex.tex_coords = vec2(0.0f, 0.0f);
                 vertex.tangent.x = 0;
                 vertex.tangent.y = 0;
                 vertex.tangent.z = 0;
@@ -1133,8 +1133,8 @@ namespace Model_Manager {
         //// mesh_ind.name = ?
         //printf("cgltf loading RIGGED mesh %s\n", mesh_ind.name.c_str());
 
-        //mesh_ind.aabb.min = glm::vec3(FLT_MAX);
-        //mesh_ind.aabb.max = glm::vec3(-FLT_MAX);
+        //mesh_ind.aabb.min = vec3(FLT_MAX);
+        //mesh_ind.aabb.max = vec3(-FLT_MAX);
 
         //// Get vertex count
         //uint32_t vertex_count = 0;
@@ -1182,33 +1182,33 @@ namespace Model_Manager {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float pos[3];
         //            cgltf_accessor_read_float(accessor, v, pos, 3);
-        //            temp_vertices[v].position = glm::vec3(pos[0], pos[1], pos[2]);
+        //            temp_vertices[v].position = vec3(pos[0], pos[1], pos[2]);
 
-        //            mesh_ind.aabb.min = glm::min(temp_vertices[v].position, mesh_ind.aabb.min);
-        //            mesh_ind.aabb.max = glm::max(temp_vertices[v].position, mesh_ind.aabb.max);
+        //            mesh_ind.aabb.min = min(temp_vertices[v].position, mesh_ind.aabb.min);
+        //            mesh_ind.aabb.max = max(temp_vertices[v].position, mesh_ind.aabb.max);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_normal) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float normal[3];
         //            cgltf_accessor_read_float(accessor, v, normal, 3);
-        //            temp_vertices[v].normal = glm::vec3(normal[0], normal[1], normal[2]);
+        //            temp_vertices[v].normal = vec3(normal[0], normal[1], normal[2]);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_texcoord) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float texcoord[2];
         //            cgltf_accessor_read_float(accessor, v, texcoord, 2);
-        //            temp_vertices[v].tex_coords = glm::vec2(texcoord[0], texcoord[1]);
+        //            temp_vertices[v].tex_coords = vec2(texcoord[0], texcoord[1]);
         //        }
         //    }
         //    else if (attr->type == cgltf_attribute_type_tangent) {
         //        for (uint32_t v = 0; v < vertex_count; v++) {
         //            float tangent[4];
         //            cgltf_accessor_read_float(accessor, v, tangent, 4);
-        //            temp_vertices[v].tangent = glm::vec3(tangent[0], tangent[1], tangent[2]);
+        //            temp_vertices[v].tangent = vec3(tangent[0], tangent[1], tangent[2]);
 
-        //            glm::vec3 bitangent = glm::cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
+        //            vec3 bitangent = cross(temp_vertices[v].normal, temp_vertices[v].tangent) * tangent[3];
         //            temp_vertices[v].bitangent = bitangent;
         //        }
         //    }
@@ -1263,18 +1263,18 @@ namespace Model_Manager {
         //}
 
         //for (uint32_t v = 0; v < vertex_count; v++) {
-        //    if (glm::length(temp_vertices[v].normal) == 0.0f) {
-        //        temp_vertices[v].normal = glm::vec3(0.0f, 1.0f, 0.0f);
+        //    if (length(temp_vertices[v].normal) == 0.0f) {
+        //        temp_vertices[v].normal = vec3(0.0f, 1.0f, 0.0f);
         //    }
-        //    if (temp_vertices[v].tex_coords == glm::vec2(0.0f) &&
+        //    if (temp_vertices[v].tex_coords == vec2(0.0f) &&
         //        !has_attribute(prim, cgltf_attribute_type_texcoord)) {
-        //        temp_vertices[v].tex_coords = glm::vec2(0.0f, 0.0f);
+        //        temp_vertices[v].tex_coords = vec2(0.0f, 0.0f);
         //    }
-        //    if (glm::length(temp_vertices[v].tangent) == 0.0f) {
-        //        temp_vertices[v].tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+        //    if (length(temp_vertices[v].tangent) == 0.0f) {
+        //        temp_vertices[v].tangent = vec3(1.0f, 0.0f, 0.0f);
         //    }
-        //    if (glm::length(temp_vertices[v].bitangent) == 0.0f) {
-        //        temp_vertices[v].bitangent = glm::vec3(0.0f, 0.0f, 1.0f);
+        //    if (length(temp_vertices[v].bitangent) == 0.0f) {
+        //        temp_vertices[v].bitangent = vec3(0.0f, 0.0f, 1.0f);
         //    }
         //    // joint & weight?
 
@@ -1365,19 +1365,19 @@ namespace Model_Manager {
                 float strength = 1.0f;
                 aiReturn intensityResult = material->Get(AI_MATKEY_EMISSIVE_INTENSITY, strength);
 
-                mesh_mat.emissive_factor = glm::vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
+                mesh_mat.emissive_factor = vec4(emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
                 //printf("Emissive color: R=%.3f G=%.3f B=%.3f, w=%f\n", emissiveColor.r, emissiveColor.g, emissiveColor.b, strength);
             }
             else {
-                mesh_mat.emissive_factor = glm::vec4(1.0f);
+                mesh_mat.emissive_factor = vec4(1.0f);
             }
 
             aiColor4D pbrBaseColor(0.0f, 0.0f, 0.0f, 0.0f);
             if (aiGetMaterialColor(material, AI_MATKEY_BASE_COLOR, &pbrBaseColor) == AI_SUCCESS) {
-                mesh_mat.base_color = glm::vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
+                mesh_mat.base_color = vec4(pbrBaseColor.r, pbrBaseColor.g, pbrBaseColor.b, pbrBaseColor.a);
             }
             else {
-                mesh_mat.base_color = glm::vec4(1.0f);
+                mesh_mat.base_color = vec4(1.0f);
             }
 
             //  AO map
@@ -1436,10 +1436,10 @@ namespace Model_Manager {
         Material mesh_mat{ 0 };
 
         if (!prim->material) {
-            mesh_mat.base_color = glm::vec4(1.0f, 0.0f, 1.0f, 1.0f);
+            mesh_mat.base_color = vec4(1.0f, 0.0f, 1.0f, 1.0f);
             mesh_mat.metallic_factor = 0.0f;
             mesh_mat.roughness_factor = 1.0f;
-            mesh_mat.emissive_factor = glm::vec4(1.0f);
+            mesh_mat.emissive_factor = vec4(1.0f);
             return mesh_mat;
         }
 
@@ -1470,7 +1470,7 @@ namespace Model_Manager {
             mesh_mat.metallic_factor = pbr->metallic_factor;
             mesh_mat.roughness_factor = pbr->roughness_factor;
 
-            mesh_mat.base_color = glm::vec4(
+            mesh_mat.base_color = vec4(
                 pbr->base_color_factor[0],
                 pbr->base_color_factor[1],
                 pbr->base_color_factor[2],
@@ -1480,7 +1480,7 @@ namespace Model_Manager {
             // printf("MET: %f, ROG: %f\n", mesh_mat.metallic_factor, mesh_mat.roughness_factor);
         }
         else {
-            mesh_mat.base_color = glm::vec4(1.0f);
+            mesh_mat.base_color = vec4(1.0f);
             mesh_mat.metallic_factor = 0.0f;
             mesh_mat.roughness_factor = 1.0f;
         }
@@ -1503,7 +1503,7 @@ namespace Model_Manager {
             mesh_mat.emissive = Texture_Manager::load(path + uri);
         }
 
-        mesh_mat.emissive_factor = glm::vec4(
+        mesh_mat.emissive_factor = vec4(
             material->emissive_factor[0],
             material->emissive_factor[1],
             material->emissive_factor[2],
@@ -1566,10 +1566,10 @@ namespace Model_Manager {
                     float matrix[16];
                     cgltf_accessor_read_float(skin->inverse_bind_matrices, i, matrix, 16);
                     new_bone.inverse_bind = cgltf_to_glm(matrix);
-                    //new_bone.inverse_bind = glm::mat4(1.0f);
+                    //new_bone.inverse_bind = mat4(1.0f);
                 }
                 else {
-                    new_bone.inverse_bind = glm::mat4(1.0f);
+                    new_bone.inverse_bind = mat4(1.0f);
                 }
 
                 new_bone.parent_bone = UINT32_MAX;
@@ -1605,7 +1605,7 @@ namespace Model_Manager {
                     printf("[BONE] adding ANIMATION target bone %s\n", bone_name.c_str());
                     Bone new_bone;
                     new_bone.name = bone_name;
-                    new_bone.inverse_bind = glm::mat4(1.0f);
+                    new_bone.inverse_bind = mat4(1.0f);
                     new_bone.parent_bone = UINT32_MAX;
                     bone_index = g_rigged_bones.size();
                     g_rigged_bones.push_back(new_bone);
@@ -1789,7 +1789,7 @@ namespace Model_Manager {
 
                 float pos[3];
                 cgltf_accessor_read_float(sampler->output, i, pos, 3);
-                keyframe.position = glm::vec3(pos[0], pos[1], pos[2]);
+                keyframe.position = vec3(pos[0], pos[1], pos[2]);
 
                 position_keyframes.push_back(keyframe);
             }
@@ -1804,7 +1804,7 @@ namespace Model_Manager {
 
                 float rot[4];
                 cgltf_accessor_read_float(sampler->output, i, rot, 4);
-                keyframe.rotation = glm::quat(rot[3], rot[0], rot[1], rot[2]);
+                keyframe.rotation = quat(rot[3], rot[0], rot[1], rot[2]);
                 rotation_keyframes.push_back(keyframe);
             }
         }
@@ -1818,7 +1818,7 @@ namespace Model_Manager {
 
                 float scale[3];
                 cgltf_accessor_read_float(sampler->output, i, scale, 3);
-                keyframe.scale = glm::vec3(scale[0], scale[1], scale[2]);
+                keyframe.scale = vec3(scale[0], scale[1], scale[2]);
 
                 scale_keyframes.push_back(keyframe);
             }
@@ -1886,7 +1886,7 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < channel->mNumPositionKeys; i++) {
             Position_Keyframe keyframe;
             aiVector3D pos = channel->mPositionKeys[i].mValue;
-            keyframe.position = glm::vec3(pos.x, pos.y, pos.z);
+            keyframe.position = vec3(pos.x, pos.y, pos.z);
             keyframe.time = static_cast<float>(channel->mPositionKeys[i].mTime / ticks_per_second);
             position_keyframes.push_back(keyframe);
         }
@@ -1894,7 +1894,7 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < channel->mNumRotationKeys; i++) {
             Rotation_Keyframe keyframe;
             aiQuaternion rot = channel->mRotationKeys[i].mValue;
-            keyframe.rotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
+            keyframe.rotation = quat(rot.w, rot.x, rot.y, rot.z);
             keyframe.time = static_cast<float>(channel->mRotationKeys[i].mTime / ticks_per_second);
             rotation_keyframes.push_back(keyframe);
         }
@@ -1902,7 +1902,7 @@ namespace Model_Manager {
         for (uint32_t i = 0; i < channel->mNumScalingKeys; i++) {
             Scale_Keyframe keyframe;
             aiVector3D scale = channel->mScalingKeys[i].mValue;
-            keyframe.scale = glm::vec3(scale.x, scale.y, scale.z);
+            keyframe.scale = vec3(scale.x, scale.y, scale.z);
             keyframe.time = static_cast<float>(channel->mScalingKeys[i].mTime / ticks_per_second);
             scale_keyframes.push_back(keyframe);
         }
@@ -2263,8 +2263,8 @@ namespace Model_Manager {
 
         glGenBuffers(1, &skinned_bone_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, num_skinned_bones * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
-        //printf("Created bone SSBO with %zu bytes\n", num_skinned_bones * sizeof(glm::mat4));
+        glBufferData(GL_SHADER_STORAGE_BUFFER, num_skinned_bones * sizeof(mat4), nullptr, GL_DYNAMIC_DRAW);
+        //printf("Created bone SSBO with %zu bytes\n", num_skinned_bones * sizeof(mat4));
 
 #if GPU_ANIMATION || DEBUG_SKELETON
         std::vector<GPU_Bone> rigged_bones_temp;
@@ -2278,13 +2278,13 @@ namespace Model_Manager {
 
         glGenBuffers(1, &absolute_bone_transform_ssbo);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, absolute_bone_transform_ssbo);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, absolute_transforms.size() * sizeof(glm::mat4), nullptr, GL_DYNAMIC_DRAW);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, absolute_transforms.size() * sizeof(mat4), nullptr, GL_DYNAMIC_DRAW);
 #endif
 
 #if GPU_ANIMATION
         std::vector<float> absolute_transform_times(num_skinned_bones);
         for (size_t i = 0; i < num_skinned_bones; i++) {
-            //g_skinned_bones[i].transform = glm::mat4(1.0f);
+            //g_skinned_bones[i].transform = mat4(1.0f);
             absolute_transform_times[i] = 0.0f;
         }
 
@@ -2460,14 +2460,14 @@ namespace Model_Manager {
     }
 
 
-    glm::vec3 interpolate_position(uint32_t anim_idx, float time) {
+    vec3 interpolate_position(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
-            return glm::vec3(0.0);
+            return vec3(0.0);
         
         Bone_Animation anim = g_bone_animations[anim_idx];
         
         if (anim.position_keyframe_count == 0)
-            return glm::vec3(0.0);
+            return vec3(0.0);
         
         if (anim.position_keyframe_count == 1)
             return position_keyframes[anim.base_position_keyframe].position;
@@ -2488,14 +2488,14 @@ namespace Model_Manager {
         return position_keyframes[anim.base_position_keyframe + anim.position_keyframe_count - 1].position;
     }
 
-    glm::quat interpolate_rotation(uint32_t anim_idx, float time) {
+    quat interpolate_rotation(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
-            return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            return quat(1.0f, 0.0f, 0.0f, 0.0f);
         
         Bone_Animation anim = g_bone_animations[anim_idx];
         
         if (anim.rotation_keyframe_count == 0)
-            return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            return quat(1.0f, 0.0f, 0.0f, 0.0f);
         
         if (anim.rotation_keyframe_count == 1)
             return rotation_keyframes[anim.base_rotation_keyframe].rotation;
@@ -2509,21 +2509,21 @@ namespace Model_Manager {
             
             if (time >= time1 && time <= time2) {
                 float t = (time - time1) / (time2 - time1);
-                return glm::slerp(rotation_keyframes[idx1].rotation, rotation_keyframes[idx2].rotation, t);
+                return slerp(rotation_keyframes[idx1].rotation, rotation_keyframes[idx2].rotation, t);
             }
         }
         
         return rotation_keyframes[anim.base_rotation_keyframe + anim.rotation_keyframe_count - 1].rotation;
     }
 
-    glm::vec3 interpolate_scale(uint32_t anim_idx, float time) {
+    vec3 interpolate_scale(uint32_t anim_idx, float time) {
         if (anim_idx == -1)
-            return glm::vec3(1.0);
+            return vec3(1.0);
         
         Bone_Animation anim = g_bone_animations[anim_idx];
         
         if (anim.scale_keyframe_count == 0)
-            return glm::vec3(1.0);
+            return vec3(1.0);
         
         if (anim.scale_keyframe_count == 1)
             return scale_keyframes[anim.base_scale_keyframe].scale;
@@ -2560,25 +2560,25 @@ namespace Model_Manager {
 
                 int bone_animation_idx = find_bone_animation(bone_idx, animation.base_bone_animation, animation.bone_animation_count);
 
-                glm::vec3 position = interpolate_position(bone_animation_idx, am.animation_time);
-                glm::quat rotation = interpolate_rotation(bone_animation_idx, am.animation_time);
-                glm::vec3 scale = interpolate_scale(bone_animation_idx, am.animation_time);
+                vec3 position = interpolate_position(bone_animation_idx, am.animation_time);
+                quat rotation = interpolate_rotation(bone_animation_idx, am.animation_time);
+                vec3 scale = interpolate_scale(bone_animation_idx, am.animation_time);
 
-                glm::mat4 translation = glm::mat4(1.0);
+                mat4 translation = mat4(1.0);
                 translation[3][0] = position.x;
                 translation[3][1] = position.y;
                 translation[3][2] = position.z;
                 
-                glm::mat4 rotation_mat = glm::mat4_cast(rotation);
+                mat4 rotation_mat = mat4_cast(rotation);
                 
-                glm::mat4 scale_mat = glm::mat4(1.0);
+                mat4 scale_mat = mat4(1.0);
                 scale_mat[0][0] = scale.x;
                 scale_mat[1][1] = scale.y;
                 scale_mat[2][2] = scale.z;
     
-                glm::mat4 local_transform = translation * rotation_mat * scale_mat;
+                mat4 local_transform = translation * rotation_mat * scale_mat;
 
-                glm::mat4 absolute_transform;
+                mat4 absolute_transform;
                 if (g_rigged_bones[bone_idx].parent_bone == 0xFFFFFFFF)
                     absolute_transform = local_transform;
                 else
@@ -2592,11 +2592,11 @@ namespace Model_Manager {
             // skinned_bone_ssbo
             // absolute_bone_transform_ssbo
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinned_bone_ssbo);
-            glBufferSubData(GL_SHADER_STORAGE_BUFFER, am.base_bone + am.bone_offset, sizeof(glm::mat4) * am.bone_count, &skinned_bones[am.base_bone + am.bone_offset]);
+            glBufferSubData(GL_SHADER_STORAGE_BUFFER, am.base_bone + am.bone_offset, sizeof(mat4) * am.bone_count, &skinned_bones[am.base_bone + am.bone_offset]);
 
 #if DEBUG_SKELETON
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, absolute_bone_transform_ssbo);
-            glBufferSubData(GL_SHADER_STORAGE_BUFFER, am.base_bone + am.bone_offset, sizeof(glm::mat4) * am.bone_count, &absolute_transforms[am.base_bone + am.bone_offset]);
+            glBufferSubData(GL_SHADER_STORAGE_BUFFER, am.base_bone + am.bone_offset, sizeof(mat4) * am.bone_count, &absolute_transforms[am.base_bone + am.bone_offset]);
 #endif
         }
     }

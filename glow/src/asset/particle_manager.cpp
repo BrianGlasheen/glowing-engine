@@ -7,15 +7,15 @@
 #include <unordered_map>
 
 struct GPU_Particle {
-	glm::vec3 position;
+	vec3 position;
 	float ttl;
-	glm::vec3 velocity;
+	vec3 velocity;
 	float max_ttl;
-	glm::vec4 color_start;
-	glm::vec4 color_end;
+	vec4 color_start;
+	vec4 color_end;
 	float size_start;
 	float size_end;
-	glm::vec2 padding;
+	vec2 padding;
 };
 
 struct Effect {
@@ -31,42 +31,42 @@ namespace Particle_Manager {
 		Shader_Manager::load_compute("particle2");
 
 		Particle_Paramaters a = {
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f),  // Up
+			vec3(0.0f, 0.0f, 0.0f),
+			vec3(0.0f, 1.0f, 0.0f),  // Up
 			2.0f,
-			glm::vec2(1.0f, 3.0f),
-			glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
-			glm::vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
-			glm::vec3(0.0f, 2.0f, 0.0f),
-			glm::vec3(1.5f, 0.5f, 1.5f),       // Spread outward
+			vec2(1.0f, 3.0f),
+			vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
+			vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
+			vec3(0.0f, 2.0f, 0.0f),
+			vec3(1.5f, 0.5f, 1.5f),       // Spread outward
 			3.0f,
 			150.0f,
 			5000
 		};
 
 		Particle_Paramaters b = {
-			glm::vec3(-250.0f, 2.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
+			vec3(-250.0f, 2.0f, 0.0f),
+			vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
 			0.5f,
-			glm::vec2(2.0f, 5.0f),
-			glm::vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
-			glm::vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
-			glm::vec3(0.0f, 1.0f, 0.0f),
-			glm::vec3(2.0f, 1.0f, 2.0f),       // Wide spread
+			vec2(2.0f, 5.0f),
+			vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
+			vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
+			vec3(0.0f, 1.0f, 0.0f),
+			vec3(2.0f, 1.0f, 2.0f),       // Wide spread
 			1.5f,
 			75.0f,
 			3000
 		};
 
 		Particle_Paramaters c = {
-			glm::vec3(250.0f, 1.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),  // Gravity down
+			vec3(250.0f, 1.0f, 0.0f),
+			vec3(0.0f, -1.0f, 0.0f),  // Gravity down
 			8.0f,
-			glm::vec2(0.5f, 2.0f),
-			glm::vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
-			glm::vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
+			vec2(0.5f, 2.0f),
+			vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
+			vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
+			vec3(0.0f, 0.0f, 0.0f),
+			vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
 			12.0f,
 			500.0f,  // High burst rate
 			8000
@@ -78,16 +78,16 @@ namespace Particle_Manager {
 	}
 
 	//struct Particle_Paramaters {
-	//	glm::vec3 emitter_position;
-	//	glm::vec3 acceleration_direction;
+	//	vec3 emitter_position;
+	//	vec3 acceleration_direction;
 	//	float acceleration_force;
-	//	glm::vec2 life_range;              // min/max particle lifetime
+	//	vec2 life_range;              // min/max particle lifetime
 
-	//	glm::vec4 color_start_base;        // base colors for variation
-	//	glm::vec4 color_end_base;
+	//	vec4 color_start_base;        // base colors for variation
+	//	vec4 color_end_base;
 
-	//	glm::vec3 velocity_base;           // base spawn velocity
-	//	glm::vec3 velocity_random_bias;
+	//	vec3 velocity_base;           // base spawn velocity
+	//	vec3 velocity_random_bias;
 	//	float velocity_mag;
 
 	//	float emission_rate;          // particles per second

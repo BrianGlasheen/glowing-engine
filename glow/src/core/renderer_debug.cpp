@@ -3,11 +3,6 @@
 // #include <glad/glad.h>
 #include "core/opengl.h"
 
-#include "glm/glm.hpp"
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <algorithm>
 
 void Renderer_Debug::init() {
     // line VAO/VBO 
@@ -39,19 +34,19 @@ void Renderer_Debug::init() {
     // xy
     for (int i = 0; i <= segments; ++i) {
         float angle = i * step;
-        sphere_vertices.push_back(glm::vec3(cos(angle), sin(angle), 0.0f));
+        sphere_vertices.push_back(vec3(cos(angle), sin(angle), 0.0f));
     }
     
     // xz
     for (int i = 0; i <= segments; ++i) {
         float angle = i * step;
-        sphere_vertices.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+        sphere_vertices.push_back(vec3(cos(angle), 0.0f, sin(angle)));
     }
     
     // yz
     for (int i = 0; i <= segments; ++i) {
         float angle = i * step;
-        sphere_vertices.push_back(glm::vec3(0.0f, cos(angle), sin(angle)));
+        sphere_vertices.push_back(vec3(0.0f, cos(angle), sin(angle)));
     }
     
     sphere_vertex_count = sphere_vertices.size();
@@ -63,11 +58,11 @@ void Renderer_Debug::init() {
     glBindBuffer(GL_ARRAY_BUFFER, sphere_vbo);
     
     glBufferData(GL_ARRAY_BUFFER, 
-                    sphere_vertices.size() * sizeof(glm::vec3), 
+                    sphere_vertices.size() * sizeof(vec3), 
                     sphere_vertices.data(), 
                     GL_STATIC_DRAW);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), (void*)0);
     glEnableVertexAttribArray(0);
     
     glBindVertexArray(0);
@@ -77,7 +72,7 @@ void Renderer_Debug::shutdown() {
     // todo
 }
 
-void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, const glm::vec3& color) {
+void Renderer_Debug::add_line(const vec3& start, const vec3& end, const vec3& color) {
     line_vertices.push_back(start.x);
     line_vertices.push_back(start.y);
     line_vertices.push_back(start.z);
@@ -93,7 +88,7 @@ void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, cons
     line_vertices.push_back(color.b);
 }
 
-//void Renderer_Debug::add_sphere(const glm::vec3& center, float radius, const glm::vec3& color) {
+//void Renderer_Debug::add_sphere(const vec3& center, float radius, const vec3& color) {
 //    Debug_sphere s;
 //    s.center = center;
 //    s.radius = radius;
@@ -101,7 +96,7 @@ void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, cons
 //    spheres.push_back(s);
 //}
 //
-//void Renderer_Debug::add_cube(const glm::vec3& center, float size, const glm::vec3& color) {
+//void Renderer_Debug::add_cube(const vec3& center, float size, const vec3& color) {
 //    Debug_cube c;
 //    c.center = center;
 //    c.size = size;
@@ -109,27 +104,27 @@ void Renderer_Debug::add_line(const glm::vec3& start, const glm::vec3& end, cons
 //    cubes.push_back(c);
 //}
 
-//void Renderer_Debug::add_axes(const glm::vec3& position, const glm::quat& orientation, float length) {
-//    glm::vec3 xEnd = position + (orientation * glm::vec3(length, 0.0f, 0.0f)); // x
-//    add_line(position, xEnd, glm::vec3(1.0f, 0.0f, 0.0f));
+//void Renderer_Debug::add_axes(const vec3& position, const quat& orientation, float length) {
+//    vec3 xEnd = position + (orientation * vec3(length, 0.0f, 0.0f)); // x
+//    add_line(position, xEnd, vec3(1.0f, 0.0f, 0.0f));
 //
-//    glm::vec3 yEnd = position + (orientation * glm::vec3(0.0f, length, 0.0f)); // y
-//    add_line(position, yEnd, glm::vec3(0.0f, 1.0f, 0.0f));
+//    vec3 yEnd = position + (orientation * vec3(0.0f, length, 0.0f)); // y
+//    add_line(position, yEnd, vec3(0.0f, 1.0f, 0.0f));
 //
-//    glm::vec3 zEnd = position + (orientation * glm::vec3(0.0f, 0.0f, length)); // z (zed)
-//    add_line(position, zEnd, glm::vec3(0.0f, 0.0f, 1.0f));
+//    vec3 zEnd = position + (orientation * vec3(0.0f, 0.0f, length)); // z (zed)
+//    add_line(position, zEnd, vec3(0.0f, 0.0f, 1.0f));
 //}
 
-void Renderer_Debug::add_bbox(const glm::vec3& min, const glm::vec3& max, const glm::vec3& color) {
-    glm::vec3 corners[8] = {
-        glm::vec3(min.x, min.y, min.z),
-        glm::vec3(max.x, min.y, min.z),
-        glm::vec3(max.x, max.y, min.z),
-        glm::vec3(min.x, max.y, min.z),
-        glm::vec3(min.x, min.y, max.z),
-        glm::vec3(max.x, min.y, max.z),
-        glm::vec3(max.x, max.y, max.z),
-        glm::vec3(min.x, max.y, max.z)
+void Renderer_Debug::add_bbox(const vec3& min, const vec3& max, const vec3& color) {
+    vec3 corners[8] = {
+        vec3(min.x, min.y, min.z),
+        vec3(max.x, min.y, min.z),
+        vec3(max.x, max.y, min.z),
+        vec3(min.x, max.y, min.z),
+        vec3(min.x, min.y, max.z),
+        vec3(max.x, min.y, max.z),
+        vec3(max.x, max.y, max.z),
+        vec3(min.x, max.y, max.z)
     };
 
     // z = min.z
@@ -151,9 +146,9 @@ void Renderer_Debug::add_bbox(const glm::vec3& min, const glm::vec3& max, const 
     add_line(corners[3], corners[7], color);
 }
 
-void Renderer_Debug::draw_frustum(const glm::vec3& cameraPos, const glm::vec3& cameraDir, const glm::vec3& cameraUp, const float& fov, const float& aspect, const float& near, const float& far, const glm::vec3& color) {
-    glm::vec3 right = glm::normalize(glm::cross(cameraDir, cameraUp));
-    glm::vec3 up = glm::normalize(glm::cross(right, cameraDir));
+void Renderer_Debug::draw_frustum(const vec3& cameraPos, const vec3& cameraDir, const vec3& cameraUp, const float& fov, const float& aspect, const float& near, const float& far, const vec3& color) {
+    vec3 right = normalize(cross(cameraDir, cameraUp));
+    vec3 up = normalize(cross(right, cameraDir));
 
     // Calculate plane dimensions
     float nearHeight = 2.0f * tan(fov / 2.0f) * near;
@@ -161,10 +156,10 @@ void Renderer_Debug::draw_frustum(const glm::vec3& cameraPos, const glm::vec3& c
     float farHeight = 2.0f * tan(fov / 2.0f) * far;
     float farWidth = farHeight * aspect;
 
-    glm::vec3 nearCenter = cameraPos + cameraDir * near;
-    glm::vec3 farCenter = cameraPos + cameraDir * far;
+    vec3 nearCenter = cameraPos + cameraDir * near;
+    vec3 farCenter = cameraPos + cameraDir * far;
 
-    glm::vec3 corners[8];
+    vec3 corners[8];
 
     // near
     corners[0] = nearCenter - right * (nearWidth * 0.5f) - up * (nearHeight * 0.5f); // bottom-left
@@ -197,7 +192,7 @@ void Renderer_Debug::draw_frustum(const glm::vec3& cameraPos, const glm::vec3& c
     add_line(corners[3], corners[7], color); // top-left
 }
 
-void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, const glm::mat4& view, uint32_t num_cubes) {
+void Renderer_Debug::render(Shader* debug_shader, const mat4& projection, const mat4& view, uint32_t num_cubes) {
 
     debug_shader->use();
 
@@ -218,10 +213,10 @@ void Renderer_Debug::render(Shader* debug_shader, const glm::mat4& projection, c
     line_vertices.clear();
 }
 
-void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const glm::vec3& center, float radius, const glm::vec3& color, const glm::mat4& vp) {
+void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const vec3& center, float radius, const vec3& color, const mat4& vp) {
     if (sphere_vertex_count == 0) return;
     
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), center) * glm::scale(glm::mat4(1.0f), glm::vec3(radius));
+    mat4 model = translate(mat4(1.0f), center) * scale(mat4(1.0f), vec3(radius));
     
     // Set uniforms (adjust these based on your shader)
     debug_shader->set_mat4("mvp", vp * model);
@@ -243,7 +238,7 @@ void Renderer_Debug::draw_bounding_sphere(Shader* debug_shader, const glm::vec3&
     glBindVertexArray(0);
 }
 
-void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Scene& scene, const glm::mat4& view_proj) {
+void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Scene& scene, const mat4& view_proj) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glDisable(GL_DEPTH_TEST);
     glLineWidth(1.0f);
@@ -251,18 +246,18 @@ void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Sce
     for (size_t i = 0; i < scene.gpu_meshes.size(); ++i) {
         const GPU_Mesh& mesh = scene.gpu_meshes[i];
         
-        glm::vec3 color = glm::vec3(0.0f, 1.0f, 0.0f);
+        vec3 color = vec3(0.0f, 1.0f, 0.0f);
         
         // if (i < scene.animated_mesh_to_all_mesh_mapping.size()) {
-        //     color = glm::vec3(1.0f, 0.0f, 1.0f);
+        //     color = vec3(1.0f, 0.0f, 1.0f);
         // }
         
         // if (mesh.entity_index < scene.gpu_entities.size() && scene.gpu_entities[mesh.entity_index].is_dirty) {
-        //     color = glm::vec3(1.0f, 1.0f, 0.0f); // Yellow for dirty
+        //     color = vec3(1.0f, 1.0f, 0.0f); // Yellow for dirty
         // }
         
-        glm::mat4 entity_transform = scene.gpu_entities[mesh.entity_index].transform;
-        glm::vec3 center = glm::vec3(entity_transform * glm::vec4(glm::vec3(mesh.bounding_sphere), 1.0));
+        mat4 entity_transform = scene.gpu_entities[mesh.entity_index].transform;
+        vec3 center = vec3(entity_transform * vec4(vec3(mesh.bounding_sphere), 1.0));
         // bounding sphere radius has entity scale baked in
         draw_bounding_sphere(debug_shader, center, mesh.bounding_sphere.w, color, view_proj);
     }
@@ -277,7 +272,7 @@ void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Sce
 //    const int lonSegments = 8;
 //    const float PI = 3.14159f;
 //
-//    std::vector<glm::vec3> positions;
+//    std::vector<vec3> positions;
 //    std::vector<uint32_t> indices;
 //
 //    for (int y = 0; y <= latSegments; y++) {
@@ -298,7 +293,7 @@ void Renderer_Debug::draw_scene_bounding_spheres(Shader* debug_shader, const Sce
 //            float py = cosPhi;
 //            float pz = sinTheta * sinPhi;
 //
-//            positions.push_back(glm::vec3(px, py, pz));
+//            positions.push_back(vec3(px, py, pz));
 //        }
 //    }
 //

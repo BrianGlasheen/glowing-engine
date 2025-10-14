@@ -1,10 +1,7 @@
 #include "shader.h"
 
 #include "glow_config.h"
-
 #include "core/opengl.h"
-
-#include "glm/gtc/type_ptr.hpp"
 
 #include <cstdint>
 #include <fstream>
@@ -202,47 +199,47 @@ void Shader::set_float(const std::string& name, float value) const {
 void Shader::set_float_array(const std::string& name, const float* floats, uint32_t count) const {
     glUniform1fv(glGetUniformLocation(ID, name.c_str()), count, floats);
 }
-void Shader::set_vec2(const std::string& name, const glm::vec2& value) const {
+void Shader::set_vec2(const std::string& name, const vec2& value) const {
     glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 void Shader::set_vec2(const std::string& name, float x, float y) const {
     glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
 }
-void Shader::set_vec3(const std::string& name, const glm::vec3& value) const {
+void Shader::set_vec3(const std::string& name, const vec3& value) const {
     glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 void Shader::set_vec3(const std::string& name, float x, float y, float z) const {
     glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
 }
-void Shader::set_vec4(const std::string& name, const glm::vec4& value) const {
+void Shader::set_vec4(const std::string& name, const vec4& value) const {
     glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 void Shader::set_vec4(const std::string& name, float x, float y, float z, float w) const {
     glUniform4f(glGetUniformLocation(ID, name.c_str()), x, y, z, w);
 }
-void Shader::set_uvec2(const std::string& name, const glm::uvec2& value) const {
+void Shader::set_uvec2(const std::string& name, const uvec2& value) const {
     glUniform2uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 void Shader::set_uvec2(const std::string& name, unsigned int x, unsigned int y) const {
     glUniform2ui(glGetUniformLocation(ID, name.c_str()), x, y);
 }
-void Shader::set_uvec3(const std::string& name, const glm::uvec3& value) const {
+void Shader::set_uvec3(const std::string& name, const uvec3& value) const {
     glUniform3uiv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
 }
 void Shader::set_uvec3(const std::string& name, unsigned int x, unsigned int y, unsigned int z) const {
     glUniform3ui(glGetUniformLocation(ID, name.c_str()), x, y, z);
 }
-void Shader::set_mat2(const std::string& name, const glm::mat2& mat) const {
+void Shader::set_mat2(const std::string& name, const mat2& mat) const {
     glUniformMatrix2fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
-void Shader::set_mat3(const std::string& name, const glm::mat3& mat) const {
+void Shader::set_mat3(const std::string& name, const mat3& mat) const {
     glUniformMatrix3fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
-void Shader::set_mat4(const std::string& name, const glm::mat4& mat) const {
+void Shader::set_mat4(const std::string& name, const mat4& mat) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
-void Shader::set_mat4_array(const std::string& name, const glm::mat4* matrices, uint32_t count) const {
-    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, glm::value_ptr(matrices[0]));
+void Shader::set_mat4_array(const std::string& name, const mat4* matrices, uint32_t count) const {
+    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), count, GL_FALSE, value_ptr(matrices[0]));
 }
 
 // utility function for checking shader compilation/linking errors.

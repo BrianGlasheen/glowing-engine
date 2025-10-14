@@ -29,24 +29,24 @@ const uint32_t MAX_DRAW_COMMANDS = 8000;
 
 const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
-const glm::vec3 SUN_DIR = glm::vec3(0.0, -1.0f, -1.0f); // todo this belongs to scene
-static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
+const vec3 SUN_DIR = vec3(0.0, -1.0f, -1.0f); // todo this belongs to scene
+static mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
 const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 50.0f, 100.0f, 200.0f }; // same
 
 // point light shadow mapping
 //struct camera_dir {
 //    GLenum face;
-//    glm::vec3 direction;
-//    glm::vec3 up;
+//    vec3 direction;
+//    vec3 up;
 //};
 
 //static camera_dir camera_directions[] = {
-//    { GL_TEXTURE_CUBE_MAP_POSITIVE_X, glm::vec3(1.0f, 0.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f) },
-//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_X, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f) },
-//    { GL_TEXTURE_CUBE_MAP_POSITIVE_Y, glm::vec3(0.0f, 1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f) },
-//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) },
-//    { GL_TEXTURE_CUBE_MAP_POSITIVE_Z, glm::vec3(0.0f, 0.0f, 1.0f),  glm::vec3(0.0f, 1.0f, 0.0f) },
-//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f) }
+//    { GL_TEXTURE_CUBE_MAP_POSITIVE_X, vec3(1.0f, 0.0f, 0.0f),  vec3(0.0f, 1.0f, 0.0f) },
+//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_X, vec3(-1.0f, 0.0f, 0.0f), vec3(0.0f, 1.0f, 0.0f) },
+//    { GL_TEXTURE_CUBE_MAP_POSITIVE_Y, vec3(0.0f, 1.0f, 0.0f),  vec3(0.0f, 0.0f, -1.0f) },
+//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, vec3(0.0f, -1.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f) },
+//    { GL_TEXTURE_CUBE_MAP_POSITIVE_Z, vec3(0.0f, 0.0f, 1.0f),  vec3(0.0f, 1.0f, 0.0f) },
+//    { GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, vec3(0.0f, 0.0f, -1.0f), vec3(0.0f, 1.0f, 0.0f) }
 //};
 // point light shadow mapping
 
@@ -110,10 +110,10 @@ void Renderer::setup() {
         float b = ((float)rand() / RAND_MAX);
 
         GPU_Light point_light2 = {
-            glm::vec4(x, y, z, 105.0f),          // position + radius (attenuation range)
-            glm::vec4(r, g, b, 305.0f),          // color (white) + intensity
-            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
-            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
+            vec4(x, y, z, 105.0f),          // position + radius (attenuation range)
+            vec4(r, g, b, 305.0f),          // color (white) + intensity
+            vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
+            vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
         };
         lights.emplace_back(point_light2);
     }
@@ -264,12 +264,12 @@ void Renderer::setup_ssao() {
 
     int max_ssao_samples = 64;
     for (int i = 0; i < max_ssao_samples; i++) {
-        glm::vec3 sample(
+        vec3 sample(
             dis(gen) * 2.0f - 1.0f,
             dis(gen) * 2.0f - 1.0f,
             dis(gen) // pos z, hemisphere (reverse z)
         );
-        sample = glm::normalize(sample);
+        sample = normalize(sample);
         sample *= dis(gen);
 
         // bias to center
@@ -288,7 +288,7 @@ void Renderer::setup_ssao() {
 
     std::vector<float> noise;
     for (int i = 0; i < 16; ++i) {
-        glm::vec3 vals = glm::normalize(glm::vec3(dis(gen) * 2.0f - 1.0f, dis(gen) * 2.0f - 1.0f, 0.0f));
+        vec3 vals = normalize(vec3(dis(gen) * 2.0f - 1.0f, dis(gen) * 2.0f - 1.0f, 0.0f));
         noise.push_back(vals.x);
         noise.push_back(vals.y);
         noise.push_back(vals.z);
@@ -298,7 +298,7 @@ void Renderer::setup_ssao() {
     Texture_Manager::bind(ssao_noise_texture, 2);
 }
 
-void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::mat4& cull_proj) {
+void Renderer::begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull_proj) {
     // dispatch main update + culling shader
     // fills all render commands for meshes in scene
     Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
@@ -321,9 +321,9 @@ void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, scene.per_mesh_ssbo);
 
     // set cull uinforms
-    glm::mat4 projectionT = glm::transpose(cull_proj);
-    glm::vec4 frustumX = normalize_plane(projectionT[3] + projectionT[0]); // x + w < 0
-    glm::vec4 frustumY = normalize_plane(projectionT[3] + projectionT[1]); // y + w < 0
+    mat4 projectionT = transpose(cull_proj);
+    vec4 frustumX = normalize_plane(projectionT[3] + projectionT[0]); // x + w < 0
+    vec4 frustumY = normalize_plane(projectionT[3] + projectionT[1]); // y + w < 0
 
     float frustum[4];
     frustum[0] = frustumX.x;
@@ -351,7 +351,7 @@ void Renderer::begin_frame(Scene& scene, const glm::mat4& cull_view, const glm::
     c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
 }
 
-void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
+void Renderer::build_cluster_pass(const mat4& inv_proj) {
     Compute_Shader* cluster_build = Shader_Manager::get_compute("cluster");
     cluster_build->use();
     cluster_ssbo.bind(1); // todo fix once
@@ -359,8 +359,8 @@ void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
     cluster_build->set_float("zNear", 0.1f); // once
     cluster_build->set_float("zFar", FAR_PLANE); // once (would have to change if changed)
     cluster_build->set_mat4("inverseProjection", inv_proj);
-    cluster_build->set_uvec3("gridSize", glm::uvec3(16, 9, 24)); // thnk about how to do x y
-    cluster_build->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height)); // once + on change
+    cluster_build->set_uvec3("gridSize", uvec3(16, 9, 24)); // thnk about how to do x y
+    cluster_build->set_uvec2("screenDimensions", uvec2(scr_width, scr_height)); // once + on change
 
     uint32_t groups_x = (16 + 7) / 8;
     uint32_t groups_y = (9 + 7) / 8;
@@ -369,7 +369,7 @@ void Renderer::build_cluster_pass(const glm::mat4& inv_proj) {
     cluster_build->dispatch_and_wait(1, 1, 24, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::cull_cluster_pass(const glm::mat4& view) {
+void Renderer::cull_cluster_pass(const mat4& view) {
     Compute_Shader* cluster_cull = Shader_Manager::get_compute("cluster_cull");
     cluster_cull->use();
 
@@ -382,14 +382,14 @@ void Renderer::cull_cluster_pass(const glm::mat4& view) {
     cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, const float& aspect_ratio, const float& zoom) {
-    glm::mat4 sun_mat = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::normalize(SUN_DIR), glm::vec3(0.0f, 1.0f, 0.0f));
+void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
+    mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), normalize(SUN_DIR), vec3(0.0f, 1.0f, 0.0f));
 
-    //float tanHalfVFOV = tanf(glm::radians(player.camera.zoom / 2.0f));
+    //float tanHalfVFOV = tanf(radians(player.camera.zoom / 2.0f));
     //float tanHalfHFOV = tanHalfVFOV * aspect_ratio;
 
-    float tanHalfHFOV = tanf(glm::radians(zoom / 2.0f));
-    float tanHalfVFOV = tanf(glm::radians((zoom * aspect_ratio) / 2.0f));
+    float tanHalfHFOV = tanf(radians(zoom / 2.0f));
+    float tanHalfVFOV = tanf(radians((zoom * aspect_ratio) / 2.0f));
 
     //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
 
@@ -402,39 +402,39 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
         //printf("xn %f xf %f\n", xn, xf);
         //printf("yn %f yf %f\n", yn, yf);
 
-        glm::vec4 frustumCorners[8] = {
+        vec4 frustumCorners[8] = {
             // near face
-            glm::vec4(xn,   yn, -CASCADE_END[i], 1.0),
-            glm::vec4(-xn,  yn, -CASCADE_END[i], 1.0),
-            glm::vec4(xn,  -yn, -CASCADE_END[i], 1.0),
-            glm::vec4(-xn, -yn, -CASCADE_END[i], 1.0),
+            vec4(xn,   yn, -CASCADE_END[i], 1.0),
+            vec4(-xn,  yn, -CASCADE_END[i], 1.0),
+            vec4(xn,  -yn, -CASCADE_END[i], 1.0),
+            vec4(-xn, -yn, -CASCADE_END[i], 1.0),
 
             // far face
-            glm::vec4(xf,   yf, -CASCADE_END[i + 1], 1.0),
-            glm::vec4(-xf,  yf, -CASCADE_END[i + 1], 1.0),
-            glm::vec4(xf,  -yf, -CASCADE_END[i + 1], 1.0),
-            glm::vec4(-xf, -yf, -CASCADE_END[i + 1], 1.0)
+            vec4(xf,   yf, -CASCADE_END[i + 1], 1.0),
+            vec4(-xf,  yf, -CASCADE_END[i + 1], 1.0),
+            vec4(xf,  -yf, -CASCADE_END[i + 1], 1.0),
+            vec4(-xf, -yf, -CASCADE_END[i + 1], 1.0)
         };
 
-        //glm::vec4 frustumCornersL[8];
+        //vec4 frustumCornersL[8];
 
-        glm::vec4 min = glm::vec4(FLT_MAX);
-        glm::vec4 max = glm::vec4(-FLT_MAX);
+        vec4 min_c = vec4(FLT_MAX);
+        vec4 max_c = vec4(-FLT_MAX);
 
         for (uint32_t j = 0; j < 8; j++) {
             //printf("Frustum: ");
-            glm::vec4 vW = inv_view * frustumCorners[j];
+            vec4 vW = inv_view * frustumCorners[j];
             //printf("Light space: ");
             //frustumCornersL[j] = sun_mat * vW;
             //frustumCornersL[j].Print();
             //printf("\n");
-            glm::vec4 corner = sun_mat * vW;
+            vec4 corner = sun_mat * vW;
 
-            min = glm::min(min, corner);
-            max = glm::max(max, corner);
+            min_c = min(min_c, corner);
+            max_c = max(max_c, corner);
         }
 
-        //glm::vec3 box_size = glm::vec3(max) - glm::vec3(min);
+        //vec3 box_size = vec3(max) - vec3(min);
 
         //float texel_size_x = box_size.x / 2048;
         //float texel_size_y = box_size.y / 2048;
@@ -451,27 +451,27 @@ void Renderer::shadow_setup(const glm::mat4& view, const glm::mat4& inv_view, co
         //max *= 1.5;
         //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
         // draw aabb?
-        //cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
-        cascade_mats[i] = glm::ortho(min.x, max.x, min.y, max.y, max.z, min.z) * sun_mat;
+        //cascade_mats[i] = ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
+        cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, max_c.z, min_c.z) * sun_mat;
 
-        glm::mat4 inv_sun_mat = glm::inverse(sun_mat);
-        glm::vec3 light_corners[8] = {
-            {min.x, min.y, min.z}, {max.x, min.y, min.z},
-            {min.x, max.y, min.z}, {max.x, max.y, min.z},
-            {min.x, min.y, max.z}, {max.x, min.y, max.z},
-            {min.x, max.y, max.z}, {max.x, max.y, max.z}
+        mat4 inv_sun_mat = inverse(sun_mat);
+        vec3 light_corners[8] = {
+            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
+            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
+            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
+            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z}
         };
-        glm::vec3 minW(FLT_MAX), maxW(-FLT_MAX);
+        vec3 minW(FLT_MAX), maxW(-FLT_MAX);
         for (auto& c : light_corners) {
-            glm::vec4 w = inv_sun_mat * glm::vec4(c, 1.0f);
-            minW = glm::min(minW, glm::vec3(w));
-            maxW = glm::max(maxW, glm::vec3(w));
+            vec4 w = inv_sun_mat * vec4(c, 1.0f);
+            minW = min(minW, vec3(w));
+            maxW = max(maxW, vec3(w));
         }
         debug_renderer.add_bbox(minW, maxW, Util::cyan);
     }
 }
 
-void Renderer::depth_prepass(const glm::mat4& viewproj) {
+void Renderer::depth_prepass(const mat4& viewproj) {
 
     // TODO Fix me
 
@@ -578,7 +578,7 @@ void Renderer::shadow_pass(Scene& scene) {
     // atlas
 }
 
-void Renderer::draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& view, const glm::mat4& viewproj, const glm::mat4& player_view, const glm::mat4& cull_proj, bool wireframe) {
+void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const mat4& viewproj, const mat4& player_view, const mat4& cull_proj, bool wireframe) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -621,8 +621,8 @@ void Renderer::draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& vi
     shader->set_float("zFar", FAR_PLANE);
     shader->set_mat4("viewMatrix", view);
     shader->set_mat4("playerViewMatrix", player_view);
-    shader->set_uvec3("gridSize", glm::uvec3(16, 9, 24));
-    shader->set_uvec2("screenDimensions", glm::uvec2(scr_width, scr_height));
+    shader->set_uvec3("gridSize", uvec3(16, 9, 24));
+    shader->set_uvec2("screenDimensions", uvec2(scr_width, scr_height));
 
     shader->set_bool("ssao_enabled", ssao_enabled);
 
@@ -630,7 +630,7 @@ void Renderer::draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& vi
     shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
     shader->set_int("num_cascades", NUM_CASCADE);
     shader->set_vec3("directional_light_direction", SUN_DIR);
-    shader->set_vec3("directional_light_color", glm::vec3(1.0f));
+    shader->set_vec3("directional_light_color", vec3(1.0f));
     shader->set_float("directional_light_intensity", sun_strength);
 
     shader->set_bool("cascade_vis", cascade_vis);
@@ -743,7 +743,7 @@ void Renderer::draw(Scene& scene, const glm::vec3& view_pos, const glm::mat4& vi
     // glBindVertexArray(0);
 }
 
-void Renderer::particle_pass(float delta_time, const glm::mat4& proj, const glm::mat4& view) {
+void Renderer::particle_pass(float delta_time, const mat4& proj, const mat4& view) {
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
@@ -760,7 +760,7 @@ void Renderer::particle_pass(float delta_time, const glm::mat4& proj, const glm:
     Particle_Manager::draw();
 }
 
-void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const glm::mat4& projection) {
+void Renderer::render_skybox(const Skybox& skybox, const mat4& view, const mat4& projection) {
     glDepthFunc(GL_GEQUAL);
     glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
@@ -769,7 +769,7 @@ void Renderer::render_skybox(const Skybox& skybox, const glm::mat4& view, const 
     Shader* shader = Shader_Manager::get_shader("skybox");
     shader->use();
 
-    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
+    mat4 viewNoTranslation = mat4(mat3(view));
 
     // todo combine
     shader->set_mat4("view", viewNoTranslation);
@@ -786,7 +786,7 @@ void Renderer::render_crosshair(const Crosshair& crosshair) {
 }
 
 void Renderer::render_hud_text(const Text& text) {
-    glm::mat4 projection = glm::ortho(0.0f, (float)scr_width, 0.0f, (float)scr_height);
+    mat4 projection = ortho(0.0f, (float)scr_width, 0.0f, (float)scr_height);
     glDisable(GL_DEPTH_TEST);
 
     glEnable(GL_BLEND);
@@ -840,7 +840,7 @@ void Renderer::bloom_pass() {
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
-void Renderer::ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj) {
+void Renderer::ssao_pass(const mat4& proj, const mat4& inv_proj) {
     Compute_Shader* ssao = Shader_Manager::get_compute("ssao");
     ssao->use();
 
@@ -852,7 +852,7 @@ void Renderer::ssao_pass(const glm::mat4& proj, const glm::mat4& inv_proj) {
 
     ssao->set_mat4("projection", proj);
     ssao->set_mat4("inverse_projection", inv_proj);
-    ssao->set_vec2("screen_size", glm::vec2(scr_width, scr_height));
+    ssao->set_vec2("screen_size", vec2(scr_width, scr_height));
     ssao->set_float("radius", ssao_radius);
     ssao->set_float("bias", ssao_bias);
     ssao->set_int("sample_count", ssao_samples);
@@ -916,7 +916,7 @@ void Renderer::debug_cascades(Scene& scene) {
 
 }
 
-void Renderer::draw_light_quads(const glm::mat4& proj, const glm::mat4& view) {
+void Renderer::draw_light_quads(const mat4& proj, const mat4& view) {
     glEnable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
@@ -934,10 +934,10 @@ void Renderer::draw_light_quads(const glm::mat4& proj, const glm::mat4& view) {
     glBindVertexArray(0);
 }
 
-void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj, Scene& scene) {
+void Renderer::render_debug(const mat4& view, const mat4& proj, Scene& scene) {
     Shader* shader = Shader_Manager::get_shader("debug");
-    //glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
-    //glm::mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
+    //mat4 projection = perspective(radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 1.0f, FAR_PLANE);
+    //mat4 projection = player.camera.get_projection((float) scr_width / (float) scr_height);
 
     shader->set_bool("uniform_color", false);
     debug_renderer.render(shader, proj, view, num_lights);
@@ -945,7 +945,7 @@ void Renderer::render_debug(const glm::mat4& view, const glm::mat4& proj, Scene&
     debug_renderer.draw_scene_bounding_spheres(shader, scene, proj * view);
 }
 
-void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
+void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
     // use skeleton debug shader
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_ALWAYS);  // Always pass
@@ -980,11 +980,11 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
             shader->set_uint("bone_offset", am.bone_offset);
 
             shader->set_uint("draw_mode", 1);
-            shader->set_vec3("color", glm::vec3(0.0f, 1.0f, 1.0f));
+            shader->set_vec3("color", vec3(0.0f, 1.0f, 1.0f));
             glDrawArrays(GL_LINES, 0, bone_count * 2);
 
             shader->set_uint("draw_mode", 0);
-            shader->set_vec3("color", glm::vec3(1.0f, 0.64f, 0.0f));
+            shader->set_vec3("color", vec3(1.0f, 0.64f, 0.0f));
             glDrawArrays(GL_POINTS, 0, bone_count);
         }
     }
@@ -1010,6 +1010,6 @@ void Renderer::imgui_pass() {
     ImGui::End();
 }
 
-glm::vec4 Renderer::normalize_plane(glm::vec4 p) {
-    return p / glm::length(glm::vec3(p));
+vec4 Renderer::normalize_plane(vec4 p) {
+    return p / length(vec3(p));
 }

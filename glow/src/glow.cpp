@@ -175,7 +175,7 @@ namespace Glow {
 			//Entity fsfsfsf(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), sl, false);
 			//scene.include(fsfsfsf);
 
-		// model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
+			// model_handle loaded = Model_Manager::load_model("emeraldsquare/Scene.gltf");
 
 			// model_handle bistro = Model_Manager::load_model("bistro/Scene.gltf");
 			// Entity sadasd23232323232332323(glm::vec3(0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), bistro, false);
