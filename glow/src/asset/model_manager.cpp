@@ -2552,7 +2552,7 @@ namespace Model_Manager {
             if (am.animation_time >= animation.duration)
                 am.animation_time = 0;
 
-            //printf("i: %d, t: %f\n", i, am.animation_time);
+            // printf("i: %d, t: %f\n", i, am.animation_time);
             i++;
 
             for (uint32_t i = 0; i < am.bone_count; i++) {

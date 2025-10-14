@@ -18,14 +18,9 @@
 #include "util/colors.h"
 #include "util/profiler.h"
 
-#include "glm/glm.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include "glm/gtc/random.hpp"
-
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 
 #include <vector>
@@ -44,8 +39,6 @@ namespace Glow {
 	Scene scene; //.todo move lights here?
 	ImGuiUtils::ProfilerGraph gpuGraph(300);
 
-	bool compute_culling = true;
-
 	bool init(const Glow_Init_Info& init_info) {
 		if (window.init(init_info.width, init_info.height, init_info.window_name))
 			return -1;
@@ -58,52 +51,6 @@ namespace Glow {
 		renderer.setup();
 
 		Particle_Manager::init();
-
-		Particle_Paramaters a = {
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f),  // Up
-			2.0f,
-			glm::vec2(1.0f, 3.0f),
-			glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
-			glm::vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
-			glm::vec3(0.0f, 2.0f, 0.0f),
-			glm::vec3(1.5f, 0.5f, 1.5f),       // Spread outward
-			3.0f,
-			150.0f,
-			5000
-		};
-
-		Particle_Paramaters b = {
-			glm::vec3(-250.0f, 2.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
-			0.5f,
-			glm::vec2(2.0f, 5.0f),
-			glm::vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
-			glm::vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
-			glm::vec3(0.0f, 1.0f, 0.0f),
-			glm::vec3(2.0f, 1.0f, 2.0f),       // Wide spread
-			1.5f,
-			75.0f,
-			3000
-		};
-
-		Particle_Paramaters c = {
-			glm::vec3(250.0f, 1.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),  // Gravity down
-			8.0f,
-			glm::vec2(0.5f, 2.0f),
-			glm::vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
-			glm::vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
-			glm::vec3(0.0f, 0.0f, 0.0f),
-			glm::vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
-			12.0f,
-			500.0f,  // High burst rate
-			8000
-		};
-
-		Particle_Manager::add_effect("a", a, 10.0f);
-		Particle_Manager::add_effect("b", b, 10.0f);
-		Particle_Manager::add_effect("c", c, 10.0f);
 
 		if (editor.init())
 			return -1;
@@ -128,62 +75,7 @@ namespace Glow {
 
 		//Model_Manager::upload_data();
 		//printf(loaded ? "good\n" : "bad\n");
-		scene.init("sky");
-
-		model_handle plane = Model_Manager::load_model("plane.obj");
-		glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		glm::quat rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-		glm::vec3 scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		Entity e23223(pos, rot, scale, plane, false);
-		scene.include(e23223);
-
-		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		//rot = glm::quat(0.707f, 0.707f, 0.0f, 0.0f);
-		//scale = glm::vec3(100.0, 1.0f, 100.0f);
-		//Entity e3232(pos, rot, scale, plane, false);
-		//scene.include(e3232);
-
-		//pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		//rot = glm::quat(0.707f, 0.0f, 0.0f, 0.707f);
-		//scale = glm::vec3(100.0, 1.0f, 100.0f);
-		//Entity e3233332(pos, rot, scale, plane, false);
-		//scene.include(e3233332);
-
-		//pos = glm::vec3(0.0f, 25.0f, 0.0f);
-		//rot = glm::quat(0.0f, 0.0f, 0.0f, 1.0f);
-		//scale = glm::vec3(500.0f, 1.0f, 500.0f);
-		//Entity edddddd(pos, rot, scale, plane, false);
-		//scene.include(edddddd);
-
-
-		//Entity e233232332(glm::vec3(3.0f, 1.7f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(.05f), "ak47", false);
-		//scene.include(e233232332);
-
-		//Entity e2323322(glm::vec3(5.0f, 30.0f, 10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
-		//scene.include(e2323322);
-
-		//model_handle id = Model_Manager::load_model_cgltf("f22/scene.gltf");
-		//model_handle id = Model_Manager::load_model_cgltf("MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
-		//Entity e232332232323(glm::vec3(0.0f, 0.0f, -10.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(10.0f), id, false);
-		//scene.include(e232332232323);
-
-		//Entity e232lamp3322(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0, 0.0f, 0.0f), glm::vec3(1.0f), "blendtest/glTF/AlphaBlendModeTest.gltf", false);
-		//scene.include(e232lamp3322);
-
-		//Entity d12321313123(glm::vec3(0.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CompareAlphaCoverage/glTF/CompareAlphaCoverage.gltf", false);
-		//scene.include(d12321313123);
-
-		//Entity d12321313d123(glm::vec3(5.0f, 5.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", true);
-		//scene.include(d12321313d123);
-
-		//Entity d12321313d1233(glm::vec3(-5.0f, 1.0f, 5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "CommercialRefrigerator/glTF/CommercialRefrigerator.gltf", true);
-		//scene.include(d12321313d1233);
-
-		for (int j = 0; j < 10; j++) {
-			printf("%d\n", j);
-			Entity dsadasdasdasda(glm::vec3(0.0f, 1 + j * 1.2f, -5.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "die/scene.gltf", true);
-			scene.include(dsadasdasdasda);
-		}
+		scene.load_from_file("../resources/scenes/scene.yaml");
 
 		//model_handle raccoon3 = Model_Manager::load_animated_model_cgltf("glock/scene.gltf");
 		//model_handle raccoon4 = Model_Manager::load_animated_model_cgltf("glock2/scene.gltf");
@@ -227,12 +119,6 @@ namespace Glow {
 
 		// Entity raccoon233332 = Entity(glm::vec3(15.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "goku/scene.gltf", false);
 		// scene.include(raccoon233332);
-
-		Entity raccoon233332 = Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(100.0f), "road/scene.gltf", false);
-		scene.include(raccoon233332);
-
-		Entity raccoon2333323 = Entity::Animated_Entity(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
-		scene.include(raccoon2333323);
 
 		//Entity raccoon23333232 = Entity::Animated_Entity(glm::vec3(20.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "tiger/scene.gltf", false);
 		//scene.include(raccoon23333232);
@@ -296,7 +182,7 @@ namespace Glow {
 			// scene.include(sadasd23232323232332323);
 		}
 
-		Model_Manager::setup_buffers(); // upload MDI verts / inds to gpu
+		Model_Manager::setup_buffers();
 		scene.upload_buffers();
 
 		// Setup Dear ImGui context
@@ -479,42 +365,51 @@ namespace Glow {
 				//renderer.render_hud_text(player_facing);
 				//renderer.render_hud_text(player_holding);
 
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
 			if (editor_mode) {
-				ImGui_ImplOpenGL3_NewFrame();
-				ImGui_ImplGlfw_NewFrame();
-				ImGui::NewFrame();
+				editor.show();
 
 				ImGui::ShowDemoWindow(); // Show demo window! :)
 
-				ImGui::Begin("Texture Viewer");
-				ImGui::Text("Here is the texture:");
-				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.scene_texture)), ImVec2(256, 256));
+				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+				ImGui::Begin("Preview");
+				static ImVec2 last_size = ImVec2(0, 0);
+				ImVec2 size = ImGui::GetContentRegionAvail();
+				if (size.x > 0 && size.y > 0 && (size.x != last_size.x || size.y != last_size.y)) {
+					renderer.resize((int)size.x, (int)size.y);
+					last_size = size;
+				}
+				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.scene_texture)), size, ImVec2(0, 1), ImVec2(1, 0));
 				ImGui::End();
+				ImGui::PopStyleVar();
 
 				scene.imgui();
-
-				player.debug_hud();
 				renderer.imgui_pass();
+
+				// player.debug_hud();
 
 				// collect memory stats
 				// model vram, texture vram, maybe ssbo vram
-
-				legit::Profiler::Instance().EndFrame();
-				auto& tasks = legit::Profiler::Instance().GetTasks();
-				gpuGraph.LoadFrameData(tasks.data(), tasks.size());
-				gpuGraph.RenderTimings(300, 200, 150, 0, 1.0f / 60.0f);
-
-				ImGui::Render();
-				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-				// if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-				// {
-					ImGui::UpdatePlatformWindows();
-					ImGui::RenderPlatformWindowsDefault();
-					// TODO for OpenGL: restore current GL context.
-					glfwMakeContextCurrent(window.get_window());
-				// }
 			}
+
+			legit::Profiler::Instance().EndFrame();
+			auto& tasks = legit::Profiler::Instance().GetTasks();
+			gpuGraph.LoadFrameData(tasks.data(), tasks.size());
+			gpuGraph.RenderTimings(300, 200, 150, 0, 1.0f / 60.0f);
+
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+			// if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			// {
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+				// TODO for OpenGL: restore current GL context.
+				glfwMakeContextCurrent(window.get_window());
+			// }
 
 			window.present();
 			Audio::update();

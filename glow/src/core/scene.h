@@ -3,6 +3,7 @@
 #include "core/entity.h"
 #include "asset/skybox.h"
 #include "core/terrain.h" // todo maybe an asset?
+#include "core/light.h"
 
 #include "core/opengl.h"
 
@@ -37,17 +38,29 @@ public:
     ~Scene();
 
     void init(const std::string& path);
+    void create_buffers();
     void include(Entity& ntitty);
     void upload_buffers();
     void update_dirty();
     void imgui();
     void serialize(std::string path = "../resources/scenes/scene.yaml");
+    void load_from_file(std::string path = "../resources/scenes/scene.yaml");
     // returns the number of hits
     //int cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos);
 
+    // dir light
+    // gloabl scene parameters
+    // 
+    Skybox skybox;
+
     std::vector<Entity> entities;
     std::vector<Entity> timed_entities;
-    Skybox skybox;
+    // std::vector<Light> lights; todo!!
+    // cameras?
+    // player(s)
+    // probes (reflection & gi)
+    // triggers
+    // terrain(s?)
     Terrain terrain;
 
     uint32_t gpu_mesh_ssbo, gpu_entity_ssbo, per_mesh_ssbo, animated_mesh_to_all_mesh_mapping_ssbo;

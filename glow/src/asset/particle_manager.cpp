@@ -29,6 +29,52 @@ namespace Particle_Manager {
 
 	void init() {
 		Shader_Manager::load_compute("particle2");
+
+		Particle_Paramaters a = {
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f),  // Up
+			2.0f,
+			glm::vec2(1.0f, 3.0f),
+			glm::vec4(1.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
+			glm::vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
+			glm::vec3(0.0f, 2.0f, 0.0f),
+			glm::vec3(1.5f, 0.5f, 1.5f),       // Spread outward
+			3.0f,
+			150.0f,
+			5000
+		};
+
+		Particle_Paramaters b = {
+			glm::vec3(-250.0f, 2.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gentle fall
+			0.5f,
+			glm::vec2(2.0f, 5.0f),
+			glm::vec4(0.9f, 0.7f, 1.0f, 1.0f),     // Light purple
+			glm::vec4(1.0f, 1.0f, 0.8f, 0.0f),       // Golden fade
+			glm::vec3(0.0f, 1.0f, 0.0f),
+			glm::vec3(2.0f, 1.0f, 2.0f),       // Wide spread
+			1.5f,
+			75.0f,
+			3000
+		};
+
+		Particle_Paramaters c = {
+			glm::vec3(250.0f, 1.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),  // Gravity down
+			8.0f,
+			glm::vec2(0.5f, 2.0f),
+			glm::vec4(1.0f, 1.0f, 0.9f, 1.0f),     // Bright white
+			glm::vec4(0.3f, 0.3f, 0.3f, 0.0f),       // Dark smoke
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(8.0f, 6.0f, 8.0f),       // Explosive spread
+			12.0f,
+			500.0f,  // High burst rate
+			8000
+		};
+
+		add_effect("a", a, 10.0f);
+		add_effect("b", b, 10.0f);
+		add_effect("c", c, 10.0f);
 	}
 
 	//struct Particle_Paramaters {
@@ -50,19 +96,8 @@ namespace Particle_Manager {
 
 	void add_effect(const std::string& name, Particle_Paramaters params, const float lifetime) {
 		std::vector<GPU_Particle> particles(params.max_particles);
-		//for (auto& p : particles) {
-		//	p.position = glm::vec3(0.0f);
-		//	p.ttl = 0.0f;
-		//	p.velocity = glm::vec3(0.0f);
-		//	p.max_ttl = 0.0f;
-		//	p.color_start = glm::vec4(0.0f);
-		//	p.color_end = glm::vec4(0.0f);
-		//	p.size_start = 0.0f;
-		//	p.size_end = 0.0f;
-		//	// p.padding;
-		//}
 
-		auto& effect = effects[name];  // Create in-place
+		auto& effect = effects[name];
 		effect.parameters = params;
 		effect.remaining_lifetime = lifetime;
 		effect.buffer.init();
@@ -116,14 +151,12 @@ namespace Particle_Manager {
 			
 			e.buffer.bind(0);
 			glDispatchCompute((p.max_particles + 127) / 128, 1, 1);
-
 		}
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // todo rm move to render
 	}
 
 	void draw() {
-		// for effect
-		// draw
 		for (auto it = effects.begin(); it != effects.end(); it++) {
 			const Effect& e = it->second;
 			e.buffer.bind(0);

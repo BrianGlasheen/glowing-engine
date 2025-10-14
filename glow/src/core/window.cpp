@@ -84,6 +84,11 @@ void Window::sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor) {
     glfwSetKeyCallback(window, Window::static_key_callback);
     glfwSetCharCallback(window, Window::static_char_callback);
     //glfwSetWindowRefreshCallback(window, Window::window_refresh_callback);
+
+    if (*editor_mode)
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    else
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 //
@@ -230,10 +235,13 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
     if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
         *this_window->editor_mode = !(*this_window->editor_mode);
 
-        if (*this_window->editor_mode)
+        if (*this_window->editor_mode) {
             glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        else
+        }
+        else {
             glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            this_window->renderer->resize(this_window->width, this_window->height);
+        }
     }
 
     Renderer* renderer = this_window->renderer;

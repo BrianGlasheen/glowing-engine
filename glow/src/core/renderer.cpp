@@ -24,14 +24,14 @@
 #include <algorithm>
 #include <random>
 
-const float FAR_PLANE = 1000.0f;
+const float FAR_PLANE = 1000.0f; // todo gross
 const uint32_t MAX_DRAW_COMMANDS = 8000;
 
 const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
-const glm::vec3 SUN_DIR = glm::vec3(0.0, -1.0f, -1.0f);
-static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 };
-const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 50.0f, 100.0f, 200.0f };
+const glm::vec3 SUN_DIR = glm::vec3(0.0, -1.0f, -1.0f); // todo this belongs to scene
+static glm::mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
+const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 50.0f, 100.0f, 200.0f }; // same
 
 // point light shadow mapping
 //struct camera_dir {
@@ -907,10 +907,10 @@ void Renderer::debug_cascades(Scene& scene) {
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
-        shader->set_int("mode", 1);
-        glViewport(10, 10, 400, 400);
-        Texture_Manager::bind(scene.terrain.heightmap, 1);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        // shader->set_int("mode", 1);
+        // glViewport(10, 10, 400, 400);
+        // Texture_Manager::bind(scene.terrain.heightmap, 1);
+        // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glBindVertexArray(0); // unbind quad
 
@@ -991,7 +991,7 @@ void Renderer::debug_skeletons(Scene& scene, const glm::mat4& vp) {
 }
 
 void Renderer::imgui_pass() {
-    ImGui::Begin("Renderer Settings");
+    ImGui::Begin("Renderer");
 
     ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
     ImGui::Checkbox("shadows enabled", &shadows_enabled);

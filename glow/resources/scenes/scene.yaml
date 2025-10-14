@@ -1,12 +1,6 @@
 Scene: Untitled
 Skybox: sky
 Entities:
-  - position: [0, 0, 0]
-    rotation: [1, 0, 0, 0]
-    scale: [500, 1, 500]
-    model: plane.obj
-    physics: false
-    animated: false
   - position: [0, 1, -5]
     rotation: [1, 0, 0, 0]
     scale: [1, 1, 1]
@@ -73,9 +67,9 @@ Entities:
     model: plane.obj
     physics: false
     animated: false
-  - position: [0, 0, 0]
-    rotation: [1, 0, 0, 0]
-    scale: [1, 1, 1]
-    model: tiger/scene.gltf
-    physics: false
-    animated: true
+  # - position: [0, 0, 0]
+  #   rotation: [1, 0, 0, 0]
+  #   scale: [1, 1, 1]
+  #   model: tiger/scene.gltf
+  #   physics: false
+  #   animated: true

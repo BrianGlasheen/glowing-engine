@@ -12,6 +12,11 @@
 #include "asset/font.h"
 #include "asset/text.h"
 
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 enum class view_type {
     TOP_DOWN = 0,
     FRONT,
@@ -204,8 +209,6 @@ static std::string gize_mode_strs[]{ "none", "translate", "rotate", "scale" };
 
 class Editor {
 public:
-
-
     int init() {
         // make viewports
         // editor_viewports.top.init_text("top------"); // pad to 9 xD
@@ -216,6 +219,64 @@ public:
         Shader_Manager::load_from_name("editor");
 
         return 0;
+    }
+
+    void show() {
+        static bool dockspace_initialized = false;
+        static bool dockspace_open = true;
+        static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+        ImGui::Begin("DockSpace Window", &dockspace_open, window_flags);
+        ImGui::PopStyleVar(2);
+
+        ImGuiID dockspace_id = ImGui::GetID("EditorDockspaceID");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+        if (!dockspace_initialized) {
+            dockspace_initialized = true;
+
+            ImGui::DockBuilderRemoveNode(dockspace_id);
+            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+            ImGuiID left, right, bottom, center;
+            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, &left, &dockspace_id);
+            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.25f, &right, &dockspace_id);
+            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, &bottom, &center);
+
+            ImGui::DockBuilderDockWindow("Scene", left);
+            ImGui::DockBuilderDockWindow("Renderer", left);
+            ImGui::DockBuilderDockWindow("Inspector", right);
+            ImGui::DockBuilderDockWindow("Preview", center);
+            ImGui::DockBuilderDockWindow("Console", bottom);
+
+            ImGui::DockBuilderFinish(dockspace_id);
+        }
+
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Exit")) {
+                    // todo exit
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        ImGui::End();
     }
 
     //void render() {

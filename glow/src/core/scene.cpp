@@ -2,9 +2,7 @@
 
 #include "asset/material_manager.h"
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "util/math.h"
 
 #include <dearimgui/imgui.h>
 #include <yaml-cpp/yaml.h>
@@ -26,8 +24,12 @@ Scene::~Scene() {}
 
 void Scene::init(const std::string& path) {
     skybox.load(path);
-    terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
+    // terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
 
+    create_buffers();
+}
+
+void Scene::create_buffers() {
     // gen buffers
     glCreateBuffers(1, &gpu_mesh_ssbo);
     glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);
@@ -55,6 +57,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
     // more to come!?
 
     if (ntitty.fade) {
+        assert(false);
         timed_entities.push_back(ntitty); // maybe dont copy everything in, fine for now
     }
     else { // todo move per object data here
@@ -108,7 +111,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
 
             Per_Object_Data obj_data;
             // obj_data.model_matrix = g.transform * m.transform; // todo write in gpu
-            obj_data.normal_matrix = glm::transpose(glm::inverse(obj_data.model_matrix));
+            obj_data.normal_matrix = transpose(inverse(obj_data.model_matrix));
             obj_data.albedo = mater.albedo;
             obj_data.normal = mater.normal;
             obj_data.met_rough = mater.met_rough;
@@ -140,7 +143,7 @@ void Scene::update_dirty() {
         entity.check_moved();
 
         if (entity.is_dirty) {
-            glm::mat4 new_transform = entity.get_model_matrix();
+            mat4 new_transform = entity.get_model_matrix();
             gpu_entities[i].transform = new_transform; // maybe dont need to store?
             gpu_entities[i].is_dirty = true;
 
@@ -155,8 +158,7 @@ void Scene::update_dirty() {
 
 void Scene::imgui() {
     // Main Scene Inspector Window
-    if (ImGui::Begin("Scene Inspector")) {
-        
+    if (ImGui::Begin("Scene")) {
         // Scene Overview
         if (ImGui::CollapsingHeader("Scene Overview", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Total Entities: %zu", entities.size());
@@ -209,14 +211,14 @@ void Scene::imgui() {
                 
                 // Transform info
                 if (ImGui::TreeNode("Transform")) {
-                    glm::vec3 pos = entity.physics_enabled ? entity.get_physics_position() : entity.position;
+                    vec3 pos = entity.physics_enabled ? entity.get_physics_position() : entity.position;
                     ImGui::Text("Position: %.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
                     ImGui::Text("Scale: %.2f, %.2f, %.2f", entity.scale.x, entity.scale.y, entity.scale.z);
                     ImGui::Text("Rotation: %.2f, %.2f, %.2f, %.2f", 
                                entity.rotation.x, entity.rotation.y, entity.rotation.z, entity.rotation.w);
                     
                     // Show model matrix
-                    glm::mat4 model_mat = entity.get_model_matrix();
+                    mat4 model_mat = entity.get_model_matrix();
                     if (ImGui::TreeNode("Model Matrix")) {
                         for (int row = 0; row < 4; ++row) {
                             ImGui::Text("%.2f  %.2f  %.2f  %.2f", 
@@ -325,19 +327,31 @@ void Scene::imgui() {
 
 namespace YAML {
     template<>
-    struct convert<glm::vec3> {
-        static Node encode(const glm::vec3& v) {
+    struct convert<vec3> {
+        static Node encode(const vec3& v) {
             Node node;
             node.push_back(v.x);
             node.push_back(v.y);
             node.push_back(v.z);
             return node;
         }
+
+        static bool decode(const Node& node, vec3& rhs) {
+            if (!node.IsSequence() || node.size() != 3) {
+                return false;
+            }
+
+            rhs.x = node[0].as<float>();
+            rhs.y = node[1].as<float>();
+            rhs.z = node[2].as<float>();
+            return true;
+        }
     };
 
+
     template<>
-    struct convert<glm::quat> {
-        static Node encode(const glm::quat& q) {
+    struct convert<quat> {
+        static Node encode(const quat& q) {
             Node node;
             node.push_back(q.w);
             node.push_back(q.x);
@@ -345,15 +359,27 @@ namespace YAML {
             node.push_back(q.z);
             return node;
         }
+
+        static bool decode(const Node& node, glm::quat& rhs) {
+            if (!node.IsSequence() || node.size() != 4) {
+                return false;
+            }
+
+            rhs.w = node[0].as<float>();
+            rhs.x = node[1].as<float>();
+            rhs.y = node[2].as<float>();
+            rhs.z = node[3].as<float>();
+            return true;
+        }
     };
 
-    inline Emitter& operator<<(Emitter& out, const glm::vec3& v) {
+    inline Emitter& operator<<(Emitter& out, const vec3& v) {
         out << YAML::Flow;
         out << YAML::BeginSeq << v.x << v.y << v.z << YAML::EndSeq;
         return out;
     }
 
-    inline Emitter& operator<<(Emitter& out, const glm::quat& q) {
+    inline Emitter& operator<<(Emitter& out, const quat& q) {
         out << YAML::Flow;
         out << YAML::BeginSeq << q.w << q.x << q.y << q.z << YAML::EndSeq;
         return out;
@@ -392,15 +418,46 @@ void Scene::serialize(std::string path) {
     fout << out.c_str();
 }
 
-//int Scene::cast_ray(const glm::vec3& pos, const glm::vec3& dir, glm::vec3& hit_pos) {
+void Scene::load_from_file(std::string path) {
+    printf("LOADING SCENE\n");
+
+    YAML::Node data = YAML::LoadFile(path);
+
+    if (!data["Scene"] || !data["Entities"]) {
+        assert(false);
+    }
+
+    // std::string scene_name = data["Scene"].as<std::string>();
+    skybox.load(data["Skybox"].as<std::string>());
+
+    create_buffers();
+
+
+    for (const auto& node : data["Entities"]) {
+        vec3 position = node["position"].as<vec3>();
+        quat rotation = node["rotation"].as<quat>();
+        vec3 scale = node["scale"].as<vec3>();
+        std::string model_name = node["model"].as<std::string>();
+        bool animated = node["animated"].as<bool>();
+        bool physics_enabled = node["physics"].as<bool>();
+        
+        Entity e(position, rotation, scale, model_name, physics_enabled, 0, 0, 0, animated);
+        include(e);
+    }
+
+    printf("Loaded %zu entities.\n", entities.size());
+}
+
+
+//int Scene::cast_ray(const vec3& pos, const vec3& dir, vec3& hit_pos) {
 //    int hits = 0;
 //    float min_dist = 999999999.0f;
-//    glm::vec3 hit_pos_temp(0.0f);
+//    vec3 hit_pos_temp(0.0f);
 //
 //    for (Entity e : entities) {
 //        if (e.collides(pos, dir, hit_pos_temp)) {
 //            hits++;
-//            float dist = glm::distance(hit_pos_temp, pos);
+//            float dist = distance(hit_pos_temp, pos);
 //            if (dist < min_dist) {
 //                min_dist = dist;
 //                hit_pos  = hit_pos_temp;
