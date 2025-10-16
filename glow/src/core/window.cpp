@@ -71,11 +71,11 @@ GLFWwindow* Window::get_window() {
 //
 // low use functions
 //
-void Window::sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor) {
+void Window::sync_callbacks(Player& p, Renderer& r, Editor& e, bool& editor_moder) {
     player = &p;
     renderer = &r;
     editor = &e;
-    editor_mode = &editor;
+    editor_mode = &editor_moder;
 
     //glfwSetWindowUserPointer(window, &player);
     glfwSetCursorPosCallback(window, Window::static_mouse_callback);
@@ -121,10 +121,17 @@ void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, i
     //    this_window->renderer->resize(this_window->width, this_window->height);
     //}
     // 
-    /*if (button == GLFW_MOUSE_BUTTON_LEFT)
-        this_window->renderer->bone++;
-    if (button == GLFW_MOUSE_BUTTON_RIGHT)
-        this_window->renderer->bone--;*/
+
+    // double xpos, ypos;
+    // glfwGetCursorPos(glfw_window, &xpos, &ypos);
+    // if (*(this_window->editor_mode) && button == GLFW_MOUSE_BUTTON_LEFT) {
+    //     this_window->editor->pick((int)xpos, (int)(this_window->height - ypos), this_window->width, this_window->height);
+    // }
+
+
+        // this_window->renderer->bone++;
+    // if (button == GLFW_MOUSE_BUTTON_RIGHT)
+    //     this_window->renderer->bone--;
 // 
     //if (this_window->renderer->editor_mode) {
     //    // Handle editor mode mouse button input
@@ -237,6 +244,7 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
 
         if (*this_window->editor_mode) {
             glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            this_window->editor->first_draw = true;
         }
         else {
             glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

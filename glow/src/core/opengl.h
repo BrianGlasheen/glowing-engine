@@ -24,5 +24,5 @@ struct Per_Object_Data {
     float alpha_cutoff;
     float metallic_factor; // 4
     float roughness_factor; // 4
-    uint32_t bone_offset;
+    uint32_t id;
 };

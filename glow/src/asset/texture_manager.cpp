@@ -373,6 +373,28 @@ namespace Texture_Manager {
         return textures.size() - 1;
     }
 
+    texture_handle create_picking_texture(int width, int height) {
+        uint32_t texture_id = 0;
+
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, width, height, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, NULL);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "picking_texture";
+        texture.width = width;
+        texture.height = height;
+
+        std::cout << "[PICKING TEXTURE] Created " << width << "x" << height << std::endl;
+        return textures.size() - 1;
+    }
+
     texture_handle create_render_texture(int width, int height, bool hdr) {
         uint32_t texture_id = 0;
         glGenTextures(1, &texture_id);

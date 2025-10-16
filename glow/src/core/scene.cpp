@@ -122,6 +122,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
             obj_data.roughness_factor = mater.roughness_factor; // 4
             obj_data.base_color = mater.base_color;
             obj_data.alpha_cutoff = mater.alpha_cutoff;
+            obj_data.id = (uint32_t)(entities.size() - 1);
             per_mesh_data.push_back(obj_data);
         }
     }

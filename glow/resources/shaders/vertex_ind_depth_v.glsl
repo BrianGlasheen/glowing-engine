@@ -24,7 +24,7 @@ struct Per_Object_Data {
     float alpha_cutoff;
     float metallic_factor; // 4
     float roughness_factor; // 4
-    uint bone_offset; // todo remove
+    uint id;
 };
 
 layout(std430, binding = 0) readonly buffer per_object_ssbo {

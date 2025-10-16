@@ -52,7 +52,7 @@ namespace Glow {
 
 		Particle_Manager::init();
 
-		if (editor.init())
+		if (editor.init(&renderer))
 			return -1;
 
 		Audio::init();
@@ -346,8 +346,10 @@ namespace Glow {
 			if (player.key_toggles['l'])
 				renderer.debug_cascades(scene);
 
-			if (editor_mode)
+			if (editor_mode) {
+				editor.render_selected_outlined(scene, active_viewproj);
 				renderer.infinite_grid(active_viewproj, player.camera.position);
+			}
 
 			renderer.blit_to_screen();
 
@@ -378,18 +380,45 @@ namespace Glow {
 				editor.show();
 
 				// ImGui::ShowDemoWindow(); // Show demo window! :)
-
+				
+				{ // todo move to editor prob
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 				ImGui::Begin("Preview");
+
 				static ImVec2 last_size = ImVec2(0, 0);
 				ImVec2 size = ImGui::GetContentRegionAvail();
-				if (size.x > 0 && size.y > 0 && (size.x != last_size.x || size.y != last_size.y)) {
+				if (editor.first_draw || (size.x > 0 && size.y > 0 && (size.x != last_size.x || size.y != last_size.y))) {
 					renderer.resize((int)size.x, (int)size.y);
 					last_size = size;
+					editor.first_draw = false;
 				}
+
+				ImVec2 image_pos = ImGui::GetCursorScreenPos();
 				ImGui::Image((ImTextureID)(intptr_t)(Texture_Manager::get_ogl_id(renderer.output_texture)), size, ImVec2(0, 1), ImVec2(1, 0));
+
+				ImVec2 image_min = ImGui::GetItemRectMin();
+				ImVec2 image_size = ImGui::GetItemRectSize();
+
+				if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+					ImVec2 mouse_pos = ImGui::GetMousePos();
+
+					float local_x = mouse_pos.x - image_min.x;
+					float local_y = mouse_pos.y - image_min.y;
+
+					if (local_x >= 0 && local_x < image_size.x &&
+						local_y >= 0 && local_y < image_size.y) {
+
+						int flipped_y = (int)image_size.y - (int)local_y - 1;
+						int px = (int)local_x;
+						int py = flipped_y;
+
+						editor.pick(px, py);
+					}
+				}
+
 				ImGui::End();
 				ImGui::PopStyleVar();
+			}
 
 				scene.imgui();
 				renderer.imgui_pass();

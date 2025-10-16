@@ -24,7 +24,7 @@ struct Per_Object_Data {
     float alpha_cutoff;
     float metallic_factor; // 4
     float roughness_factor; // 4
-    uint bone_offset; // todo remove
+    uint id;
 };
 
 layout(std430, binding = 0) readonly buffer per_object_ssbo {
@@ -47,6 +47,7 @@ out flat vec4 emissive;
 out flat float metallic_factor;
 out flat float roughness_factor;
 out flat float alpha_cutoff;
+out flat uint id;
 
 uniform mat4 vp;
 #if !BINDLESS
@@ -70,6 +71,7 @@ void main() {
     roughness_factor = obj_data.roughness_factor;
     amb_occ_handle = obj_data.amb_occ;
     alpha_cutoff = obj_data.alpha_cutoff;
+    id = obj_data.id;
     
     mat4 model = obj_data.model_matrix;
 

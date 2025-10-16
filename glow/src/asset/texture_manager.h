@@ -19,6 +19,7 @@ namespace Texture_Manager {
 
     texture_handle load_msdf(const std::string& file_path);
     texture_handle create_depth_texture(int width, int height);
+    texture_handle create_picking_texture(int width, int height);
     texture_handle create_render_texture(int width, int height, bool hdr = false);
     texture_handle create_bloom_texture(int width, int height);
     texture_handle create_ssao_texture(int width, int height);

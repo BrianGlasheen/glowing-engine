@@ -85,6 +85,7 @@ void Renderer::resize(const int width, const int height) {
     Texture_Manager::resize(ssao_texture, scr_width, scr_height);
     Texture_Manager::resize(depth_texture, scr_width, scr_height);
     Texture_Manager::resize(output_texture, scr_width, scr_height);
+    Texture_Manager::resize(picking_texture, scr_width, scr_height);
 
     // update per shader "constant-ish" uniforms (screen size, etc)
 }
@@ -180,15 +181,17 @@ void Renderer::setup_buffers() {
     scene_texture = Texture_Manager::create_render_texture(scr_width, scr_height, true);
     bright_texture = Texture_Manager::create_bloom_texture(scr_width, scr_height);
     ssao_texture = Texture_Manager::create_ssao_texture(scr_width, scr_height);
+    picking_texture = Texture_Manager::create_picking_texture(scr_width, scr_height);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(scene_texture), 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(bright_texture), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(picking_texture), 0);
 
     depth_texture = Texture_Manager::create_depth_texture(scr_width, scr_height);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
 
-    uint32_t attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    glDrawBuffers(2, attachments);
+    uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         printf("[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT\n");

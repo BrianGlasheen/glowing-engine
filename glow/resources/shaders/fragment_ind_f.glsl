@@ -9,6 +9,7 @@
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
+layout(location = 2) out uint PickingId; // todo put behind #def prob
 
 struct GPU_Light {
     vec4 position_radius; // x, y ,z, radius
@@ -48,6 +49,7 @@ in flat vec4 emissive;
 in flat float metallic_factor;
 in flat float roughness_factor;
 in flat float alpha_cutoff;
+in flat uint id;
 
 #if !BINDLESS
     layout(binding = 0) uniform sampler2D albedo_texture;
@@ -410,4 +412,6 @@ void main() {
         FragColor = vec4(color, alpha);
     else
         FragColor = vec4(color, 1.0);
+
+    PickingId = id;
 }

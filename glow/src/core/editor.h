@@ -3,6 +3,7 @@
 #include <vector>
 
 // #include <GLFW/glfw3.h>
+#include "asset/model_manager.h"
 #include "core/opengl.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -11,6 +12,8 @@
 #include "asset/shader_manager.h"
 #include "asset/font.h"
 #include "asset/text.h"
+#include "core/renderer.h"
+#include "util/colors.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -209,12 +212,13 @@ static std::string gize_mode_strs[]{ "none", "translate", "rotate", "scale" };
 
 class Editor {
 public:
-    int init() {
+    int init(Renderer* pointy_renderer) {
         // make viewports
         // editor_viewports.top.init_text("top------"); // pad to 9 xD
         // editor_viewports.front.init_text("front----");
         // editor_viewports.side.init_text("side-----");
         // editor_viewports.scene.init_text("scene----");
+        renderer = pointy_renderer;
 
         Shader_Manager::load_from_name("editor");
         Shader_Manager::load_from_name("grid");
@@ -494,53 +498,50 @@ public:
 
     //}
 
-    //void render_selected_outlined(Player& player, const Scene& scene) {
+    void render_selected_outlined(const Scene& scene, const mat4& vp) {
+        if (selected > (scene.entities.size() - 1)) return;
 
-    //    for (size_t selected : selected_entites) {
-    //        glClear(GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //        Entity selected_entity = scene.entities[selected];
-
-    //        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-    //        glStencilMask(0xFF);
-    //        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-    //        Shader* shader = Shader_Manager::get_shader(outline_shader);
-    //        shader->use();
-
-    //        glm::mat4 projection = glm::perspective(glm::radians(player.get_camera_zoom()), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-    //        shader->set_mat4("projection", projection);
-    //        shader->set_mat4("view", player.get_view_matrix());
-
-    //        glm::mat4 model = selected_entity.get_model_matrix();
-    //        shader->set_mat4("model", model);
-    //        //glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(model)));
-    //        //shader->set_mat3("normal_matrix", normal_matrix);
-    //        shader->set_float("scale", 0.0);
-    //        selected_entity.draw(shader);
-
-    //        shader->set_vec3("color", Util::orange);
-    //        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-    //        glStencilMask(0x00);
-    //        //glDisable(GL_DEPTH_TEST);
-    //        //glEnable(GL_DEPTH_TEST);
-    //        //glCullFace(GL_FRONT);
-    //        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-    //        //shader->set_mat4("model", glm::scale(model, glm::vec3(outline_scale)));
-    //        shader->set_float("scale", outline_scale);
-    //        selected_entity.draw(shader);
-
-    //        glStencilMask(0xFF);
-    //        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-    //        //glCullFace(GL_BACK);
-    //        glEnable(GL_DEPTH_TEST);
-    //    }
-
-    //}
+        Shader* shader = Shader_Manager::get_shader("outline");
+        shader->use();
+        
+        shader->set_mat4("vp", vp);
+        shader->set_vec3("outline_color", Util::orange);
+        
+        // for (size_t selected : selected_entites) {
+            const Entity& selected_entity = scene.entities[selected];
+            
+            glCullFace(GL_FRONT);
+            shader->set_float("scale", outline_scale);
+            // shader->set_int("is_outline", 1);
+            for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
+                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0 /*<-- FIX ME!!*/);
+            }
+            
+            glCullFace(GL_BACK);
+            shader->set_float("scale", 1.0);
+            // shader->set_int("is_outline", 0);
+            for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
+                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0 /*<-- FIX ME!!*/);
+            }
+        // }
+    }
 
     void draw_grid(const mat4& vp, const vec3& cam_pos) {
 
+    }
+
+    void pick(int x, int y, int append = 0) {
+        printf("p[icking!] %d %d \n", x, y);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, renderer->render_target);
+        glReadBuffer(GL_COLOR_ATTACHMENT2);
+
+        unsigned int picked = 0;
+        glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &picked);
+        printf("picked_id: %d\n", picked);
+        selected = picked;
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     }
 
 
@@ -728,4 +729,9 @@ public:
     shader_handle editor_shader;
     std::vector<size_t> selected_entites;
     float outline_scale = 0.1f;
+    Renderer* renderer;
+
+    uint32_t selected = 0;
+
+    bool first_draw = true;
 };
