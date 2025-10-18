@@ -24,12 +24,16 @@ Scene::~Scene() {}
 
 void Scene::init(const std::string& path) {
     skybox.load(path);
-    // terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
+
+    // terrain.init();
 
     create_buffers();
 }
 
 void Scene::create_buffers() {
+    // todo lol
+    terrain.init(2000.0f, 2000.0f, 50, 50, "../resources/textures/terrain/atx.png");
+
     // gen buffers
     glCreateBuffers(1, &gpu_mesh_ssbo);
     glNamedBufferStorage(gpu_mesh_ssbo, sizeof(GPU_Mesh) * 8000, nullptr, GL_DYNAMIC_STORAGE_BIT);

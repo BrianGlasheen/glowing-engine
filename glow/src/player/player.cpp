@@ -315,7 +315,7 @@ void Player::move_debug_camera(GLFWwindow* window, Camera& camera) {
         movement = glm::normalize(movement);
 
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        movement *= 10.0f;
+        movement *= 100.0f;
 
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
         camera.position += glm::vec3(0.0f, 1.0f, 0.0f);

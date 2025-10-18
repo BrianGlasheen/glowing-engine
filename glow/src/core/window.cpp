@@ -273,7 +273,7 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
 void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
 
-    if (key == 't')
+    if (key == 'y')
         this_window->renderer->terrain_draw_type = (this_window->renderer->terrain_draw_type + 1) % 3;
     
     if (key == 'p')

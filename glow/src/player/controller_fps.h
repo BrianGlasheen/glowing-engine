@@ -33,7 +33,7 @@ namespace FPS_Controller {
             movement.x += 1.0f;
 
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            movement *= 10.0f;
+            movement *= 100.0f;
         //// Normalize movement vector if the player is moving diagonally
         //if (glm::length(movement) > 0.0f)
         //    movement = glm::normalize(movement);

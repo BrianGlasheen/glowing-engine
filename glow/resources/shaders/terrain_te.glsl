@@ -7,6 +7,12 @@ layout(binding = 0) uniform sampler2D heightmap;
 
 uniform mat4 vp;
 
+const int NUM_CASCADES = 4;
+in vec4 tcs_light_space_pos[][NUM_CASCADES];
+in float tcs_view_space_z[];
+out vec4 light_space_pos[NUM_CASCADES];
+out float view_space_z;
+
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 in vec2 TextureCoord[];
 
@@ -56,4 +62,12 @@ void main() {
     // output patch point position in clip space
     gl_Position = vp * p;
     
+    float z0 = mix(tcs_view_space_z[0], tcs_view_space_z[1], u);
+    float z1 = mix(tcs_view_space_z[3], tcs_view_space_z[2], u);
+    view_space_z = mix(z0, z1, v);
+    for (int i = 0; i < NUM_CASCADES; i++) {
+        vec4 ls0 = mix(tcs_light_space_pos[0][i], tcs_light_space_pos[1][i], u);
+        vec4 ls1 = mix(tcs_light_space_pos[3][i], tcs_light_space_pos[2][i], u);
+        light_space_pos[i] = mix(ls0, ls1, v);
+    }
 }

@@ -49,7 +49,14 @@ out flat float roughness_factor;
 out flat float alpha_cutoff;
 out flat uint id;
 
+const int NUM_CASCADES = 4;
+uniform mat4 cascade_matrices[NUM_CASCADES];
+
+out vec4 light_space_pos[NUM_CASCADES];
+out float view_space_z;
+
 uniform mat4 vp;
+uniform mat4 playerViewMatrix;
 #if !BINDLESS
     uniform uint instance_id;
 #endif
@@ -84,4 +91,10 @@ void main() {
     Bitangentout = normalize(mat3(obj_data.normal_matrix) * Bitangent.xyz);
 
     gl_Position = vp * model * vec4(aPos.xyz, 1.0);
+
+    for (int i = 0 ; i < NUM_CASCADES ; i++)
+        light_space_pos[i] = cascade_matrices[i] * model * vec4(aPos.xyz, 1.0);
+
+    view_space_z = -(playerViewMatrix * model * vec4(aPos.xyz, 1.0)).z;
+    // clip_space_z = gl_Position.z;
 }

@@ -1,5 +1,7 @@
 #version 460 core
 
+#extension GL_ARB_gpu_shader_int64: enable
+
 layout (location = 0) in vec3 aPos;
 layout (location = 0) in vec3 aNor;
 
@@ -30,5 +32,10 @@ uniform mat4 vp;
 uniform float scale;
 
 void main() {
-    gl_Position = projection * view * model * vec4(aPos + aNor * scale, 1.0);
+    // #if BINDLESS
+        Per_Object_Data obj_data = per_object_data[gl_BaseInstance];
+    // #else
+        // Per_Object_Data obj_data = per_object_data[instance_id];
+    // #endif
+    gl_Position = vp * obj_data.model_matrix * vec4(aPos + aNor * scale, 1.0);
 }

@@ -195,6 +195,7 @@ void Renderer_Debug::draw_frustum(const vec3& cameraPos, const vec3& cameraDir, 
 void Renderer_Debug::render(Shader* debug_shader, const mat4& projection, const mat4& view, uint32_t num_cubes) {
 
     debug_shader->use();
+    debug_shader->set_bool("uniform_color", false);
 
     if (!line_vertices.empty()) {
         glBindVertexArray(line_vao);

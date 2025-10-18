@@ -338,7 +338,7 @@ namespace Glow {
 			  if (player.key_toggles[(unsigned)'r']) {
 				renderer.render_debug(active_view, active_proj, scene); 
 			
-				renderer.debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, player.camera.zoom, aspect_ratio, 0.1, 10000, Util::red);
+				renderer.debug_renderer.draw_frustum(player.camera.position, player.camera.front, player.camera.up, glm::radians(player.camera.zoom), aspect_ratio, 0.1, 10000, Util::red);
 			  }
 			}
 			
@@ -379,7 +379,7 @@ namespace Glow {
 			if (editor_mode) {
 				editor.show();
 
-				// ImGui::ShowDemoWindow(); // Show demo window! :)
+				ImGui::ShowDemoWindow(); // Show demo window! :)
 				
 				{ // todo move to editor prob
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

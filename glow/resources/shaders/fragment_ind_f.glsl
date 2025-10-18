@@ -80,9 +80,13 @@ uniform mat4 playerViewMatrix;
 uniform uvec3 gridSize;
 uniform uvec2 screenDimensions;
 
-uniform mat4 cascade_matrices[4];
-uniform float cascade_distances[5];
-uniform int num_cascades;
+const int num_cascades = 4;
+
+in vec4 light_space_pos[num_cascades];
+in float view_space_z;
+
+uniform float cascade_distances[num_cascades];
+
 uniform vec3 directional_light_direction;
 uniform vec3 directional_light_color;
 uniform float directional_light_intensity;
@@ -179,37 +183,58 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
 
 int GetCascadeIndex(float depth) {
     for (int i = 0; i < num_cascades; i++) {
-        if (depth < cascade_distances[i + 1]) {
+        if (depth < cascade_distances[i]) {
             return i;
         }
     }
-    return num_cascades - 1;
+    return - 1;
 }
 
-float DirectionalShadowCalculation(vec3 fragPosWorldSpace, vec3 fragViewPos, vec3 N) {
-    int cascadeIndex = GetCascadeIndex((fragViewPos.z) / 2.0);
+float DirectionalShadowCalculation(vec3 N) {
+    int cascadeIndex = GetCascadeIndex(view_space_z);
 
-    vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
+    if (cascadeIndex == -1) return 0.0;
 
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
+    vec4 LightSpacePos = light_space_pos[cascadeIndex];
+    vec3 ProjCoords = LightSpacePos.xyz / LightSpacePos.w;
 
-    float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
+    vec2 UVCoords;
+    UVCoords.x = 0.5 * ProjCoords.x + 0.5;
+    UVCoords.y = 0.5 * ProjCoords.y + 0.5;
 
-    float currentDepth = projCoords.z;
-//    float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
-    float bias = max(0.0005 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
-    float shadow = currentDepth + bias < shadowDepth ? 1.0 : 0.0;
+    float z = ProjCoords.z;
+    // float z = 0.5 * ProjCoords.z + 0.5;
+    float depth = texture(directional_shadow_map, vec3(UVCoords, cascadeIndex)).r;
 
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
-        projCoords.y < 0.0 || projCoords.y > 1.0) {
-        shadow = 0.0;
-    }
+    float bias = max(0.001 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
 
-    return shadow;
+    // if (depth > z - 0.01)
+    if (z < depth - bias)
+        return 1.0;
+    else
+        return 0.0; 
+
+//     vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
+
+//     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+//     projCoords = projCoords * 0.5 + 0.5;
+
+//     float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
+
+//     float currentDepth = projCoords.z;
+// //    float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
+//     float bias = max(0.0005 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
+//     float shadow = currentDepth + bias < shadowDepth ? 1.0 : 0.0;
+
+//     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
+//         projCoords.y < 0.0 || projCoords.y > 1.0) {
+//         shadow = 0.0;
+//     }
+
+    // return shadow;
 }
 
-vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness, vec3 fragViewPos) {
+vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness) {
     vec3 L = normalize(-directional_light_direction);
     vec3 radiance = directional_light_color * directional_light_intensity;
     
@@ -217,7 +242,7 @@ vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metal
     
     float shadow = 0.0;
     //if (shadows_enabled) {
-        shadow = DirectionalShadowCalculation(FragPos, fragViewPos, N);
+        shadow = DirectionalShadowCalculation(N);
     //}
     return lighting * (1.0 - shadow);
 }
@@ -247,7 +272,8 @@ void main() {
     //vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
     //vec4 ssaoValue = texture(ssao, screenUV);
     //FragColor = vec4(ssaoValue.rgb, 1);
-    //return ;
+    // FragColor = vec4(clip_space_z / 100.0, 0, 0, 1.0);
+    // return ;
 
     vec3 albedo;
     float alpha;
@@ -336,7 +362,7 @@ void main() {
             //Lo += CalculateSpotLight(N, V, F0, albedo, metallic, roughness, light);
         }
     }
-    Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness, playerFragViewPos); // todo CSM
+    Lo += CalculateDirectionalLight(N, V, F0, albedo, metallic, roughness);
 
     vec3 envReflection = CalculateEnvironmentReflection(N, V, F0, roughness, metallic);
     Lo += envReflection;
@@ -380,31 +406,31 @@ void main() {
     color = pow(color, vec3(1.0/2.2));
 
     if (cascade_vis) {
-        vec3 playerfragViewPos2 = vec3(playerViewMatrix * vec4(FragPos, 1.0));
-        float depth = -1 * playerfragViewPos2.z;
 
         //if (depth >= 0.0) {
-            int cascadeIndex = GetCascadeIndex((depth * .5) + .5);
-            vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(FragPos, 1.0);
+            int cascadeIndex = GetCascadeIndex(view_space_z);
+            // vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(FragPos, 1.0);
 
-            vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-            projCoords = projCoords * 0.5 + 0.5;
+            // vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+            // projCoords = projCoords * 0.5 + 0.5;
 
-            if (!(projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
-                projCoords.y < 0.0 || projCoords.y > 1.0)) {
+            // if (!(projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
+            //     projCoords.y < 0.0 || projCoords.y > 1.0)) {
                 vec3 color23 = vec3(1.0, 1.0, 1.0);
 
-                if (cascadeIndex == 0)
+                if (cascadeIndex == -1 || view_space_z < 0)
+                    color23 = vec3(1.0, 1.0, 1.0);
+                else if (cascadeIndex == 0)
                     color23 = vec3(1.0, 0.0, 0.0);
-                if (cascadeIndex == 1)
+                else if (cascadeIndex == 1)
                     color23 = vec3(0.0, 1.0, 0.0);
-                if (cascadeIndex == 2)
+                else if (cascadeIndex == 2)
                     color23 = vec3(0.0, 0.0, 1.0);
-                if (cascadeIndex == 3)
+                else if (cascadeIndex == 3)
                     color23 = vec3(0.0, 1.0, 1.0);
 
                 color = mix(color, color23, 0.5);
-            }
+            // }
         //}
     }
 

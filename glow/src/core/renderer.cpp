@@ -1,5 +1,6 @@
 #include "renderer.h"
 
+#include "glm/ext/matrix_clip_space.hpp"
 #include "glow_config.h"
 
 #include "core/opengl.h"
@@ -29,9 +30,9 @@ const uint32_t MAX_DRAW_COMMANDS = 8000;
 
 const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
-const vec3 SUN_DIR = vec3(0.0, -1.0f, -1.0f); // todo this belongs to scene
+const vec3 SUN_DIR = normalize(vec3(0.0, -1.0f, -1.0f)); // todo this belongs to scene
 static mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
-const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 50.0f, 100.0f, 200.0f }; // same
+const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 100.0f, 350.0f, 1000.0f }; // same
 
 // point light shadow mapping
 //struct camera_dir {
@@ -401,13 +402,13 @@ void Renderer::cull_cluster_pass(const mat4& view) {
 }
 
 void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
-    mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), normalize(SUN_DIR), vec3(0.0f, 1.0f, 0.0f));
+    mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), -normalize(SUN_DIR), vec3(0.0f, 1.0f, 0.0f));
 
-    //float tanHalfVFOV = tanf(radians(player.camera.zoom / 2.0f));
-    //float tanHalfHFOV = tanHalfVFOV * aspect_ratio;
+    float tanHalfVFOV = tanf(radians(zoom / 2.0f));
+    float tanHalfHFOV = tanHalfVFOV * aspect_ratio;
 
-    float tanHalfHFOV = tanf(radians(zoom / 2.0f));
-    float tanHalfVFOV = tanf(radians((zoom * aspect_ratio) / 2.0f));
+    // float tanHalfHFOV = tanf(radians(zoom / 2.0f));
+    // float tanHalfVFOV = tanf(radians((zoom * aspect_ratio) / 2.0f));
 
     //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
 
@@ -467,17 +468,20 @@ void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float&
 
         //min *= 1.5;
         //max *= 1.5;
+
         //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
-        // draw aabb?
-        //cascade_mats[i] = ortho(min.x, max.x, min.y, max.y, min.z, max.z) * sun_mat;
-        cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, max_c.z, min_c.z) * sun_mat;
+        // cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, min_c.z, max_c.z) * sun_mat;
+        // cascade_mats[i] = ortho(-20.0f, 20.0f, 0.0f, 20.0f, -20.0f, 20.0f) * sun_mat;
+        // cascade_mats[i] = glm::orthoRH_ZO(min_c.x, max_c.x, min_c.y, max_c.y, min_c.z, max_c.z) * sun_mat;
+        cascade_mats[i] = glm::orthoRH_ZO(min_c.x, max_c.x, min_c.y, max_c.y, -max_c.z, -min_c.z) * sun_mat;
+        // cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, max_c.z, min_c.z) * sun_mat;
 
         mat4 inv_sun_mat = inverse(sun_mat);
         vec3 light_corners[8] = {
-            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
-            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
-            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z},
-            {min_c.x, min_c.y, min_c.z}, {max_c.x, max_c.y, max_c.z}
+            {min_c.x, min_c.y, min_c.z}, {max_c.x, min_c.y, min_c.z},
+            {min_c.x, max_c.y, min_c.z}, {max_c.x, max_c.y, min_c.z},
+            {min_c.x, min_c.y, max_c.z}, {max_c.x, min_c.y, max_c.z},
+            {min_c.x, max_c.y, max_c.z}, {max_c.x, max_c.y, max_c.z}
         };
         vec3 minW(FLT_MAX), maxW(-FLT_MAX);
         for (auto& c : light_corners) {
@@ -485,7 +489,12 @@ void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float&
             minW = min(minW, vec3(w));
             maxW = max(maxW, vec3(w));
         }
-        debug_renderer.add_bbox(minW, maxW, Util::cyan);
+        vec3 color;
+        if (i == 0) color = Util::red;
+        if (i == 1) color = Util::green;
+        if (i == 2) color = Util::blue;
+        if (i == 3) color = Util::cyan;
+        debug_renderer.add_bbox(minW, maxW, color);
     }
 }
 
@@ -541,6 +550,9 @@ void Renderer::shadow_pass(Scene& scene) {
 
     glDisable(GL_BLEND);
 
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
             Texture_Manager::get_ogl_id(csm_texture),
@@ -566,7 +578,7 @@ void Renderer::shadow_pass(Scene& scene) {
             sizeof(Draw_Elements_Indirect_Command)  // stride
         );
 
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT); // todo why is this here
     #else
         //for (size_t i = 0; i < draw_commands.size(); i++) {
         //    Draw_Elements_Indirect_Command cmd = draw_commands[i];
@@ -588,7 +600,22 @@ void Renderer::shadow_pass(Scene& scene) {
         //        cmd.base_instance);
         //}
     #endif
+        // terrain casts shadows
+        // shader = Shader_Manager::get_shader("terrain");
+        // shader->use();
+        // shader->set_mat4("vp", cascade_mats[i]);
+
+        // Texture_Manager::bind(scene.terrain.heightmap, 0);
+        // Texture_Manager::bind(scene.terrain.heightmap_texture, 1);
+        // glPatchParameteri(GL_PATCH_VERTICES, 4);
+        // glBindVertexArray(scene.terrain.vao);
+
+        // shader->set_bool("lines", false);
+        // glDrawArrays(GL_PATCHES, 0, scene.terrain.vertex_count);
+
     }
+
+    glCullFace(GL_BACK);
 
     glBindVertexArray(0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -644,9 +671,13 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 
     shader->set_bool("ssao_enabled", ssao_enabled);
 
+    for (uint i = 0 ; i < NUM_CASCADE ; i++) {
+        vec4 vView(0.0f, 0.0f, CASCADE_END[i + 1], 1.0f);
+        vec4 clip = cull_proj * vView;
+        shader->set_float("cascade_distances[" + std::to_string(i) + "]", vView.z);
+    } 
     shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
-    shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
-    shader->set_int("num_cascades", NUM_CASCADE);
+    // shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
     shader->set_vec3("directional_light_direction", SUN_DIR);
     shader->set_vec3("directional_light_color", vec3(1.0f));
     shader->set_float("directional_light_intensity", sun_strength);
@@ -682,6 +713,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
 
+    // blended
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
@@ -705,7 +737,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 #else
     GLuint count;
     glGetBufferSubData(GL_PARAMETER_BUFFER, 0, sizeof(GLuint), &count);
-    printf("Draw count: %u \n", count);
+    // printf("Draw count: %u \n", count);
 
     std::vector<Draw_Elements_Indirect_Command> commands(count);
     glBindBuffer(GL_COPY_READ_BUFFER, opaque_draw_commands);
@@ -736,6 +768,14 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     // shader->use();
     // shader->set_mat4("vp", viewproj);
     // shader->set_mat4("view", view);
+    // for (uint i = 0 ; i < NUM_CASCADE ; i++) {
+    //     vec4 vView(0.0f, 0.0f, CASCADE_END[i + 1], 1.0f);
+    //     vec4 clip = cull_proj * vView;
+    //     shader->set_float("cascade_distances[" + std::to_string(i) + "]", vView.z);
+    // } 
+    // shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
+    // Texture_Manager::bind_array(csm_texture, 8); // todo once
+
     // Texture_Manager::bind(scene.terrain.heightmap, 0);
     // Texture_Manager::bind(scene.terrain.heightmap_texture, 1);
     // glPatchParameteri(GL_PATCH_VERTICES, 4);
@@ -919,33 +959,33 @@ void Renderer::blit_to_screen() {
 }
 
 void Renderer::debug_cascades(Scene& scene) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
-        Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
-        shader->use();
+    glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
+    Shader* shader = Shader_Manager::get_shader("fullscreen_texture");
+    shader->use();
 
-        glDisable(GL_DEPTH_TEST);
-        Texture_Manager::bind_array(csm_texture, 0);
+    glDisable(GL_DEPTH_TEST);
+    Texture_Manager::bind_array(csm_texture, 0);
 
-        shader->set_int("mode", 0);
-        for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-            int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
-            int x = i * (quad_size + 10);
-            int y = scr_height - quad_size - 10;
+    shader->set_int("mode", 0);
+    for (uint32_t i = 0; i < NUM_CASCADE; i++) {
+        int quad_size = scr_width / (float)NUM_CASCADE - (NUM_CASCADE * 10.0f);
+        int x = i * (quad_size + 10);
+        int y = scr_height - quad_size - 10;
 
-            glViewport(x, y, quad_size, quad_size);
+        glViewport(x, y, quad_size, quad_size);
 
-            shader->set_float("cascade_layer", (float)i);
+        shader->set_float("cascade_layer", (float)i);
 
-            glBindVertexArray(quadVAO);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        }
+        glBindVertexArray(quadVAO);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
 
-        // shader->set_int("mode", 1);
-        // glViewport(10, 10, 400, 400);
-        // Texture_Manager::bind(scene.terrain.heightmap, 1);
-        // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    // shader->set_int("mode", 1);
+    // glViewport(10, 10, 400, 400);
+    // Texture_Manager::bind(scene.terrain.heightmap, 1);
+    // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        glBindVertexArray(0); // unbind quad
+    glBindVertexArray(0); // unbind quad
 }
 
 void Renderer::infinite_grid(const mat4& vp, const vec3& cam_pos) {

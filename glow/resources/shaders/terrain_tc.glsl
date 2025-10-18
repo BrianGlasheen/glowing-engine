@@ -10,12 +10,22 @@ in vec2 TexCoord[];
 // varying output to evaluation shader
 out vec2 TextureCoord[];
 
+const int NUM_CASCADES = 4;
+in vec4 vs_light_space_pos[][NUM_CASCADES];
+in float vs_view_space_z[];
+out vec4 tcs_light_space_pos[][NUM_CASCADES];
+out float tcs_view_space_z[];
+
 uniform mat4 view;
 
 void main() {
     // pass attributes through
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
+
+    tcs_view_space_z[gl_InvocationID] = vs_view_space_z[gl_InvocationID];
+    for (int i = 0; i < NUM_CASCADES; i++)
+        tcs_light_space_pos[gl_InvocationID][i] = vs_light_space_pos[gl_InvocationID][i];
     
     // invocation zero controls tessellation levels for the entire patch
     // if (gl_InvocationID == 0) {
