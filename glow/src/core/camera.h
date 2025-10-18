@@ -4,11 +4,12 @@
 
 #include "util/math.h"
 
-// Default camera values
 const float YAW         = -90.0f;
 const float PITCH       =  0.0f;
 const float SENSITIVITY =  0.05f;
 const float ZOOM        =  45.0f;
+const float PAN_SENSITIVITY = 0.005f;
+const float ZOOM_SENSITIVITY = 2.0f;
 
 class Camera {
 public:
@@ -25,12 +26,16 @@ public:
 
     float lastX = 800, lastY = 450; // todo constructor arg
 
+    vec3 target;
+    float distance;
+
     // constructor with vectors
     Camera(vec3 pos = vec3(0.0f, 0.0f, 0.0f), 
            vec3 world_up_ = vec3(0.0f, 1.0f, 0.0f), 
            float yaw_ = YAW, float pitch_ = PITCH) 
         : front(vec3(0.0f, 0.0f, -1.0f)), 
-        mouse_sensitivity(SENSITIVITY), zoom(ZOOM) {
+        mouse_sensitivity(SENSITIVITY), zoom(ZOOM),
+        target(vec3(0.0f)), distance(length(pos)) {
         position = pos;
         world_up = world_up_;
         yaw = yaw_;
@@ -98,6 +103,42 @@ public:
         // update front, right and up Vectors using the updated Euler angles
         update_camera_vectors();
     }
+
+    void process_orbit(double xpos, double ypos) {
+        float xoffset = (xpos - lastX) * mouse_sensitivity;
+        float yoffset = (lastY - ypos) * mouse_sensitivity;
+        lastX = xpos;
+        lastY = ypos;
+        
+        yaw += xoffset;
+        pitch += yoffset;
+        
+        // Constrain pitch
+        if (pitch > 89.0f) pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
+        
+        update_orbit_position();
+    }
+    
+    // Blender-style: Shift + Middle mouse drag to pan
+    void process_pan(double xpos, double ypos) {
+        float xoffset = (xpos - lastX) * PAN_SENSITIVITY * distance;
+        float yoffset = (ypos - lastY) * PAN_SENSITIVITY * distance;
+        lastX = xpos;
+        lastY = ypos;
+        
+        // Pan perpendicular to view direction
+        target -= right * xoffset;
+        target += up * yoffset;
+        
+        update_orbit_position();
+    }
+
+    void update_mouse_pos(double xpos, double ypos) {
+        lastX = xpos;
+        lastY = ypos;
+    }
+
     // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
     void process_mouse_scroll(float yoffset) {
         zoom -= (float)yoffset;
@@ -105,6 +146,14 @@ public:
             zoom = 1.0f;
         if (zoom > 360.0f)
             zoom = 360.0f;
+    }
+
+    void process_mouse_scroll_orbit(float yoffset) {
+        distance -= yoffset * ZOOM_SENSITIVITY;
+        if (distance < 0.5f) distance = 0.5f;
+        if (distance > 500.0f) distance = 500.0f;
+        
+        update_orbit_position();
     }
 
 // private:
@@ -118,5 +167,20 @@ public:
         // also re-calculate the right and up vector
         right = normalize(cross(front, world_up));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
         up    = normalize(cross(right, front));
+    }
+    
+    void update_orbit_position() {
+        // Calculate position based on target, yaw, pitch, and distance
+        front.x = cos(radians(yaw)) * cos(radians(pitch));
+        front.y = sin(radians(pitch));
+        front.z = sin(radians(yaw)) * cos(radians(pitch));
+        front = normalize(front);
+        
+        // Position camera at distance from target
+        position = target - front * distance;
+        
+        // Update right and up vectors
+        right = normalize(cross(front, world_up));
+        up = normalize(cross(right, front));
     }
 };

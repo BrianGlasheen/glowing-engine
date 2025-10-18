@@ -5,15 +5,22 @@
 in vec3 WorldPos;
 in vec4 LightSpacePos;
 layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 BrightColor;
+layout(location = 2) out uint PickingId;
 
 uniform vec3 gCameraWorldPos;
-uniform float gGridSize = 100.0;
+uniform float gGridSize = 300.0;
 uniform float gGridMinPixelsBetweenCells = 2.0;
 uniform float gGridCellSize = 1.0;
 
-uniform vec4 gGridColorThin = vec4(0.28, 0.28, 0.28, 1.0);
-uniform vec4 gGridColorThick = vec4(0.14, 0.14, 0.14, 1.0);
+uniform vec4 gGridColorThin = vec4(vec3(0.25), 1.0);
+uniform vec4 gGridColorThick = vec4(vec3(0.5), 1.0);
+
 uniform vec4 gGridColorAxis = vec4(0.0, 0.0, 0.0, 1.0);
+uniform vec4 gGridColorXAxis = vec4(1.0, 0.0, 0.0, 1.0);
+uniform vec4 gGridColorZAxis = vec4(0.0, 0.0, 1.0, 1.0);
+uniform vec4 gGridColorXAxisNeg = vec4(1.0, 0.0, 1.0, 1.0);
+uniform vec4 gGridColorZAxisNeg = vec4(0.0, 1.0, 1.0, 1.0);
 
 float log10(float x) {
     float f = log(x) / log(10.0);
@@ -59,10 +66,10 @@ void main() {
     mod_div_dudv = mod(WorldPos.xz, GridCellSizeLod2) / dudv;
     float Lod2a = max2(vec2(1.0) - abs(satv(mod_div_dudv) * 2.0 - vec2(1.0)));
     
-    float axisThreshold = 0.05;
+    float axisThreshold = 0.5;
     vec2 axisDistance = abs(WorldPos.xz) / dudv;
-    float axisLineX = 1.0 - satf(axisDistance.x / axisThreshold);
-    float axisLineZ = 1.0 - satf(axisDistance.y / axisThreshold);
+    float axisLineX = 1.0 - satf(axisDistance.y / axisThreshold);
+    float axisLineZ = 1.0 - satf(axisDistance.x / axisThreshold);
     float axisLine = max(axisLineX, axisLineZ);
     
     float LOD_fade = fract(LOD);
@@ -80,14 +87,20 @@ void main() {
             Color.a *= (Lod0a * (1.0 - LOD_fade));
         }
     }
+
+    if (axisLineX > 0.0) {
+        vec4 xAxisColor = WorldPos.x >= 0.0 ? gGridColorXAxis : gGridColorXAxisNeg;
+        Color = mix(Color, xAxisColor, axisLineX);
+        Color.a = 1.0;
+    }
     
-    if (axisLine > 0.0) {
-        Color = mix(Color, gGridColorAxis, axisLine * 0.8);
-        Color.a = max(Color.a, axisLine);
+    if (axisLineZ > 0.0) {
+        vec4 zAxisColor = WorldPos.z >= 0.0 ? gGridColorZAxis : gGridColorZAxisNeg;
+        Color = mix(Color, zAxisColor, axisLineZ);
+        Color.a = 1.0;
     }
     
     float OpacityFalloff = (1.0 - satf(length(WorldPos.xz - gCameraWorldPos.xz) / gGridSize));
-    OpacityFalloff = pow(OpacityFalloff, 1.5);
     Color.a *= OpacityFalloff;
     
     FragColor = Color;

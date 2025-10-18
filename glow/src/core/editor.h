@@ -14,11 +14,15 @@
 #include "asset/text.h"
 #include "core/renderer.h"
 #include "util/colors.h"
+#include "core/camera.h"
+#include "util/decompose.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+
+#include <imguizmo/ImGuizmo.h>
 
 enum class view_type {
     TOP_DOWN = 0,
@@ -499,30 +503,53 @@ public:
     //}
 
     void render_selected_outlined(const Scene& scene, const mat4& vp) {
-        if (selected > (scene.entities.size() - 1)) return;
+        if (selected < 0 || selected > (scene.entities.size() - 1)) return;
 
         Shader* shader = Shader_Manager::get_shader("outline");
         shader->use();
         
-        shader->set_mat4("vp", vp);
-        shader->set_vec3("outline_color", Util::orange);
+        shader->set_vec3("color", Util::orange);
+
+        glBindVertexArray(Model_Manager::get_big_vao());
         
         // for (size_t selected : selected_entites) {
+        printf("selected %d\n", selected);
             const Entity& selected_entity = scene.entities[selected];
             
-            glCullFace(GL_FRONT);
-            shader->set_float("scale", outline_scale);
-            // shader->set_int("is_outline", 1);
-            for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
-                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0 /*<-- FIX ME!!*/);
-            }
-            
             glCullFace(GL_BACK);
-            shader->set_float("scale", 1.0);
-            // shader->set_int("is_outline", 0);
+            glEnable(GL_STENCIL_TEST);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+            glDisable(GL_DEPTH_TEST);  // <-- ADD THIS! Don't test depth in stencil pass
+            glStencilFunc(GL_ALWAYS, 1, 0xFF); // Always pass, write 1 to stencil
+            glStencilMask(0xFF); // Enable writing to stencil buffer
+            glDisable(GL_BLEND);
+
+            shader->set_float("scale", 0.0);
             for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
-                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0 /*<-- FIX ME!!*/);
+                shader->set_mat4("mvp", vp * selected_entity.get_model_matrix() * m.transform);
+                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0);
             }
+
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF); // Only draw where stencil is not 1
+            glStencilMask(0x00); // Don't write to stencil buffer
+            // glDisable(GL_DEPTH_TEST); // Draw outline on top
+            // glCullFace(GL_FRONT); // Optional: cull front faces for cleaner outline
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glDisable(GL_CULL_FACE);  // <-- Disable culling for outline
+
+            shader->set_float("scale", outline_scale);
+            for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
+                shader->set_mat4("mvp", vp * selected_entity.get_model_matrix() * m.transform);
+                glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0);
+            }
+
+            glEnable(GL_CULL_FACE);  // <-- Re-enable after
+            glCullFace(GL_BACK);
+            glStencilMask(0xFF);
+            glStencilFunc(GL_ALWAYS, 0, 0xFF);
+            glEnable(GL_DEPTH_TEST);
+            glDisable(GL_STENCIL_TEST);
         // }
     }
 
@@ -591,62 +618,52 @@ public:
     //    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     //}
 
-        //void render_gizmo(const Scene& scene, const Player& player) {
-    //    if (editor_viewports.scene.gizmo_mode != gizmo_modes::NONE && target_entity != -1) {
-    //        float w = scr_width / 2;
-    //        float h = scr_height / 2;
+    void render_gizmo(const Scene& scene, const mat4& view, const mat4& proj, ImVec2 image_min, ImVec2 image_size) {
+        if (selected < 0 || selected > (scene.entities.size() - 1)) return;
 
-    //        ImGuizmo::BeginFrame();
+        ImGuizmo::BeginFrame();
+        // ImGui::SetNextWindowPos(ImVec2(0, 0));
+        // ImGui::SetNextWindowSize(ImVec2(w, h));
+        // ImGui::Begin("gizmode",
+        //     nullptr,
+        //     ImGuiWindowFlags_NoTitleBar |
+        //     ImGuiWindowFlags_NoResize |
+        //     ImGuiWindowFlags_NoMove |
+        //     ImGuiWindowFlags_NoScrollbar |
+        //     ImGuiWindowFlags_NoBackground);
 
-    //        ImGui::SetNextWindowPos(ImVec2(0, 0));
-    //        ImGui::SetNextWindowSize(ImVec2(w, h));
-    //        ImGui::Begin("gizmode",
-    //            nullptr,
-    //            ImGuiWindowFlags_NoTitleBar |
-    //            ImGuiWindowFlags_NoResize |
-    //            ImGuiWindowFlags_NoMove |
-    //            ImGuiWindowFlags_NoScrollbar |
-    //            ImGuiWindowFlags_NoBackground);
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(image_min.x, image_min.y, image_size.x, image_size.y);
 
-    //        ImGuizmo::SetOrthographic(false);
-    //        ImGuizmo::SetDrawlist();
+        ImGuizmo::OPERATION guizmo_op;
+        // if (editor_viewports.scene.gizmo_mode == gizmo_modes::TRANSLATE)
+            guizmo_op = ImGuizmo::OPERATION::TRANSLATE;
+        // else if (editor_viewports.scene.gizmo_mode == gizmo_modes::ROTATE)
+            // guizmo_op = ImGuizmo::OPERATION::ROTATE;
+        // else if (editor_viewports.scene.gizmo_mode == gizmo_modes::SCALE)
+            // guizmo_op = ImGuizmo::OPERATION::SCALE;
+        // else
+            // assert(false);
 
-    //        ImGuizmo::SetRect(0.0f, 0.0f, w, h);
+        // no snap
+        bool smooth = false;//glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
+        float snap_value = 0.5f;
+        if (guizmo_op == ImGuizmo::OPERATION::ROTATE)
+            snap_value = 15.0f;
+        float snap_values[3] = { snap_value, snap_value, snap_value };
 
-    //        glm::mat4 projection = glm::perspective(glm::radians(player.camera.zoom), (float)scr_width / (float)scr_height, 0.1f, FAR_PLANE);
-    //        glm::mat4 view = player.camera.get_view_matrix();
-    //        glm::mat4 model = scene.entities[target_entity].get_model_matrix();
+        glm::mat4 model = scene.entities[selected].get_model_matrix();
+        if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), guizmo_op, ImGuizmo::LOCAL, glm::value_ptr(model), nullptr, smooth ? nullptr : snap_values)) {
+            glm::vec3 position, scale, rotation;
+            Util::decompose(model, position, scale, rotation);
 
-    //        ImGuizmo::OPERATION guizmo_op;
-    //        if (editor_viewports.scene.gizmo_mode == gizmo_modes::TRANSLATE)
-    //            guizmo_op = ImGuizmo::OPERATION::TRANSLATE;
-    //        else if (editor_viewports.scene.gizmo_mode == gizmo_modes::ROTATE)
-    //            guizmo_op = ImGuizmo::OPERATION::ROTATE;
-    //        else if (editor_viewports.scene.gizmo_mode == gizmo_modes::SCALE)
-    //            guizmo_op = ImGuizmo::OPERATION::SCALE;
-    //        else
-    //            assert(false);
-
-    //        // no snap
-    //        bool smooth = false;//glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
-    //        float snap_value = 0.5f;
-    //        if (guizmo_op == ImGuizmo::OPERATION::ROTATE)
-    //            snap_value = 15.0f;
-    //        float snap_values[3] = { snap_value, snap_value, snap_value };
-
-    //        if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(projection), guizmo_op, ImGuizmo::LOCAL,
-    //            glm::value_ptr(model), nullptr, smooth ? nullptr : snap_values)) {
-
-    //            glm::vec3 position, scale, rotation;
-    //            Util::decompose(model, position, scale, rotation);
-
-    //            // todo change
-    //            Physics::set_body_position(scene.entities[target_entity].physics_id, position);
-    //            Physics::set_body_rotation(scene.entities[target_entity].physics_id, glm::quat(rotation));
-    //        }
-    //        ImGui::End();
-    //    }
-    //}
+            // todo change
+            Physics::set_body_position(scene.entities[selected].physics_id, position);
+            Physics::set_body_rotation(scene.entities[selected].physics_id, glm::quat(rotation));
+        }
+        // ImGui::End();
+    }
 
     //view_type_data* get_viewport_at_mouse(double xpos, double ypos) {
     //    if (!editor_mode) return nullptr;
@@ -723,12 +740,13 @@ public:
     void char_callback(GLFWwindow* glfw_window, uint32_t key);
 
 
-
+    Camera camera = Camera(vec3(2.0f));
+    bool cam_orbiting = false, cam_panning = false;
 
     // editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
     std::vector<size_t> selected_entites;
-    float outline_scale = 0.1f;
+    float outline_scale = 12.5f;
     Renderer* renderer;
 
     uint32_t selected = 0;

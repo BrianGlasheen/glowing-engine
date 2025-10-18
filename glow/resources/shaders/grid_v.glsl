@@ -5,7 +5,7 @@ out vec3 WorldPos;
 
 uniform mat4 vp = mat4(1.0);
 // uniform mat4 gLightVP;
-uniform float gGridSize = 100.0;
+uniform float gGridSize = 300.0;
 uniform vec3 gCameraWorldPos;
 
 const vec3 Pos[4] = vec3[4](
@@ -22,6 +22,7 @@ void main() {
     vec3 vPos3 = Pos[Index] * gGridSize;
 
     vPos3.x += gCameraWorldPos.x;
+    vPos3.y += 0.1;
     vPos3.z += gCameraWorldPos.z;
 
     vec4 vPos4 = vec4(vPos3, 1.0);

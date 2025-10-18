@@ -233,14 +233,14 @@ namespace Glow {
 			//if (!editor_mode) {
 			// todo this controller step will also update holding / player viewmodel visibility stuff like that
 
-			if (!editor_mode) {
+			// if (!editor_mode) {
 				player.controller_step(window.get_window(), delta_time, scene);
 				{ PROFILE_SCOPE_COLOR("Physics", legit::Colors::sunFlower);
 				Physics::update(); } // default 1/60 delta time
 
 				{ PROFILE_SCOPE_COLOR("update scene dirty", legit::Colors::sunFlower);
 				scene.update_dirty(); }
-			}
+			// }
 				
 			// grab per frame values
 			float aspect_ratio = (float)renderer.scr_width / (float)renderer.scr_height;
@@ -256,20 +256,34 @@ namespace Glow {
 			// but sometimes we want to see culling results from third person
 			glm::vec3 view_pos;
 			glm::mat4 active_view, active_proj, active_viewproj, active_inv_view, active_inv_proj;
-			if (player.out_of_body) {
-				active_view = player.get_debug_view_matrix();
-				active_proj = player.debug_camera.get_projection(aspect_ratio);
-				view_pos = player.debug_camera.position;
+			if (editor_mode) {
+				active_view = editor.camera.get_view_matrix();
+				active_proj = editor.camera.get_projection(aspect_ratio);
+				view_pos 	= editor.camera.position;
+
+				// todo figure out better way to do this
+				player_view = active_view;
+				player_proj = active_proj;
+				player_viewproj = player_proj * player_view;
+				player_inv_view = glm::inverse(player_view);
+				player_inv_proj = glm::inverse(player_proj);
 			}
 			else {
-				active_view = player_view;
-				active_proj = player_proj;
-				view_pos = player.camera.position;
+				if (player.out_of_body) {
+					active_view = player.get_debug_view_matrix();
+					active_proj = player.debug_camera.get_projection(aspect_ratio);
+					view_pos 	= player.debug_camera.position;
+				}
+				else {
+					active_view = player_view;
+					active_proj = player_proj;
+					view_pos 	= player.camera.position;
+				}
 			}
 			active_viewproj = active_proj * active_view;
 			active_inv_view = glm::inverse(active_view);
 			active_inv_proj = glm::inverse(active_proj);
-
+				
 			{ PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::nephritis);
 			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
 			
@@ -331,6 +345,11 @@ namespace Glow {
 
 			renderer.render_skybox(scene.skybox, player_view, player_proj);
 
+			if (editor_mode) {
+				renderer.infinite_grid(active_viewproj, player.camera.position);
+				editor.render_selected_outlined(scene, active_viewproj);
+			}
+
 			{ PROFILE_SCOPE_COLOR("composite", legit::Colors::turqoise);
 			  renderer.composite(); }
 
@@ -345,11 +364,6 @@ namespace Glow {
 			//renderer.render(player, scene, delta_time, particle_ssbo);
 			if (player.key_toggles['l'])
 				renderer.debug_cascades(scene);
-
-			if (editor_mode) {
-				editor.render_selected_outlined(scene, active_viewproj);
-				renderer.infinite_grid(active_viewproj, player.camera.position);
-			}
 
 			renderer.blit_to_screen();
 
@@ -398,8 +412,9 @@ namespace Glow {
 
 				ImVec2 image_min = ImGui::GetItemRectMin();
 				ImVec2 image_size = ImGui::GetItemRectSize();
+				editor.render_gizmo(scene, active_view, active_proj, image_min, image_size);
 
-				if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+				if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGuizmo::IsUsing() && !ImGuizmo::IsOver()) {
 					ImVec2 mouse_pos = ImGui::GetMousePos();
 
 					float local_x = mouse_pos.x - image_min.x;

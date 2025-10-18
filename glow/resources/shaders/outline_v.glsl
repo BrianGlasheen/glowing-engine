@@ -1,41 +1,21 @@
 #version 460 core
 
-#extension GL_ARB_gpu_shader_int64: enable
+// #extension GL_ARB_gpu_shader_int64: enable
 
-layout (location = 0) in vec3 aPos;
-layout (location = 0) in vec3 aNor;
+layout (location = 0) in vec4 aPos;
+layout (location = 1) in vec4 Tangent;
+layout (location = 2) in vec4 Bitangent;
+layout (location = 3) in vec2 aTexCoord;
 
-struct Per_Object_Data {
-    mat4 model_matrix;
-    mat4 normal_matrix;
-    vec4 base_color;
-    vec4 emissive_factor;
-    
-    uint64_t albedo;
-    uint64_t normal;
-    uint64_t met_rough;
-    uint64_t emissive;
-    uint64_t amb_occ;
-    uint64_t padding;
-
-    float alpha_cutoff;
-    float metallic_factor; // 4
-    float roughness_factor; // 4
-    uint id;
-};
-
-layout(std430, binding = 0) readonly buffer per_object_ssbo {
-    Per_Object_Data per_object_data[];
-};
-
-uniform mat4 vp;
+uniform mat4 mvp;
 uniform float scale;
 
 void main() {
     // #if BINDLESS
-        Per_Object_Data obj_data = per_object_data[gl_BaseInstance];
+        // Per_Object_Data obj_data = per_object_data[gl_BaseInstance];
     // #else
         // Per_Object_Data obj_data = per_object_data[instance_id];
     // #endif
-    gl_Position = vp * obj_data.model_matrix * vec4(aPos + aNor * scale, 1.0);
+    vec3 norm = normalize(vec3(aPos.w, Tangent.w, Bitangent.w));
+    gl_Position = mvp * vec4(vec3(aPos) + norm * scale, 1.0);
 }

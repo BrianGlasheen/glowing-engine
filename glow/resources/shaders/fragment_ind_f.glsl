@@ -225,7 +225,7 @@ float DirectionalShadowCalculation(vec3 N) {
     // float z = 0.5 * ProjCoords.z + 0.5;
     float depth = texture(directional_shadow_map, vec3(UVCoords, cascadeIndex)).r;
 
-    float bias = max(0.001 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
+    float bias = max(0.001 * (1.0 - dot(N, -directional_light_direction)), 0.000005);
 
     // if (z < depth - bias)
     //     return 1.0;

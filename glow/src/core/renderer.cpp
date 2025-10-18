@@ -189,7 +189,7 @@ void Renderer::setup_buffers() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(picking_texture), 0);
 
     depth_texture = Texture_Manager::create_depth_texture(scr_width, scr_height);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
 
     uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
     glDrawBuffers(3, attachments);
@@ -635,7 +635,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
         glDepthMask(GL_FALSE); // dont write depth, unnecessary
     }
     else {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         glDepthFunc(GL_GREATER);
         glDepthMask(GL_TRUE);
     }
@@ -927,6 +927,7 @@ void Renderer::composite() {
     glViewport(0, 0, scr_width, scr_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     Shader* shader = Shader_Manager::get_shader("quad");
@@ -1000,11 +1001,11 @@ void Renderer::infinite_grid(const mat4& vp, const vec3& cam_pos) {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
 
-    glDepthFunc(GL_ALWAYS);  // Always pass
+    // glDepthFunc(GL_ALWAYS);  // Always pass
 
-    glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
 
     glBindVertexArray(dummyvao);

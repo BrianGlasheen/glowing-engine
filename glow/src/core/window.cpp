@@ -115,6 +115,22 @@ void Window::framebuffer_size_callback(GLFWwindow* glfw_window, int width, int h
 void Window::static_mouse_button_callback(GLFWwindow* glfw_window, int button, int action, int mods) {
     Window* this_window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
 
+    if (*(this_window->editor_mode)) {
+        if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
+            if (action == GLFW_PRESS) {
+                double xpos, ypos;
+                glfwGetCursorPos(this_window->window, &xpos, &ypos);
+                this_window->editor->camera.update_mouse_pos(xpos, ypos);
+                
+                this_window->editor->cam_orbiting = !(mods & GLFW_MOD_SHIFT);
+                this_window->editor->cam_panning = (mods & GLFW_MOD_SHIFT);
+            } else if (action == GLFW_RELEASE) {
+                this_window->editor->cam_orbiting = false;
+                this_window->editor->cam_panning = false;
+            }
+        }
+    }
+
     //if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE && (this_window->target_width != this_window->width || this_window->target_height != this_window->target_width)) {
     //    this_window->width = this_window->target_width;
     //    this_window->height = this_window->target_height;
@@ -205,7 +221,16 @@ void Window::static_mouse_callback(GLFWwindow* glfw_window, double xpos, double 
         // prob manually just track mouse pos last frame
         // and pos this frame, diff, move camera angles
         // instead of firing callback
+        if (*(this_window->editor_mode)) {
+            if (this_window->editor->cam_orbiting) {
+                this_window->editor->camera.process_orbit(xpos, ypos);
+            } else if (this_window->editor->cam_panning) {
+                this_window->editor->camera.process_pan(xpos, ypos);
+            }
+        }
+        else {
             this_window->player->mouse_callback(glfw_window, xpos, ypos);
+        }
         
         //}
 }
@@ -226,7 +251,13 @@ void Window::static_scroll_callback(GLFWwindow* glfw_window, double xoffset, dou
     //else {
 
         // todo maybe change this?
+    // if (!)
+    if (*(this_window->editor_mode)) {
+        this_window->editor->camera.process_mouse_scroll_orbit(yoffset);
+    }
+    else {
         this_window->player->scroll_callback(glfw_window, xoffset, yoffset);
+    }
 
 
     //}
