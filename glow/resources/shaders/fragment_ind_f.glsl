@@ -181,6 +181,25 @@ vec3 CalculatePointLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, f
     return lighting * (1.0 - shadow);
 }
 
+const vec2 poissonDisk[16] = vec2[](
+    vec2(0.0, 0.0),
+    vec2(0.2588, -0.2951),
+    vec2(-0.4015, 0.3774),
+    vec2(0.5735, 0.1043),
+    vec2(-0.3139, -0.5642),
+    vec2(-0.0273, 0.7376),
+    vec2(0.5197, -0.5789),
+    vec2(-0.7375, 0.2452),
+    vec2(0.8739, 0.2472),
+    vec2(-0.4770, -0.7569),
+    vec2(-0.1600, 0.9444),
+    vec2(0.7963, -0.5212),
+    vec2(-0.9463, -0.0859),
+    vec2(0.3865, 0.8830),
+    vec2(0.5539, -0.8205),
+    vec2(-0.7050, 0.6859)
+);
+
 int GetCascadeIndex(float depth) {
     for (int i = 0; i < num_cascades; i++) {
         if (depth < cascade_distances[i]) {
@@ -208,30 +227,23 @@ float DirectionalShadowCalculation(vec3 N) {
 
     float bias = max(0.001 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
 
-    // if (depth > z - 0.01)
-    if (z < depth - bias)
-        return 1.0;
-    else
-        return 0.0; 
+    // if (z < depth - bias)
+    //     return 1.0;
+    // else
+    //     return 0.0; 
 
-//     vec4 fragPosLightSpace = cascade_matrices[cascadeIndex] * vec4(fragPosWorldSpace, 1.0);
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / vec2(2048);
+    float searchRadius = 3.0;
+    
+    for(int i = 0; i < 16; i++) {
+        vec2 offset = poissonDisk[i] * texelSize * searchRadius;
+        float pcfDepth = texture(directional_shadow_map, vec3(UVCoords + offset, cascadeIndex)).r;
+        shadow += (z < pcfDepth - bias) ? 1.0 : 0.0;
+    }
 
-//     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-//     projCoords = projCoords * 0.5 + 0.5;
-
-//     float shadowDepth = texture(directional_shadow_map, vec3(projCoords.xy, cascadeIndex)).r;
-
-//     float currentDepth = projCoords.z;
-// //    float bias = max(0.0005 * (1.0 - dot(normalize(fragNormal), -directional_light_direction)), 0.00005);
-//     float bias = max(0.0005 * (1.0 - dot(N, -directional_light_direction)), 0.00005);
-//     float shadow = currentDepth + bias < shadowDepth ? 1.0 : 0.0;
-
-//     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
-//         projCoords.y < 0.0 || projCoords.y > 1.0) {
-//         shadow = 0.0;
-//     }
-
-    // return shadow;
+    shadow /= 16.0;
+    return shadow;
 }
 
 vec3 CalculateDirectionalLight(vec3 N, vec3 V, vec3 F0, vec3 albedo, float metallic, float roughness) {

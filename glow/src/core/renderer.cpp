@@ -32,7 +32,7 @@ const uint32_t NUM_CASCADE = 4;
 const float CASCADE_SIZE = 50.0f;
 const vec3 SUN_DIR = normalize(vec3(0.0, -1.0f, -1.0f)); // todo this belongs to scene
 static mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
-const float CASCADE_END[NUM_CASCADE + 1] = { 0.1f, 25.0f, 100.0f, 350.0f, 1000.0f }; // same
+const float CASCADE_END[NUM_CASCADE + 1] = { -5.0f, 25.0f, 100.0f, 350.0f, 1000.0f }; // same
 
 // point light shadow mapping
 //struct camera_dir {
@@ -453,26 +453,25 @@ void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float&
             max_c = max(max_c, corner);
         }
 
-        //vec3 box_size = vec3(max) - vec3(min);
+        vec3 box_size = vec3(max_c) - vec3(min_c);
+        vec3 center = (vec3(min_c) + vec3(max_c)) * 0.5f;
 
-        //float texel_size_x = box_size.x / 2048;
-        //float texel_size_y = box_size.y / 2048;
-        //min.x = floor(min.x / texel_size_x) * texel_size_x;
-        //min.y = floor(min.y / texel_size_y) * texel_size_y;
-        //
-        //max.x = min.x + box_size.x;
-        //max.y = min.y + box_size.y;
+        float texel_size_x = box_size.x / 2048.0f;
+        float texel_size_y = box_size.y / 2048.0f;
 
-        // max += 5.0f;
-        // min -= 5.0f;
+        box_size.x = ceil(box_size.x / texel_size_x) * texel_size_x;
+        box_size.y = ceil(box_size.y / texel_size_y) * texel_size_y;
 
-        //min *= 1.5;
-        //max *= 1.5;
+        texel_size_x = box_size.x / 2048.0f;
+        texel_size_y = box_size.y / 2048.0f;
 
-        //printf("BB: %f %f %f %f %f %f\n", min.x, max.x, min.y, max.y, min.z, max.z);
-        // cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, min_c.z, max_c.z) * sun_mat;
-        // cascade_mats[i] = ortho(-20.0f, 20.0f, 0.0f, 20.0f, -20.0f, 20.0f) * sun_mat;
-        // cascade_mats[i] = glm::orthoRH_ZO(min_c.x, max_c.x, min_c.y, max_c.y, min_c.z, max_c.z) * sun_mat;
+        center.x = floor(center.x / texel_size_x) * texel_size_x;
+        center.y = floor(center.y / texel_size_y) * texel_size_y;
+
+        vec3 half_size = box_size * 0.5f;
+        min_c = vec4(center - half_size, 69.0f);
+        max_c = vec4(center + half_size, 420.0f);
+
         cascade_mats[i] = glm::orthoRH_ZO(min_c.x, max_c.x, min_c.y, max_c.y, -max_c.z, -min_c.z) * sun_mat;
         // cascade_mats[i] = ortho(min_c.x, max_c.x, min_c.y, max_c.y, max_c.z, min_c.z) * sun_mat;
 
