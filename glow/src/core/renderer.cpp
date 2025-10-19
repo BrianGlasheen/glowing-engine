@@ -4,6 +4,7 @@
 #include "glow_config.h"
 
 #include "core/opengl.h"
+#include "core/scene.h"
 
 #include "asset/material_manager.h"
 #include "asset/model_manager.h"
@@ -11,11 +12,9 @@
 
 #include "util/frustum.h"
 #include "util/colors.h"
-#include "util/profiler.h"
+// #include "util/profiler.h" todo me
 
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include <imgui.h>
 
 #include <cstdint>
 #include <cstddef>
@@ -28,11 +27,9 @@
 const float FAR_PLANE = 1000.0f; // todo gross
 const uint32_t MAX_DRAW_COMMANDS = 8000;
 
-const uint32_t NUM_CASCADE = 4;
-const float CASCADE_SIZE = 50.0f;
-const vec3 SUN_DIR = normalize(vec3(0.0, -1.0f, -1.0f)); // todo this belongs to scene
+// num cascade from scene
 static mat4 cascade_mats[NUM_CASCADE] = { 0 }; // todo figure out where this goes. prob here maybe
-const float CASCADE_END[NUM_CASCADE + 1] = { -5.0f, 25.0f, 100.0f, 350.0f, 1000.0f }; // same
+const int csm_res = 4096;
 
 // point light shadow mapping
 //struct camera_dir {
@@ -260,7 +257,7 @@ void Renderer::setup_buffers() {
     // csm
 
     // organize, maybe scene should control params for CSM
-    csm_texture = Texture_Manager::create_2d_array_texture(2048, 2048, NUM_CASCADE);
+    csm_texture = Texture_Manager::create_2d_array_texture(csm_res, csm_res, NUM_CASCADE);
     glGenFramebuffers(1, &csm_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
     glDrawBuffer(GL_NONE);
@@ -401,8 +398,8 @@ void Renderer::cull_cluster_pass(const mat4& view) {
     cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
-    mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), -normalize(SUN_DIR), vec3(0.0f, 1.0f, 0.0f));
+void Renderer::shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
+    mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), -normalize(scene.sun_direction), vec3(0.0f, 1.0f, 0.0f));
 
     float tanHalfVFOV = tanf(radians(zoom / 2.0f));
     float tanHalfHFOV = tanHalfVFOV * aspect_ratio;
@@ -413,26 +410,26 @@ void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float&
     //printf("ar %f tanHalfHFOV %f tanHalfVFOV %f\n", ar, tanHalfHFOV, tanHalfVFOV);
 
     for (uint32_t i = 0; i < NUM_CASCADE; i++) {
-        float xn = CASCADE_END[i] * tanHalfHFOV;
-        float xf = CASCADE_END[i + 1] * tanHalfHFOV;
-        float yn = CASCADE_END[i] * tanHalfVFOV;
-        float yf = CASCADE_END[i + 1] * tanHalfVFOV;
+        float xn = scene.cascade_ends[i] * tanHalfHFOV;
+        float xf = scene.cascade_ends[i + 1] * tanHalfHFOV;
+        float yn = scene.cascade_ends[i] * tanHalfVFOV;
+        float yf = scene.cascade_ends[i + 1] * tanHalfVFOV;
 
         //printf("xn %f xf %f\n", xn, xf);
         //printf("yn %f yf %f\n", yn, yf);
 
         vec4 frustumCorners[8] = {
             // near face
-            vec4(xn,   yn, -CASCADE_END[i], 1.0),
-            vec4(-xn,  yn, -CASCADE_END[i], 1.0),
-            vec4(xn,  -yn, -CASCADE_END[i], 1.0),
-            vec4(-xn, -yn, -CASCADE_END[i], 1.0),
+            vec4(xn,   yn, -scene.cascade_ends[i], 1.0),
+            vec4(-xn,  yn, -scene.cascade_ends[i], 1.0),
+            vec4(xn,  -yn, -scene.cascade_ends[i], 1.0),
+            vec4(-xn, -yn, -scene.cascade_ends[i], 1.0),
 
             // far face
-            vec4(xf,   yf, -CASCADE_END[i + 1], 1.0),
-            vec4(-xf,  yf, -CASCADE_END[i + 1], 1.0),
-            vec4(xf,  -yf, -CASCADE_END[i + 1], 1.0),
-            vec4(-xf, -yf, -CASCADE_END[i + 1], 1.0)
+            vec4(xf,   yf, -scene.cascade_ends[i + 1], 1.0),
+            vec4(-xf,  yf, -scene.cascade_ends[i + 1], 1.0),
+            vec4(xf,  -yf, -scene.cascade_ends[i + 1], 1.0),
+            vec4(-xf, -yf, -scene.cascade_ends[i + 1], 1.0)
         };
 
         //vec4 frustumCornersL[8];
@@ -456,14 +453,14 @@ void Renderer::shadow_setup(const mat4& view, const mat4& inv_view, const float&
         vec3 box_size = vec3(max_c) - vec3(min_c);
         vec3 center = (vec3(min_c) + vec3(max_c)) * 0.5f;
 
-        float texel_size_x = box_size.x / 2048.0f;
-        float texel_size_y = box_size.y / 2048.0f;
+        float texel_size_x = box_size.x / (float)csm_res;
+        float texel_size_y = box_size.y / (float)csm_res;
 
         box_size.x = ceil(box_size.x / texel_size_x) * texel_size_x;
         box_size.y = ceil(box_size.y / texel_size_y) * texel_size_y;
 
-        texel_size_x = box_size.x / 2048.0f;
-        texel_size_y = box_size.y / 2048.0f;
+        texel_size_x = box_size.x / (float)csm_res;
+        texel_size_y = box_size.y / (float)csm_res;
 
         center.x = floor(center.x / texel_size_x) * texel_size_x;
         center.y = floor(center.y / texel_size_y) * texel_size_y;
@@ -536,7 +533,7 @@ void Renderer::shadow_pass(Scene& scene) {
     shader->use();
 
     glBindFramebuffer(GL_FRAMEBUFFER, csm_fbo);
-    glViewport(0, 0, 2048, 2048);
+    glViewport(0, 0, csm_res, csm_res);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_GREATER);
     glDepthMask(GL_TRUE);
@@ -671,15 +668,15 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     shader->set_bool("ssao_enabled", ssao_enabled);
 
     for (uint i = 0 ; i < NUM_CASCADE ; i++) {
-        vec4 vView(0.0f, 0.0f, CASCADE_END[i + 1], 1.0f);
+        vec4 vView(0.0f, 0.0f, scene.cascade_ends[i + 1], 1.0f);
         vec4 clip = cull_proj * vView;
         shader->set_float("cascade_distances[" + std::to_string(i) + "]", vView.z);
     } 
     shader->set_mat4_array("cascade_matrices", cascade_mats, NUM_CASCADE);
     // shader->set_float_array("cascade_distances", CASCADE_END, NUM_CASCADE + 1);
-    shader->set_vec3("directional_light_direction", SUN_DIR);
-    shader->set_vec3("directional_light_color", vec3(1.0f));
-    shader->set_float("directional_light_intensity", sun_strength);
+    shader->set_vec3("directional_light_direction", scene.sun_direction);
+    shader->set_vec3("directional_light_color", scene.sun_color);
+    shader->set_float("directional_light_intensity", scene.sun_strength);
 
     shader->set_bool("cascade_vis", cascade_vis);
 
@@ -1077,7 +1074,7 @@ void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
             shader->set_uint("bone_offset", am.bone_offset);
 
             if (blender_bones) {
-                glLineWidth(1.5f);
+                glLineWidth(1.0f);
                 shader->set_uint("draw_mode", 2);
                 shader->set_vec3("color", vec3(0.0f, 1.0f, 1.0f));
                 glDrawArrays(GL_LINES, 0, bone_count * 24);
@@ -1099,13 +1096,14 @@ void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
 void Renderer::imgui_pass() {
     ImGui::Begin("Renderer");
 
-    ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
-    ImGui::Checkbox("shadows enabled", &shadows_enabled);
+    // ImGui::Checkbox("depth pre-pass", &use_depth_prepass);
+    // ImGui::Checkbox("shadows enabled", &shadows_enabled); // todo maybe use
     ImGui::SliderInt("num_lights", &num_lights, 0, 1000);
     ImGui::Checkbox("light quads", &do_draw_light_quads);
-    ImGui::SliderFloat("sun strength", &sun_strength, 0, 500.0);
     ImGui::Checkbox("forward+", &forward_plus);
     ImGui::Checkbox("bloom_enabled", &bloom_enabled);
+
+    // ssao settings
     ImGui::Checkbox("ssao_enabled", &ssao_enabled);
     ImGui::SliderFloat("ssao_radius", &ssao_radius, 0, 5.0);
     ImGui::SliderFloat("ssao_bias", &ssao_bias, 0, 1.0f);

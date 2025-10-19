@@ -162,26 +162,53 @@ void Scene::update_dirty() {
 }
 
 void Scene::imgui() {
-    // Main Scene Inspector Window
     if (ImGui::Begin("Scene")) {
         // Scene Overview
-        if (ImGui::CollapsingHeader("Scene Overview", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Text("Total Entities: %zu", entities.size());
-            ImGui::Text("Timed Entities: %zu", timed_entities.size());
-            ImGui::Text("GPU Meshes: %zu", gpu_meshes.size());
-            ImGui::Text("GPU Entities: %zu", gpu_entities.size());
-            ImGui::Text("Animated Meshes: %zu", animated_mesh_to_all_mesh_mapping.size());
+        // if (ImGui::CollapsingHeader("Scene Overview", ImGuiTreeNodeFlags_DefaultOpen)) {
+        //     ImGui::Text("Total Entities: %zu", entities.size());
+        //     ImGui::Text("Timed Entities: %zu", timed_entities.size());
+        //     ImGui::Text("GPU Meshes: %zu", gpu_meshes.size());
+        //     ImGui::Text("GPU Entities: %zu", gpu_entities.size());
+        //     ImGui::Text("Animated Meshes: %zu", animated_mesh_to_all_mesh_mapping.size());
             
-            ImGui::Separator();
+        //     ImGui::Separator();
             
-            // Buffer info
-            ImGui::Text("Buffer Sizes:");
-            ImGui::Indent();
-            ImGui::Text("GPU Mesh SSBO: %u", gpu_mesh_ssbo);
-            ImGui::Text("GPU Entity SSBO: %u", gpu_entity_ssbo);
-            ImGui::Text("Per Mesh SSBO: %u", per_mesh_ssbo);
-            ImGui::Text("Animation Mapping SSBO: %u", animated_mesh_to_all_mesh_mapping_ssbo);
-            ImGui::Unindent();
+        //     // Buffer info
+        //     ImGui::Text("Buffer Sizes:");
+        //     ImGui::Indent();
+        //     ImGui::Text("GPU Mesh SSBO: %u", gpu_mesh_ssbo);
+        //     ImGui::Text("GPU Entity SSBO: %u", gpu_entity_ssbo);
+        //     ImGui::Text("Per Mesh SSBO: %u", per_mesh_ssbo);
+        //     ImGui::Text("Animation Mapping SSBO: %u", animated_mesh_to_all_mesh_mapping_ssbo);
+        //     ImGui::Unindent();
+        // }
+
+        if (ImGui::TreeNode("Sun Light")) {
+            ImGui::SliderFloat3("Direction", &sun_direction.x, -1.0f, 1.0f);
+            if (ImGui::Button("Normalize Direction")) {
+                sun_direction = glm::normalize(sun_direction);
+            }
+            ImGui::ColorEdit3("Color", &sun_color.x);
+            ImGui::SliderFloat("Intensity", &sun_strength, 0.0f, 5.0f);
+            if (ImGui::Button("Noon")) {
+                sun_direction = vec3(0.0f, -1.0f, 0.0f);
+                sun_color = vec3(1.0f, 1.0f, 0.98f);
+                sun_strength = 1.5f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Sunset")) {
+                sun_direction = vec3(0.7f, -0.3f, 0.0f);
+                sun_color = vec3(1.0f, 0.6f, 0.3f);
+                sun_strength = 0.8f;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Night")) {
+                sun_direction = vec3(0.0f, 1.0f, 0.0f);
+                sun_color = vec3(0.3f, 0.4f, 0.6f);
+                sun_strength = 0.1f;
+            }
+            
+            ImGui::TreePop();
         }
         
         // Entities List

@@ -7,3 +7,4 @@
 ![alt text](pics/image4.png)
 ![alt text](pics/image5.png)
 ![alt text](pics/image6.gif)
+![alt text](pics/image7.png)

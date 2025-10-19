@@ -66,7 +66,7 @@ public:
     // setting up stuff for rendering
     void build_cluster_pass(const mat4& inv_proj);
     void cull_cluster_pass(const mat4& view);
-    void shadow_setup(const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom);
+    void shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom);
 
     // rendering
     void depth_prepass(const mat4& viewproj);
@@ -105,7 +105,6 @@ public:
     SSBO light_ssbo; // todo maybe remove ssbo class? raw code not bad
 
     //float ambient_light = 0.01f;
-    float sun_strength = 0.5f;
 
     bool use_alpha_clipping = true;
     bool shadows_enabled = false;

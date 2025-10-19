@@ -65,7 +65,6 @@ namespace Glow {
 		// bool loaded = Model_Manager::load_model_indirect("Sponza/glTF/Sponza.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("ABeautifulGame/glTF/ABeautifulGame.gltf");
 
-		//bool loaded = Model_Manager::load_model_indirect("f22/scene.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("track/scene.gltf");
 		//bool loaded = Model_Manager::load_model_indirect("plane.obj");
 		//bool loaded = Model_Manager::load_model_indirect("sword2/scene.gltf");
@@ -104,6 +103,9 @@ namespace Glow {
 		
 		Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
 		scene.include(e5555);
+
+		Entity e55552 = Entity(glm::vec3(-10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(1.0f), "f22/scene.gltf", false);
+		scene.include(e55552);
 
 		// Entity e55553 = Entity::Animated_Entity(glm::vec3(-10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.5f), "tiger/scene.gltf", false);
 		// scene.include(e55553);
@@ -288,16 +290,17 @@ namespace Glow {
 			  renderer.begin_frame(scene, player_view, player_proj); } // pass scene 
 			
 			// todo decide if do during editor
+				// todo also maybe this goes into begin frame?
 				{ PROFILE_SCOPE_COLOR("update bones", legit::Colors::nephritis);
 				Model_Manager::update_bones(delta_time); }
-				
+				// same?
 				{ PROFILE_SCOPE_COLOR("compute skin", legit::Colors::nephritis);
 				Model_Manager::update_animated_vertices(scene); }
 
-			// todo use editor or player camera?
+			// todo should this go in begin frame?
 			{ // build CSM mats
 				PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::nephritis);
-				renderer.shadow_setup(player_view, player_inv_view, aspect_ratio, player.camera.zoom);
+				renderer.shadow_setup(scene, player_view, player_inv_view, aspect_ratio, player.camera.zoom);
 			}
 
 			// todo implement!!!!
@@ -307,12 +310,10 @@ namespace Glow {
 			}
 
 			// todo can also probably stuff into begin_frame()
-			// todo prob editor camera
 				{ PROFILE_SCOPE_COLOR("build clusters", legit::Colors::emerald);
 				if (renderer.forward_plus)
 					renderer.build_cluster_pass(active_inv_proj); } // todo pass calc'd already
 
-				// todo prob editor camera
 				{ PROFILE_SCOPE_COLOR("cull lights", legit::Colors::greenSea);
 				if (renderer.forward_plus)
 					renderer.cull_cluster_pass(active_view); } // todo pass calc'd alre
