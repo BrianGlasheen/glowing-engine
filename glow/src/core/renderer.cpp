@@ -1047,7 +1047,6 @@ void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
     glDepthFunc(GL_ALWAYS);  // Always pass
     glDepthMask(GL_TRUE);    // Still write to depth buffer
     glEnable(GL_PROGRAM_POINT_SIZE);
-    glLineWidth(2.0f);
 
     Shader* shader = Shader_Manager::get_shader("skeleton_debug");
     shader->use();
@@ -1060,6 +1059,8 @@ void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
         glGenVertexArrays(1, &dummyVAO);
     }
     glBindVertexArray(dummyVAO);
+
+    bool blender_bones = true;
 
     // draw points
     for (Entity& e : scene.entities) {
@@ -1075,13 +1076,22 @@ void Renderer::debug_skeletons(Scene& scene, const mat4& vp) {
             shader->set_uint("max_bone", base_bone + bone_count);
             shader->set_uint("bone_offset", am.bone_offset);
 
-            shader->set_uint("draw_mode", 1);
-            shader->set_vec3("color", vec3(0.0f, 1.0f, 1.0f));
-            glDrawArrays(GL_LINES, 0, bone_count * 2);
+            if (blender_bones) {
+                glLineWidth(1.5f);
+                shader->set_uint("draw_mode", 2);
+                shader->set_vec3("color", vec3(0.0f, 1.0f, 1.0f));
+                glDrawArrays(GL_LINES, 0, bone_count * 24);
 
-            shader->set_uint("draw_mode", 0);
-            shader->set_vec3("color", vec3(1.0f, 0.64f, 0.0f));
-            glDrawArrays(GL_POINTS, 0, bone_count);
+            } else {
+                glLineWidth(2.0f);
+                shader->set_uint("draw_mode", 1);
+                shader->set_vec3("color", vec3(0.0f, 1.0f, 1.0f));
+                glDrawArrays(GL_LINES, 0, bone_count * 2);
+
+                shader->set_uint("draw_mode", 0);
+                shader->set_vec3("color", vec3(1.0f, 0.64f, 0.0f));
+                glDrawArrays(GL_POINTS, 0, bone_count);
+            }
         }
     }
 }

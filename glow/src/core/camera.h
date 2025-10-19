@@ -120,14 +120,12 @@ public:
         update_orbit_position();
     }
     
-    // Blender-style: Shift + Middle mouse drag to pan
     void process_pan(double xpos, double ypos) {
         float xoffset = (xpos - lastX) * PAN_SENSITIVITY * distance;
         float yoffset = (ypos - lastY) * PAN_SENSITIVITY * distance;
         lastX = xpos;
         lastY = ypos;
         
-        // Pan perpendicular to view direction
         target -= right * xoffset;
         target += up * yoffset;
         
@@ -159,27 +157,23 @@ public:
 // private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void update_camera_vectors() {
-        // calculate the new front vector
         front.x = cos(radians(yaw)) * cos(radians(pitch));
         front.y = sin(radians(pitch));
         front.z = sin(radians(yaw)) * cos(radians(pitch));
         front = normalize(front);
-        // also re-calculate the right and up vector
-        right = normalize(cross(front, world_up));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+
+        right = normalize(cross(front, world_up));
         up    = normalize(cross(right, front));
     }
     
     void update_orbit_position() {
-        // Calculate position based on target, yaw, pitch, and distance
         front.x = cos(radians(yaw)) * cos(radians(pitch));
         front.y = sin(radians(pitch));
         front.z = sin(radians(yaw)) * cos(radians(pitch));
         front = normalize(front);
         
-        // Position camera at distance from target
         position = target - front * distance;
         
-        // Update right and up vectors
         right = normalize(cross(front, world_up));
         up = normalize(cross(right, front));
     }

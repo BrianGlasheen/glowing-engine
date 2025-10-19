@@ -102,8 +102,8 @@ namespace Glow {
 
 		//model_handle raccoon26 = Model_Manager::load_animated_model_cgltf("vector/scene.gltf");
 		
-		// Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
-		// scene.include(e5555);
+		Entity e5555 = Entity::Animated_Entity(glm::vec3(10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.025f), "tiger/scene.gltf", false);
+		scene.include(e5555);
 
 		// Entity e55553 = Entity::Animated_Entity(glm::vec3(-10.0f, 0.0f, 0.0f), glm::quat(1.0f, 0.0f, 0.0f, 0.0f), glm::vec3(0.5f), "tiger/scene.gltf", false);
 		// scene.include(e55553);
@@ -393,7 +393,7 @@ namespace Glow {
 			if (editor_mode) {
 				editor.show();
 
-				ImGui::ShowDemoWindow(); // Show demo window! :)
+				// ImGui::ShowDemoWindow(); // Show demo window! :)
 				
 				{ // todo move to editor prob
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

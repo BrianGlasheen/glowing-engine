@@ -265,14 +265,21 @@ public:
             ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, &left, &dockspace_id);
             ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.25f, &right, &dockspace_id);
             ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, &bottom, &center);
+            ImGuiID left_top, left_bottom;
+            ImGui::DockBuilderSplitNode(left, ImGuiDir_Down, 0.25f, &left_bottom, &left_top);
 
-            ImGui::DockBuilderDockWindow("Scene", left);
-            ImGui::DockBuilderDockWindow("Renderer", left);
+            ImGui::DockBuilderDockWindow("Scene", left_top);
+            ImGui::DockBuilderDockWindow("Renderer", left_top);
+            ImGui::DockBuilderDockWindow("Assets", left_bottom);
+            ImGui::DockBuilderDockWindow("Frametime", left_bottom);
+            
             ImGui::DockBuilderDockWindow("Inspector", right);
             ImGui::DockBuilderDockWindow("Preview", center);
             ImGui::DockBuilderDockWindow("Console", bottom);
 
             ImGui::DockBuilderFinish(dockspace_id);
+
+            gruvbox();
         }
 
         if (ImGui::BeginMenuBar()) {
@@ -289,12 +296,83 @@ public:
                     purpleish();
                 if (ImGui::MenuItem("dark"))
                     dark();
+                if (ImGui::MenuItem("green"))
+                    green();
 
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
         }
 
+        ImGui::End();
+
+        asset_browser();
+    }
+
+    void asset_browser() {
+        std::string current_path = "../resources/";  // Your asset directory
+        std::string selected_file = "";
+
+        ImGui::Begin("Assets");
+        
+        ImGui::Text("Path: %s", current_path.c_str());
+        ImGui::Separator();
+        
+        if (current_path != "assets") {
+            if (ImGui::Selectable("../", false, ImGuiSelectableFlags_AllowDoubleClick)) {
+                if (ImGui::IsMouseDoubleClicked(0)) {
+                    fs::path p(current_path);
+                    current_path = p.parent_path().string();
+                }
+            }
+        }
+        
+        try {
+            for (const auto& entry : fs::directory_iterator(current_path)) {
+                std::string filename = entry.path().filename().string();
+                bool is_dir = entry.is_directory();
+                
+                // Icon prefix (you can replace with actual icons later)
+                std::string icon = is_dir ? "[DIR] " : "[FILE] ";
+                std::string display_name = icon + filename;
+                
+                bool is_selected = (selected_file == entry.path().string());
+                
+                if (ImGui::Selectable(display_name.c_str(), is_selected, 
+                                     ImGuiSelectableFlags_AllowDoubleClick)) {
+                    selected_file = entry.path().string();
+                    
+                    // Double click to open directory
+                    if (ImGui::IsMouseDoubleClicked(0) && is_dir) {
+                        current_path = entry.path().string();
+                        selected_file = "";
+                    }
+                    // Double click file to load it (add your logic here)
+                    else if (ImGui::IsMouseDoubleClicked(0) && !is_dir) {
+                        // Load the asset (model, texture, etc.)
+                        // load_asset(selected_file);
+                    }
+                }
+                
+                // Right-click context menu
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::MenuItem("Open")) {
+                        if (is_dir) {
+                            current_path = entry.path().string();
+                        } else {
+                            // load_asset(selected_file);
+                        }
+                    }
+                    if (!is_dir && ImGui::MenuItem("Delete")) {
+                        fs::remove(entry.path());
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+        } catch (const fs::filesystem_error& e) {
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", e.what());
+        }
+        
         ImGui::End();
     }
 
@@ -420,6 +498,70 @@ public:
         // style.Colors[ImGuiCol_ModalWindowDarkening]  = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
     }
 
+    void green() {
+        ImVec4 *colors = ImGui::GetStyle().Colors;
+        colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+        colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+        colors[ImGuiCol_WindowBg] = ImVec4(0.29f, 0.34f, 0.26f, 1.00f);
+        colors[ImGuiCol_ChildBg] = ImVec4(0.29f, 0.34f, 0.26f, 1.00f);
+        colors[ImGuiCol_PopupBg] = ImVec4(0.24f, 0.27f, 0.20f, 1.00f);
+        colors[ImGuiCol_Border] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
+        colors[ImGuiCol_BorderShadow] = ImVec4(0.14f, 0.16f, 0.11f, 0.52f);
+        colors[ImGuiCol_FrameBg] = ImVec4(0.24f, 0.27f, 0.20f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered] = ImVec4(0.27f, 0.30f, 0.23f, 1.00f);
+        colors[ImGuiCol_FrameBgActive] = ImVec4(0.30f, 0.34f, 0.26f, 1.00f);
+        colors[ImGuiCol_TitleBg] = ImVec4(0.24f, 0.27f, 0.20f, 1.00f);
+        colors[ImGuiCol_TitleBgActive] = ImVec4(0.29f, 0.34f, 0.26f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
+        colors[ImGuiCol_MenuBarBg] = ImVec4(0.24f, 0.27f, 0.20f, 1.00f);
+        colors[ImGuiCol_ScrollbarBg] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.28f, 0.32f, 0.24f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.25f, 0.30f, 0.22f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.23f, 0.27f, 0.21f, 1.00f);
+        colors[ImGuiCol_CheckMark] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_SliderGrab] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
+        colors[ImGuiCol_Button] = ImVec4(0.29f, 0.34f, 0.26f, 0.40f);
+        colors[ImGuiCol_ButtonHovered] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_ButtonActive] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
+        colors[ImGuiCol_Header] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_HeaderHovered] = ImVec4(0.35f, 0.42f, 0.31f, 0.6f);
+        colors[ImGuiCol_HeaderActive] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
+        colors[ImGuiCol_Separator] = ImVec4(0.14f, 0.16f, 0.11f, 1.00f);
+        colors[ImGuiCol_SeparatorHovered] = ImVec4(0.54f, 0.57f, 0.51f, 1.00f);
+        colors[ImGuiCol_SeparatorActive] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_ResizeGrip] = ImVec4(0.19f, 0.23f, 0.18f, 0.00f); // grip invis
+        colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.54f, 0.57f, 0.51f, 1.00f);
+        colors[ImGuiCol_ResizeGripActive] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_Tab] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_TabHovered] = ImVec4(0.54f, 0.57f, 0.51f, 0.78f);
+        colors[ImGuiCol_TabActive] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_TabUnfocused] = ImVec4(0.24f, 0.27f, 0.20f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
+        colors[ImGuiCol_DockingPreview] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+        colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+        colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.78f, 0.28f, 1.00f);
+        colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+        colors[ImGuiCol_TextSelectedBg] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_DragDropTarget] = ImVec4(0.73f, 0.67f, 0.24f, 1.00f);
+        colors[ImGuiCol_NavHighlight] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
+        colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+        colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+
+        ImGuiStyle &style = ImGui::GetStyle();
+        style.FrameBorderSize = 1.0f;
+        style.WindowRounding = 0.0f;
+        style.ChildRounding = 0.0f;
+        style.FrameRounding = 0.0f;
+        style.PopupRounding = 0.0f;
+        style.ScrollbarRounding = 0.0f;
+        style.GrabRounding = 0.0f;
+        style.TabRounding = 0.0f;
+    }
+
     void dark() {
         ImGuiStyle& style = ImGui::GetStyle();
         ImVec4* colors = style.Colors;
@@ -513,16 +655,16 @@ public:
         glBindVertexArray(Model_Manager::get_big_vao());
         
         // for (size_t selected : selected_entites) {
-        printf("selected %d\n", selected);
+        // printf("selected %d\n", selected);
             const Entity& selected_entity = scene.entities[selected];
             
             glCullFace(GL_BACK);
             glEnable(GL_STENCIL_TEST);
             glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
             glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-            glDisable(GL_DEPTH_TEST);  // <-- ADD THIS! Don't test depth in stencil pass
-            glStencilFunc(GL_ALWAYS, 1, 0xFF); // Always pass, write 1 to stencil
-            glStencilMask(0xFF); // Enable writing to stencil buffer
+            glDisable(GL_DEPTH_TEST);
+            glStencilFunc(GL_ALWAYS, 1, 0xFF);
+            glStencilMask(0xFF);
             glDisable(GL_BLEND);
 
             shader->set_float("scale", 0.0);
@@ -531,12 +673,10 @@ public:
                 glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0);
             }
 
-            glStencilFunc(GL_NOTEQUAL, 1, 0xFF); // Only draw where stencil is not 1
-            glStencilMask(0x00); // Don't write to stencil buffer
-            // glDisable(GL_DEPTH_TEST); // Draw outline on top
-            // glCullFace(GL_FRONT); // Optional: cull front faces for cleaner outline
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+            glStencilMask(0x00);
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-            glDisable(GL_CULL_FACE);  // <-- Disable culling for outline
+            glDisable(GL_CULL_FACE);
 
             shader->set_float("scale", outline_scale);
             for (const Mesh& m : Model_Manager::get_model_ind(selected_entity.model_id).m_meshes) {
@@ -544,7 +684,7 @@ public:
                 glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, m.index_count, GL_UNSIGNED_INT, (void*)(m.base_index * sizeof(unsigned int)), 1, m.base_vertex, 0);
             }
 
-            glEnable(GL_CULL_FACE);  // <-- Re-enable after
+            glEnable(GL_CULL_FACE);
             glCullFace(GL_BACK);
             glStencilMask(0xFF);
             glStencilFunc(GL_ALWAYS, 0, 0xFF);

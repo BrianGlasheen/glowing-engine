@@ -71,11 +71,13 @@ namespace ImGuiUtils
 
     void RenderTimings(int graphWidth, int legendWidth, int height, int frameIndexOffset, float maxFrameTime)
     {
+      // ImGui::Begin("Frametime");
       ImDrawList* drawList = ImGui::GetWindowDrawList();
       const glm::vec2 widgetPos = Vec2(ImGui::GetCursorScreenPos());
       RenderGraph(drawList, widgetPos, glm::vec2(graphWidth, height), frameIndexOffset, maxFrameTime);
       RenderLegend(drawList, widgetPos + glm::vec2(graphWidth, 0.0f), glm::vec2(legendWidth, height), frameIndexOffset, maxFrameTime);
       ImGui::Dummy(ImVec2(float(graphWidth + legendWidth), float(height)));
+      // ImGui::End();
     }
 
     /*void bla()
@@ -374,7 +376,7 @@ namespace ImGuiUtils
       title.precision(2);
       title << std::fixed << "Legit profiler [" << 1.0f / avgFrameTime << "fps\t" << avgFrameTime * 1000.0f << "ms]###ProfilerWindow";
       //###AnimatedTitle
-      ImGui::Begin(title.str().c_str(), 0, ImGuiWindowFlags_NoScrollbar);
+      ImGui::Begin("Frametime", 0, ImGuiWindowFlags_NoScrollbar);
       ImVec2 canvasSize = ImGui::GetContentRegionAvail();
 
       int sizeMargin = int(ImGui::GetStyle().ItemSpacing.y);
