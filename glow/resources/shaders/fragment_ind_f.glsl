@@ -10,6 +10,8 @@
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
 layout(location = 2) out uint PickingId; // todo put behind #def prob
+layout(location = 3) out vec4 moment0; // b0, b1, b2, b3
+layout(location = 4) out vec4 moment1; // b4, b5, b6, transmittance
 
 struct GPU_Light {
     vec4 position_radius; // x, y ,z, radius
@@ -64,7 +66,7 @@ layout(binding = 8) uniform sampler2DArray directional_shadow_map;
 layout(binding = 9) uniform samplerCube skybox;
 uniform uint num_skybox_mips;
 
-uniform bool use_alpha_clipping; 
+//uniform bool use_alpha_clipping; 
 //float alpha_cutoff = 0.5;
 uniform bool shadows_enabled;
 uniform bool ssao_enabled;
@@ -414,8 +416,8 @@ void main() {
     vec3 color = ambient + Lo;
     
     // HDR tonemapping and gamma correction
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0/2.2));
+//    color = color / (color + vec3(1.0));
+  //  color = pow(color, vec3(1.0/2.2));
 
     if (cascade_vis) {
 
@@ -446,10 +448,26 @@ void main() {
         //}
     }
 
-    if (blend)
-        FragColor = vec4(color, alpha);
-    else
+    if (blend) {
+        FragColor = vec4(color * alpha, alpha);
+
+        float depth = gl_FragCoord.z;
+        float b0 = alpha;
+        float b1 = alpha * depth;
+        float b2 = alpha * depth * depth;
+        float b3 = b2 * depth;
+        float b4 = b3 * depth;
+        float b5 = b4 * depth;
+        float b6 = b5 * depth;
+    
+        moment0 = vec4(b0, b1, b2, b3);
+        moment1 = vec4(b4, b5, b6, alpha);
+    }
+    else {
+        //color = color / (color + vec3(1.0));
+        //color = pow(color, vec3(1.0/2.2));
         FragColor = vec4(color, 1.0);
+    }
 
     PickingId = id;
 }

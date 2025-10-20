@@ -132,7 +132,7 @@ public:
     SSBO cluster_ssbo;
 
     uint32_t render_target, render_depth_buffer;
-    texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture, picking_texture;
+    texture_handle depth_texture, scene_texture, bright_texture, ssao_texture, ssao_noise_texture, picking_texture, moment0_texture, moment1_texture;
 
     uint32_t output_framebuffer;
     texture_handle output_texture;

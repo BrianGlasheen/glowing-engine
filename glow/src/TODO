@@ -9,6 +9,14 @@ SHOULD
     point & spotlight shadow atlas
     fix SSAO
 
+    controllers
+        physics (jolt?)
+        cars
+        planes
+        integrate controller into entities
+        interaction
+        player (use)
+
     networking
 
     GI!!!!!
@@ -18,14 +26,6 @@ PROBABLY
     IK
     deferred
 
-    controllers
-        physics (jolt?)
-        cars
-        planes
-        integrate controller into entities
-        interaction
-        player (use)
-
 
 MAYBE
-    weather atmosphere rendering
+    weather atmosphere rendering & clouds

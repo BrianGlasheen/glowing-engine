@@ -84,6 +84,8 @@ void Renderer::resize(const int width, const int height) {
     Texture_Manager::resize(depth_texture, scr_width, scr_height);
     Texture_Manager::resize(output_texture, scr_width, scr_height);
     Texture_Manager::resize(picking_texture, scr_width, scr_height);
+    Texture_Manager::resize(moment0_texture, scr_width, scr_height);
+    Texture_Manager::resize(moment1_texture, scr_width, scr_height);
 
     // update per shader "constant-ish" uniforms (screen size, etc)
 }
@@ -139,7 +141,7 @@ void Renderer::setup_shaders() {
 
 
     Shader_Manager::load_from_name("particle");
-    Shader_Manager::load_from_name("depth_prepass");
+    //Shader_Manager::load_from_name("depth_prepass");
     Shader_Manager::load_from_paths("indirect_depth_prepass", "vertex_ind_depth_v.glsl", "depth_prepass_f.glsl");
 
     Shader_Manager::load_from_paths("skeleton_debug", "skeleton_debug_v.glsl", "outline_f.glsl");
@@ -175,21 +177,31 @@ void Renderer::setup_shaders() {
 void Renderer::setup_buffers() {
     glGenFramebuffers(1, &render_target);
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
-
+    
+    depth_texture = Texture_Manager::create_depth_texture(scr_width, scr_height);
     scene_texture = Texture_Manager::create_render_texture(scr_width, scr_height, true);
     bright_texture = Texture_Manager::create_bloom_texture(scr_width, scr_height);
     ssao_texture = Texture_Manager::create_ssao_texture(scr_width, scr_height);
     picking_texture = Texture_Manager::create_picking_texture(scr_width, scr_height);
+    moment0_texture = Texture_Manager::create_moment_texture(scr_width, scr_height); // b0,b1,b2,b3
+    moment1_texture = Texture_Manager::create_moment_texture(scr_width, scr_height); // b4,b5,b6,transmittance
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(scene_texture), 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(bright_texture), 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(picking_texture), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(moment0_texture), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(moment1_texture), 0);
 
-    depth_texture = Texture_Manager::create_depth_texture(scr_width, scr_height);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, Texture_Manager::get_ogl_id(depth_texture), 0);
-
-    uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
+    uint32_t attachments[5] = {
+        GL_COLOR_ATTACHMENT0, // scene color
+        GL_COLOR_ATTACHMENT1, // bright
+        GL_COLOR_ATTACHMENT2, // picking
+        GL_COLOR_ATTACHMENT3, // moment0
+        GL_COLOR_ATTACHMENT4  // moment1
+    };
+    glDrawBuffers(5, attachments);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         printf("[RENDERER] MAIN RENDER BUFFER FAILLLLLED TF OUT\n");
@@ -667,7 +679,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 
     shader->set_bool("ssao_enabled", ssao_enabled);
 
-    for (uint i = 0 ; i < NUM_CASCADE ; i++) {
+    for (uint32_t i = 0 ; i < NUM_CASCADE ; i++) {
         vec4 vView(0.0f, 0.0f, scene.cascade_ends[i + 1], 1.0f);
         vec4 clip = cull_proj * vView;
         shader->set_float("cascade_distances[" + std::to_string(i) + "]", vView.z);
@@ -710,11 +722,20 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     );
 
     // blended
+    shader->set_bool("blend", true);
+
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glDepthMask(GL_FALSE);
-    glEnable(GL_DEPTH_TEST);
+    //glEnable(GL_DEPTH_TEST); on already
+
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunci(0, GL_ONE, GL_ONE);
+    glBlendFunci(1, GL_ONE, GL_ONE);
+    glBlendFunci(2, GL_ONE, GL_ZERO);
+    glBlendFunci(3, GL_ONE, GL_ONE);
+    glBlendFunci(4, GL_ONE, GL_ONE);
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, blended_draw_commands);
 
@@ -934,6 +955,13 @@ void Renderer::composite() {
     Texture_Manager::bind(scene_texture, 0);
     shader->set_int("bright_color", 1);
     Texture_Manager::bind(bright_texture, 1);
+    shader->set_int("moment0", 2);
+    Texture_Manager::bind(moment0_texture, 2);
+    shader->set_int("moment1", 3);
+    Texture_Manager::bind(moment1_texture, 3);
+    shader->set_int("depth_texture", 4);
+    Texture_Manager::bind(depth_texture, 4);
+
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

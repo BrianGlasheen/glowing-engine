@@ -503,6 +503,29 @@ namespace Texture_Manager {
         return textures.size() - 1;
     }
 
+    texture_handle create_moment_texture(int width, int height) {
+        uint32_t texture_id = 0;
+        glGenTextures(1, &texture_id);
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = "moment";
+        texture.width = width;
+        texture.height = height;
+
+        return textures.size() - 1;
+    }
+
     // texture_handle create_3d_texture(int width, int height, int layers) {
     //     uint32_t texture_id = 0;
     //     glGenTextures(1, &texture_id);
