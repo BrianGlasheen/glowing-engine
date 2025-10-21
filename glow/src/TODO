@@ -3,6 +3,7 @@ SHOULD
     delete things from editor
     selection of lights
     select info on right pane
+    fix multiple animated models
 
     world representation & physics tie ins
         spline geom
