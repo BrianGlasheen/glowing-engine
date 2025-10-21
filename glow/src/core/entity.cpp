@@ -146,6 +146,24 @@ void Entity::check_moved() {
             // todo add scale
         }
     }
+    else {
+        if (position != prev_pos) {
+            is_dirty = true;
+            prev_pos = position;
+            return;
+        }
+        
+        if (rotation != prev_rot) {
+            is_dirty = true;
+            prev_rot = rotation;
+            return;
+        }
+
+        //if (m_scale != prev_) {
+        //    is_dirty = true;
+        //    return;
+        //}
+    }
 
     // todo could script movement
     is_dirty = false;

@@ -1,4 +1,9 @@
 SHOULD
+    drag n drop stuff into editor
+    delete things from editor
+    selection of lights
+    select info on right pane
+
     world representation & physics tie ins
         spline geom
         heightmap 

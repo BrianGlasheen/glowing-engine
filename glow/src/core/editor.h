@@ -754,7 +754,7 @@ public:
     //    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     //}
 
-    void render_gizmo(const Scene& scene, const mat4& view, const mat4& proj, ImVec2 image_min, ImVec2 image_size) {
+    void render_gizmo(Scene& scene, const mat4& view, const mat4& proj, ImVec2 image_min, ImVec2 image_size) {
         if (selected < 0 || selected > (scene.entities.size() - 1)) return;
 
         ImGuizmo::BeginFrame();
@@ -789,14 +789,23 @@ public:
             snap_value = 15.0f;
         float snap_values[3] = { snap_value, snap_value, snap_value };
 
-        glm::mat4 model = scene.entities[selected].get_model_matrix();
+        Entity& e = scene.entities[selected];
+        glm::mat4 model = e.get_model_matrix();
+
         if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), guizmo_op, ImGuizmo::LOCAL, glm::value_ptr(model), nullptr, smooth ? nullptr : snap_values)) {
             glm::vec3 position, scale, rotation;
             Util::decompose(model, position, scale, rotation);
-
-            // todo change
-            Physics::set_body_position(scene.entities[selected].physics_id, position);
-            Physics::set_body_rotation(scene.entities[selected].physics_id, glm::quat(rotation));
+            
+            if (e.physics_enabled) {
+                Physics::set_body_position(scene.entities[selected].physics_id, position);
+                Physics::set_body_rotation(scene.entities[selected].physics_id, glm::quat(rotation));
+            }
+            else {
+                printf("%d\n", position.x);
+                e.position = position;
+                e.rotation = rotation;
+                e.m_scale = scale;
+            }
         }
         // ImGui::End();
     }
