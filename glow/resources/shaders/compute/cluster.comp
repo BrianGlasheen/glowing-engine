@@ -23,10 +23,8 @@ vec3 screenToView(vec2 screenCoord);
 vec3 lineIntersectionWithZPlane(vec3 startPoint, vec3 endPoint, float zDistance);
 
 void main() {
-    
-    return ;
-
-    uvec3 clusterID = uvec3(gl_GlobalInvocationID.xy, 0);
+    //uvec3 clusterID = uvec3(gl_GlobalInvocationID.xy, 0);
+    uvec3 clusterID = gl_GlobalInvocationID.xyz;
 
     uint tileIndex = clusterID.x + (clusterID.y * gridSize.x) + (clusterID.z * gridSize.x * gridSize.y);
 

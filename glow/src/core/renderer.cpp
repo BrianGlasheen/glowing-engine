@@ -113,7 +113,7 @@ void Renderer::setup() {
 
         GPU_Light point_light2 = {
             vec4(x, y, z, 105.0f),          // position + radius (attenuation range)
-            vec4(r, g, b, 305.0f),          // color (white) + intensity
+            vec4(r, g, b, 100.0f),          // color (white) + intensity
             vec4(0.0f, 0.0f, 0.0f, 0.0f),             // direction unused + type (0 = point light)
             vec4(0.0f, 0.0f, 0.0f, 0.0f)           // unused params for point light
         };
@@ -407,7 +407,10 @@ void Renderer::cull_cluster_pass(const mat4& view) {
     cluster_cull->set_mat4("viewMatrix", view);
     cluster_cull->set_int("num_lights", num_lights); // maybe frequently changing?
 
-    cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+    //cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
+    uint32_t num_clusters = 16 * 9 * 24;
+    uint32_t groups = (num_clusters + 127) / 128;
+    cluster_cull->dispatch_and_wait(groups, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void Renderer::shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
@@ -637,7 +640,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
     glDisable(GL_BLEND);
 
-    glClearColor(0.1f, 0.2f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     if (use_depth_prepass) {
         glClear(GL_COLOR_BUFFER_BIT);
         glDepthFunc(GL_GEQUAL); // fragments at same depth pass
@@ -669,7 +672,6 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 
     shader->set_vec3("view_pos", view_pos);
     shader->set_int("num_lights", num_lights);
-    shader->set_bool("forward_plus", forward_plus);
     shader->set_float("zNear", 0.1f);
     shader->set_float("zFar", FAR_PLANE);
     shader->set_mat4("viewMatrix", view);
@@ -678,6 +680,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     shader->set_uvec2("screenDimensions", uvec2(scr_width, scr_height));
 
     shader->set_bool("ssao_enabled", ssao_enabled);
+    shader->set_int("debug", debug_mode % 8); // num debug modes
 
     for (uint32_t i = 0 ; i < NUM_CASCADE ; i++) {
         vec4 vView(0.0f, 0.0f, scene.cascade_ends[i + 1], 1.0f);
@@ -765,11 +768,21 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     for (uint32_t i = 0; i < count; i++) {
         Draw_Elements_Indirect_Command cmd = commands[i];
         Per_Object_Data pod = scene.per_mesh_data[cmd.base_instance];
+
+        //Defaults def = Texture_Manager::get_defaults();
+        //Texture_Manager::bind(pod.albedo, 0); // pink black
+        //Texture_Manager::bind(pod.normal != 0 ? pod.normal : def.normal, 1);
+        //Texture_Manager::bind(pod.met_rough != 0 ? pod.met_rough : def.met_rough, 2);
+        //Texture_Manager::bind(pod.emissive != 0 ? pod.emissive : def.emissive, 3);
+        //Texture_Manager::bind(pod.amb_occ != 0 ? pod.amb_occ : def.ao, 4);
+
         Texture_Manager::bind(pod.albedo, 0);
         Texture_Manager::bind(pod.normal, 1);
         Texture_Manager::bind(pod.met_rough, 2);
         Texture_Manager::bind(pod.emissive, 3);
         Texture_Manager::bind(pod.amb_occ, 4);
+
+
         shader->set_uint("instance_id", cmd.base_instance);
 
         // glDrawElementsBaseVertex(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.base_vertex);
@@ -887,11 +900,13 @@ void Renderer::bloom_pass() {
         int mip_height = std::max(1, scr_height >> i);
 
         // prev mip input
-        glBindImageTexture(0, texture_id, i - 1, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA16F);
+        //glBindImageTexture(0, texture_id, i - 1, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA16F);
+        glBindTextureUnit(0, texture_id);
         // current mip output
         glBindImageTexture(1, texture_id, i, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
 
         bloom_down->use();
+        bloom_down->set_int("mipLevel", i - 1);
         int groups_x = (mip_width + 7) / 8;
         int groups_y = (mip_height + 7) / 8;
         bloom_down->dispatch_and_wait(groups_x, groups_y, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -907,6 +922,7 @@ void Renderer::bloom_pass() {
         glBindImageTexture(1, texture_id, i + 1, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA16F);
 
         bloom_up->use();
+        bloom_down->set_int("mipLevel", i - 1);
         int groups_x = (mip_width + 7) / 8;
         int groups_y = (mip_height + 7) / 8;
         bloom_up->dispatch_and_wait(groups_x, groups_y, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);

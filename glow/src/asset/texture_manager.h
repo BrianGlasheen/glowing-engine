@@ -6,14 +6,25 @@
 
 typedef size_t texture_handle;
 
+struct Defaults {
+    uint64_t albedo;
+    uint64_t normal;
+    uint64_t emissive;
+    uint64_t met_rough;
+    uint64_t ao;
+};
+
 namespace Texture_Manager {
     void init();
     void cleanup();
 
     bool loaded_already(const std::string& new_path, size_t& existing_idx);
+
+    uint64_t create_1x1_texture(const std::string& name, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
     uint64_t load(const std::string& file_path);
     uint64_t load_dds(const std::string& file_path);    
     uint64_t load_non_dds(const std::string& file_path);
+    Defaults get_defaults();
 
     void resize(const texture_handle handle, int width, int height, int mips = 1);
 

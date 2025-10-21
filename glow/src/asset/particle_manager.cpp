@@ -31,7 +31,7 @@ namespace Particle_Manager {
 		Shader_Manager::load_compute("particle2");
 
 		Particle_Paramaters a = {
-			vec3(0.0f, 0.0f, 0.0f),
+			vec3(15.0f, 0.0f, 0.0f),
 			vec3(0.0f, 1.0f, 0.0f),  // Up
 			2.0f,
 			vec2(1.0f, 3.0f),
@@ -72,9 +72,9 @@ namespace Particle_Manager {
 			8000
 		};
 
-		add_effect("a", a, 10.0f);
-		add_effect("b", b, 10.0f);
-		add_effect("c", c, 10.0f);
+		add_effect("a", a, 9910.0f);
+		add_effect("b", b, 9910.0f);
+		add_effect("c", c, 9910.0f);
 	}
 
 	//struct Particle_Paramaters {

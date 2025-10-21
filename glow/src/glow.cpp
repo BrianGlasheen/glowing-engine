@@ -439,8 +439,8 @@ namespace Glow {
 				ImGui::PopStyleVar();
 			}
 
-				scene.imgui();
 				renderer.imgui_pass();
+				scene.imgui();
 
 				// player.debug_hud();
 

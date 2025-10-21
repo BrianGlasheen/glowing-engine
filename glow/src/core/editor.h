@@ -310,7 +310,7 @@ public:
     }
 
     void asset_browser() {
-        std::string current_path = "../resources/";  // Your asset directory
+        std::string current_path = "../resources/";
         std::string selected_file = "";
 
         ImGui::Begin("Assets");
@@ -332,7 +332,6 @@ public:
                 std::string filename = entry.path().filename().string();
                 bool is_dir = entry.is_directory();
                 
-                // Icon prefix (you can replace with actual icons later)
                 std::string icon = is_dir ? "[DIR] " : "[FILE] ";
                 std::string display_name = icon + filename;
                 
@@ -342,19 +341,16 @@ public:
                                      ImGuiSelectableFlags_AllowDoubleClick)) {
                     selected_file = entry.path().string();
                     
-                    // Double click to open directory
                     if (ImGui::IsMouseDoubleClicked(0) && is_dir) {
                         current_path = entry.path().string();
                         selected_file = "";
                     }
-                    // Double click file to load it (add your logic here)
                     else if (ImGui::IsMouseDoubleClicked(0) && !is_dir) {
                         // Load the asset (model, texture, etc.)
                         // load_asset(selected_file);
                     }
                 }
                 
-                // Right-click context menu
                 if (ImGui::BeginPopupContextItem()) {
                     if (ImGui::MenuItem("Open")) {
                         if (is_dir) {
@@ -886,7 +882,7 @@ public:
     // editor_viewports_struct editor_viewports;
     shader_handle editor_shader;
     std::vector<size_t> selected_entites;
-    float outline_scale = 12.5f;
+    float outline_scale = 0.1f;
     Renderer* renderer;
 
     uint32_t selected = 0;

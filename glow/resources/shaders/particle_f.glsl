@@ -15,5 +15,5 @@ void main() {
         return ;
     //FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     FragColor = vec4(particle_color.xyz, life_ratio);
-    BrightColor = vec4(25.0 * particle_color.xyz, life_ratio);
+    BrightColor = vec4(2.0 * particle_color.xyz, life_ratio);
 }

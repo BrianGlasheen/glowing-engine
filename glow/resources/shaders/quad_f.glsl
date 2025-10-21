@@ -39,10 +39,10 @@ void main() {
     // todo implement actual formula
     float transmittance = exp(-b0 * 4.0);
     
-    vec3 resolved = color.rgb + color.rgb * transmittance;
+    vec3 resolved = color.rgb + bloom.rgb + color.rgb * transmittance;
     
     resolved = resolved / (resolved + vec3(1.0));
     resolved = pow(resolved, vec3(1.0/2.2));
     
-    FragColor = vec4(resolved, 1.0) + bloom;
+    FragColor = vec4(resolved, 1.0);
 }

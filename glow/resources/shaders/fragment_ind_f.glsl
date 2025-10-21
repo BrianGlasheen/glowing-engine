@@ -74,7 +74,6 @@ uniform bool blend;
 
 uniform vec3 view_pos;
 uniform int num_lights;
-uniform bool forward_plus;
 uniform float zNear;
 uniform float zFar;
 uniform mat4 viewMatrix;
@@ -94,6 +93,8 @@ uniform vec3 directional_light_color;
 uniform float directional_light_intensity;
 
 uniform bool cascade_vis;
+
+uniform int debug;
 
 //uniform sampler2D shadow_map; // todo shadow atlas
 
@@ -278,37 +279,23 @@ vec3 CalculateEnvironmentReflection(vec3 N, vec3 V, vec3 F0, float roughness, fl
     return envColor * kS * reflectionStrength * 1.0;
 }
 
-void main() {
-    //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
-    //FragColor = color;
-    //FragColor = vec4(metallic_factor, 0, 0, 1);'
-
-    //vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
-    //vec4 ssaoValue = texture(ssao, screenUV);
-    //FragColor = vec4(ssaoValue.rgb, 1);
-    // FragColor = vec4(clip_space_z / 100.0, 0, 0, 1.0);
-    // return ;
-
-    vec3 albedo;
-    float alpha;
-
-    vec4 baseColorSample = vec4(1.0);
-    if (albedo_handle != 0) {
+vec4 debug_color() {
+    if (debug == 1) {
+        vec4 baseColorSample = vec4(1.0);
+        //if (albedo_handle != 0) {
 #if BINDLESS
-        sampler2D albedo_texture = sampler2D(albedo_handle);
+       sampler2D albedo_texture = sampler2D(albedo_handle);
 #endif
         baseColorSample = texture(albedo_texture, TexCoord);
-    }
-    vec4 baseColor = base_color_factor * baseColorSample;
-    albedo = baseColor.rgb;
-    alpha = baseColor.a;
-    
-    if (alpha < alpha_cutoff) {
-        discard;
-    }
+        //}
+        vec4 baseColor = base_color_factor * baseColorSample;
+        if (baseColorSample.a < alpha_cutoff)
+            discard;
 
-    vec3 N = normalize(Normal);
-    if (normal_handle != 0) {
+        return baseColor;
+    }
+    else if (debug == 2) {
+        vec3 N = normalize(Normal);
 #if BINDLESS
         sampler2D normal_texture = sampler2D(normal_handle);
 #endif
@@ -319,7 +306,97 @@ void main() {
         vec3 B = normalize(Bitangentout);
         mat3 TBN = mat3(T, B, N);
         N = normalize(TBN * normalMap);
+        
+        return vec4(N, 1.0f);
     }
+    else if (debug == 3) {
+#if BINDLESS
+        sampler2D metallic_roughness = sampler2D(met_rough_handle);
+#endif
+        vec3 mrSample = texture(metallic_roughness, TexCoord).rgb;
+        float metallic = mrSample.b * metallic_factor;
+        float roughness = mrSample.g * roughness_factor;
+        return vec4(0.0f, roughness, metallic, 1.0f);
+    }
+    else if (debug == 4) {
+#if BINDLESS
+        sampler2D emissive_texture = sampler2D(emissive_handle);
+#endif
+        vec3 col = texture(emissive_texture, TexCoord).rgb * emissive.rgb * emissive.a;
+        col += emissive.rgb * emissive.a;
+        return vec4(col, 1.0);
+    }
+    else if (debug == 5) {
+#if BINDLESS
+       sampler2D occlusion_texture = sampler2D(amb_occ_handle);
+#endif
+        float ao = texture(occlusion_texture, TexCoord).r;
+        return vec4(vec3(ao), 1.0);
+    }
+    else if (debug == 6) {
+        vec2 screenUV = gl_FragCoord.xy / screenDimensions;
+        float ssao_val = texture(ssao, screenUV).r;
+        return vec4(vec3(ssao_val), 1.0);
+    }
+    else if (debug == 7) {
+        vec3 fragViewPos = vec3(viewMatrix * vec4(FragPos, 1.0));
+        uint zTile = uint((log(abs(fragViewPos.z) / zNear) * gridSize.z) / log(zFar / zNear));
+        vec2 tileSize = screenDimensions / gridSize.xy;
+        uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
+        uint tileIndex = tile.x + (tile.y * gridSize.x) + (tile.z * gridSize.x * gridSize.y);
+        float count = float(clusters[tileIndex].count);
+        float intensity = clamp(count / 50.0, 0.0, 1.0);
+        
+        return vec4(intensity, 0.0, 1.0 - intensity, 1.0);
+    }
+}
+
+void main() {
+    //FragColor = vec4(vec3(gl_FragCoord.w), 1.0);
+    //FragColor = color;
+    //FragColor = vec4(metallic_factor, 0, 0, 1);'
+
+    //vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
+    //vec4 ssaoValue = texture(ssao, screenUV);
+    //FragColor = vec4(ssaoValue.rgb, 1);
+    // FragColor = vec4(clip_space_z / 100.0, 0, 0, 1.0);
+    // return ;
+    if (debug != 0) {
+        FragColor = debug_color();
+        return;
+    }    
+
+    vec3 albedo;
+    float alpha;
+
+    vec4 baseColorSample = vec4(1.0);
+    //if (albedo_handle != 0) {
+#if BINDLESS
+        sampler2D albedo_texture = sampler2D(albedo_handle);
+#endif
+        baseColorSample = texture(albedo_texture, TexCoord);
+    //}
+    vec4 baseColor = base_color_factor * baseColorSample;
+    albedo = baseColor.rgb;
+    alpha = baseColor.a;
+    
+    if (alpha < alpha_cutoff) {
+        discard;
+    }
+
+    vec3 N = normalize(Normal);
+    //if (normal_handle != 0) {
+#if BINDLESS
+        sampler2D normal_texture = sampler2D(normal_handle);
+#endif
+        vec3 normalMap = texture(normal_texture, TexCoord).rgb;
+        normalMap = normalMap * 2.0 - 1.0;
+    
+        vec3 T = normalize(Tangentout);
+        vec3 B = normalize(Bitangentout);
+        mat3 TBN = mat3(T, B, N);
+        N = normalize(TBN * normalMap);
+    //}
     
 #if BINDLESS
     sampler2D metallic_roughness = sampler2D(met_rough_handle); // todo maybe check
@@ -336,18 +413,13 @@ void main() {
     F0 = mix(F0, albedo, metallic);
 
     // Locating which cluster this fragment is part of
-    vec3 playerFragViewPos = vec3(playerViewMatrix * vec4(FragPos, 1.0));
     vec3 fragViewPos = vec3(viewMatrix * vec4(FragPos, 1.0));
     uint zTile = uint((log(abs(fragViewPos.z) / zNear) * gridSize.z) / log(zFar / zNear));
     vec2 tileSize = screenDimensions / gridSize.xy;
     uvec3 tile = uvec3(gl_FragCoord.xy / tileSize, zTile);
     uint tileIndex = tile.x + (tile.y * gridSize.x) + (tile.z * gridSize.x * gridSize.y);
 
-    uint light_count;
-    if (forward_plus)
-        light_count = clusters[tileIndex].count;
-    else
-        light_count = num_lights;
+    uint light_count = clusters[tileIndex].count;
 
     //float normalizedCount = float(light_count) / 200.0;
     //FragColor = vec4(normalizedCount, 0.0, 0.0, 1.0);
@@ -360,12 +432,9 @@ void main() {
     vec3 Lo = vec3(0.0);
     for (int i = 0; i < light_count; i++) {
         GPU_Light light;
-        if (forward_plus) {
-            uint lightIndex = clusters[tileIndex].lightIndices[i];
-            light = lights[lightIndex];
-        } else {
-            light = lights[i];
-        }
+
+        uint lightIndex = clusters[tileIndex].lightIndices[i];
+        light = lights[lightIndex];
 
         int light_type = int(light.direction_type.w);
 
@@ -381,14 +450,14 @@ void main() {
     vec3 envReflection = CalculateEnvironmentReflection(N, V, F0, roughness, metallic);
     Lo += envReflection;
 
-    if (emissive_handle != 0) {
+    //if (emissive_handle != 0) {
 #if BINDLESS
         sampler2D emissive_texture = sampler2D(emissive_handle);
 #endif
         Lo += texture(emissive_texture, TexCoord).rgb * emissive.rgb * emissive.a;
-    } 
-    else
-        Lo += emissive.rgb * emissive.a;
+    //} 
+    //else
+     Lo += emissive.rgb * emissive.a;
 
     float brightness = dot(Lo, vec3(0.2126, 0.7152, 0.0722));
     if (brightness > 1.0) {
@@ -398,22 +467,24 @@ void main() {
     }
 
     float ao = 1.0;
-    if (amb_occ_handle != 0) {
+    //if (amb_occ_handle != 0) {
 #if BINDLESS
-            sampler2D occlusion_texture = sampler2D(amb_occ_handle);
+        sampler2D occlusion_texture = sampler2D(amb_occ_handle);
 #endif
         ao = texture(occlusion_texture, TexCoord).r; 
-    }
+    //}
 
     float ssao_val = 1.0;
-    //if (ssao_enabled) {
+    if (ssao_enabled) {
+        // todo use actual res
         vec2 screenUV = gl_FragCoord.xy / vec2(1600.0, 900.0);
         ssao_val = texture(ssao, screenUV).r;
         // ssao_val = 0.0;
-    //}
+    }
 
     vec3 ambient = vec3(ambient_light) * albedo * ao * ssao_val;
-    vec3 color = ambient + Lo;
+    //vec3 color = ambient + Lo;
+        vec3 color = Lo;
     
     // HDR tonemapping and gamma correction
 //    color = color / (color + vec3(1.0));

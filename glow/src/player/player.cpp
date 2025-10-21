@@ -47,18 +47,18 @@ void Player::controller_step(GLFWwindow* window, float deltaTime, Scene& scene) 
         active_weapon = weapons[Weapon_Id::GLOCK].get();
     }
 
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-        Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
-        model.current_animation += 1;
-        if (model.current_animation > model.animation_count)
-            model.current_animation = 0;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-        Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
-        model.current_animation -= 1;
-        if (model.current_animation < 0)
-            model.current_animation = model.animation_count - 1;
-    }
+    //if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    //    Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
+    //    model.current_animation += 1;
+    //    if (model.current_animation > model.animation_count)
+    //        model.current_animation = 0;
+    //}
+    //if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    //    Animated_Model& model = Model_Manager::get_animated_model(active_weapon->model_id);
+    //    model.current_animation -= 1;
+    //    if (model.current_animation < 0)
+    //        model.current_animation = model.animation_count - 1;
+    //}
 
 
     //bool ads_active = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;

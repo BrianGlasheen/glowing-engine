@@ -284,21 +284,19 @@ void Window::static_key_callback(GLFWwindow* glfw_window, int key, int scancode,
     }
 
     Renderer* renderer = this_window->renderer;
-    if (renderer) {
+    //if (renderer) {
         //if (renderer->editor_mode) {
-
-            //if (key == GLFW_KEY_RIGHT)
-            //    renderer->target_entity = (renderer->target_entity + 1);
-
-            //if (key == GLFW_KEY_LEFT)
-            //    renderer->target_entity -= (renderer->target_entity > 0 ? 1 : 0);
+    if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+        renderer->debug_mode += 1;
+    if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+        renderer->debug_mode -= 1;
         //}
         //else {
             // Game mode character input handling (e.g., for console, chat)
             // You might have a process_char method in Player or a separateUIhandler
             //renderer->current_player->char_callback(window, key); /Placeholder assuming this method exists
         //}
-    }
+    //}
 }
 
 void Window::static_char_callback(GLFWwindow* glfw_window, uint32_t key) {

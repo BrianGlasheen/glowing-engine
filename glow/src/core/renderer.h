@@ -106,11 +106,13 @@ public:
 
     //float ambient_light = 0.01f;
 
+    int debug_mode = 0;
+
     bool use_alpha_clipping = true;
     bool shadows_enabled = false;
     bool bloom_enabled = true;
     float alpha_cutoff = 0.5f;
-    int num_lights = 4;
+    int num_lights = 200;
     bool forward_plus = true;
     
     bool ssao_enabled = false;

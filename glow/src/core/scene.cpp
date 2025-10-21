@@ -93,18 +93,19 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         for (const Mesh& m : meshes) {
             const Material& mater = m.material;
             
-            GPU_Mesh gpu_m;
-            gpu_m.transform = m.transform;
-            gpu_m.base_vertex = m.base_vertex;
-            gpu_m.vertex_count = m.vertex_count;
-            gpu_m.base_index = m.base_index;
-            gpu_m.index_count = m.index_count;
-            gpu_m.bounding_sphere = m.bounding_sphere;
+            GPU_Mesh gpu_m = {
+                .transform = m.transform,
+                .base_vertex = (int32_t)m.base_vertex,
+                .vertex_count = m.vertex_count,
+                .base_index = m.base_index,
+                .index_count = m.index_count,
+                .bounding_sphere = m.bounding_sphere,
+                .entity_index = index,
+                .skinned_to_static_offset = skinned_to_static_offset,
+                .bone_offset = bone_offset,
+                .transparent = mater.blend_mode != Blend_Mode::disabled ? 1u : 0u
+            };
             gpu_m.bounding_sphere.w *= std::max(ntitty.m_scale.x, std::max(ntitty.m_scale.y, ntitty.m_scale.z));
-            gpu_m.entity_index = index;
-            gpu_m.skinned_to_static_offset = skinned_to_static_offset;
-            gpu_m.bone_offset = bone_offset;
-            gpu_m.transparent = mater.blend_mode != Blend_Mode::disabled ? 1 : 0;
 
             if (ntitty.is_animated)
                 animated_mesh_to_all_mesh_mapping.push_back(gpu_meshes.size());
@@ -113,7 +114,7 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
 
             //printf("[%u] sphere %f %f %f %f\n", index, gpu_m.bounding_sphere.x, gpu_m.bounding_sphere.y, gpu_m.bounding_sphere.z, gpu_m.bounding_sphere.w);
 
-            Per_Object_Data obj_data;
+            Per_Object_Data obj_data = { 0 };
             // obj_data.model_matrix = g.transform * m.transform; // todo write in gpu
             obj_data.normal_matrix = transpose(inverse(obj_data.model_matrix));
             obj_data.albedo = mater.albedo;

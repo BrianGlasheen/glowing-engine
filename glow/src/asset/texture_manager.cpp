@@ -51,12 +51,19 @@ namespace Texture_Manager {
         int width, height, channels;
         // enum type or something format idk
     };
+
     static std::vector<Texture> textures;
+    static Defaults defaults;
 
     void init() {
         //stbi_set_flip_vertically_on_load(true);
-        // texture_handle zero = load("../resources/textures/missing.png");
-        // assert(!textures.empty());
+         defaults.albedo = load("../resources/textures/missing.png");
+         defaults.normal = create_1x1_texture("normal", 128, 128, 255, 255);
+         defaults.emissive = create_1x1_texture("emissive", 0, 0, 0, 255);
+         defaults.met_rough = create_1x1_texture("met_rough", 0, 255, 0, 255);
+         defaults.ao = create_1x1_texture("ao", 255, 255, 255, 255);
+
+         assert(!textures.empty());
         // todo set basepath
     }
 
@@ -83,6 +90,43 @@ namespace Texture_Manager {
         return false;
     }
 
+    uint64_t create_1x1_texture(const std::string& name, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
+        uint32_t texture_id;
+        glGenTextures(1, &texture_id);
+
+        glBindTexture(GL_TEXTURE_2D, texture_id);
+
+        unsigned char data[4] = { r, g, b, a };
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        Texture& texture = textures.emplace_back();
+        texture.gl_id = texture_id;
+        texture.path = name;
+        texture.width = 1;
+        texture.height = 1;
+        texture.channels = 4;
+
+#if BINDLESS
+        uint64_t handle = glGetTextureHandleARB(texture_id);
+        glMakeTextureHandleResidentARB(handle);
+        texture.handle = handle;
+#endif
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        std::cout << "[TEXTURE] Loaded 1x1 " << name << std::endl;
+
+#if BINDLESS
+        return texture.handle;
+#else
+        return textures.size() - 1;
+#endif
+    }
+
     uint64_t load(const std::string& file_path) {
         std::string dds = file_path.substr(0, file_path.find_last_of('.')) + ".dds";
         bool is_dds = std::filesystem::exists(dds);
@@ -92,7 +136,11 @@ namespace Texture_Manager {
         size_t existing_texture_index;
         if (loaded_already(target, existing_texture_index)) {
             printf("[bindless] %s already loaded\n", target.c_str());
+#if BINDLESS
             return textures[existing_texture_index].handle;
+#else
+            return existing_texture_index;
+#endif
         }
 
         if (is_dds)
@@ -185,6 +233,7 @@ namespace Texture_Manager {
         return texture.handle;
 #else
         return textures.size() - 1;
+        //return texture.gl_id;
 #endif
     }
     
@@ -248,6 +297,7 @@ namespace Texture_Manager {
 #if BINDLESS
             return texture.handle;
 #else
+            //return texture.gl_id;
             return textures.size() - 1;
 #endif
         }
@@ -256,6 +306,10 @@ namespace Texture_Manager {
             stbi_image_free(data);
             return 0;
         }
+    }
+
+    Defaults get_defaults() {
+        return defaults;
     }
 
     void resize(const texture_handle handle, int width, int height, int mips) {
@@ -440,7 +494,7 @@ namespace Texture_Manager {
         glGenerateMipmap(GL_TEXTURE_2D);
 
         // Set texture parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
