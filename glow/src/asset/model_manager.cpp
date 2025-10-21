@@ -1317,7 +1317,7 @@ namespace Model_Manager {
         Material mesh_mat = { 0 };
         
         Defaults def = Texture_Manager::get_defaults();
-        mesh_mat.albedo = def.albedo;
+        //mesh_mat.albedo = def.albedo;
         mesh_mat.normal = def.normal;
         mesh_mat.emissive = def.emissive;
         mesh_mat.met_rough = def.met_rough;

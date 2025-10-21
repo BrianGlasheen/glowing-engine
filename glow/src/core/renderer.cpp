@@ -769,14 +769,14 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
         Draw_Elements_Indirect_Command cmd = commands[i];
         Per_Object_Data pod = scene.per_mesh_data[cmd.base_instance];
 
-        //Defaults def = Texture_Manager::get_defaults();
-        //Texture_Manager::bind(pod.albedo, 0); // pink black
+        Defaults def = Texture_Manager::get_defaults();
+        Texture_Manager::bind(pod.albedo != 0 ? pod.albedo : def.albedo, 1, 0); // pink black
         //Texture_Manager::bind(pod.normal != 0 ? pod.normal : def.normal, 1);
         //Texture_Manager::bind(pod.met_rough != 0 ? pod.met_rough : def.met_rough, 2);
         //Texture_Manager::bind(pod.emissive != 0 ? pod.emissive : def.emissive, 3);
         //Texture_Manager::bind(pod.amb_occ != 0 ? pod.amb_occ : def.ao, 4);
 
-        Texture_Manager::bind(pod.albedo, 0);
+        //Texture_Manager::bind(pod.albedo, 0);
         Texture_Manager::bind(pod.normal, 1);
         Texture_Manager::bind(pod.met_rough, 2);
         Texture_Manager::bind(pod.emissive, 3);

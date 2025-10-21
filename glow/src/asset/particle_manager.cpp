@@ -31,7 +31,7 @@ namespace Particle_Manager {
 		Shader_Manager::load_compute("particle2");
 
 		Particle_Paramaters a = {
-			vec3(15.0f, 0.0f, 0.0f),
+			vec3(15.0f, 50.0f, 0.0f),
 			vec3(0.0f, 1.0f, 0.0f),  // Up
 			2.0f,
 			vec2(1.0f, 3.0f),

@@ -370,12 +370,12 @@ void main() {
     float alpha;
 
     vec4 baseColorSample = vec4(1.0);
-    //if (albedo_handle != 0) {
+    if (albedo_handle != 0) {
 #if BINDLESS
         sampler2D albedo_texture = sampler2D(albedo_handle);
 #endif
         baseColorSample = texture(albedo_texture, TexCoord);
-    //}
+    }
     vec4 baseColor = base_color_factor * baseColorSample;
     albedo = baseColor.rgb;
     alpha = baseColor.a;
