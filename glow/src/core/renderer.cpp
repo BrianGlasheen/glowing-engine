@@ -4,7 +4,7 @@
 #include "glow_config.h"
 
 #include "core/opengl.h"
-#include "core/scene.h"
+#include "scene/scene.h"
 
 #include "asset/material_manager.h"
 #include "asset/model_manager.h"

@@ -2,9 +2,9 @@
 
 #include "asset/model_manager.h"
 #include "asset/shader.h"
+#include "core/physics.h"
 #include "util/aabb.h"
 #include "util/math.h"
-#include "physics.h"
 
 #include <string>
 

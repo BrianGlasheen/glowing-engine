@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/camera.h"
-#include "core/scene.h"
+#include "scene/scene.h"
 
 #include "glm/glm.hpp"
 

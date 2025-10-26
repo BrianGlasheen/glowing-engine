@@ -8,7 +8,7 @@
 #include "asset/shader_manager.h"
 
 #include "core/opengl.h"
-#include "core/scene.h"
+#include "scene/scene.h"
 
 #include "util/aabb.h"
 #include "util/profiler.h"

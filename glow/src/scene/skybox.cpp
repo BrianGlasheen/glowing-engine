@@ -1,4 +1,4 @@
-#include "skybox.h"
+#include "scene/skybox.h"
 
 #include "core/opengl.h"
 

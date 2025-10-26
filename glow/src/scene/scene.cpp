@@ -1,4 +1,4 @@
-#include "core/scene.h"
+#include "scene/scene.h"
 
 #include "asset/material_manager.h"
 

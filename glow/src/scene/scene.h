@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/entity.h"
-#include "asset/skybox.h"
-#include "core/terrain.h" // todo maybe an asset?
-#include "core/light.h"
+#include "scene/entity.h"
+#include "scene/skybox.h"
+#include "scene/terrain.h" // todo maybe an asset?
+#include "scene/light.h"
 #include "util/math.h"
 
 #include "core/opengl.h"

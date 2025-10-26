@@ -1,8 +1,8 @@
 #pragma once
 
 #include "renderer_debug.h"
-#include "scene.h"
-#include "light.h"
+#include "scene/scene.h"
+#include "scene/light.h"
 #include "core/ssbo.h"
 #include "util/math.h"
 

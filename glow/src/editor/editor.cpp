@@ -1,4 +1,4 @@
-#include "editor.h"
+#include "editor/editor.h"
 
 void Editor::mouse_button_callback(GLFWwindow* glfw_window, int button, int action, int mods) {
 	printf("editor mouse button callback!\n");

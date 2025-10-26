@@ -1,6 +1,6 @@
 #pragma once
 
-//#include "core/scene.h"
+//#include "scene/scene.h"
 class Scene;
 
 #include "asset/model.h" // todo could maybe combine still

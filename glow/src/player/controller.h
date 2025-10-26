@@ -6,7 +6,7 @@
 
 #include <imgui.h>
 
-#include "core/scene.h"
+#include "scene/scene.h"
 #include "core/camera.h"
 #include "asset/shader.h"
 

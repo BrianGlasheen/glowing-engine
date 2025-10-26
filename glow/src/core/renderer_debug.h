@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/scene.h"
+#include "scene/scene.h"
 #include "asset/shader.h"
 #include "util/obb.h"
 #include "util/math.h"

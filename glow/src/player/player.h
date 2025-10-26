@@ -4,7 +4,7 @@
 
 #include "core/camera.h"
 #include "core/physics.h"
-#include "core/scene.h"
+#include "scene/scene.h"
 #include "player/weapon.h"
 #include "core/renderer.h"
 

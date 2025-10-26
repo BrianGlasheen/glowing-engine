@@ -8,7 +8,7 @@
 
 #include "core/renderer.h"
 #include "player/player.h"
-#include "core/editor.h"
+#include "editor/editor.h"
 
 class Window {
 public:

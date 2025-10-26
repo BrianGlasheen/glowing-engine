@@ -1,4 +1,4 @@
-#include "entity.h"
+#include "scene/entity.h"
 #include "Jolt/Physics/PhysicsSystem.h"
 #include "core/physics.h"
 

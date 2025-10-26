@@ -1,20 +1,23 @@
 ﻿#include "glow.h"
 
-#include "core/window.h"
-#include "core/renderer.h"
-#include "core/entity.h"
-#include "core/scene.h"
-#include "core/physics.h"
-#include "core/audio.h"
-#include "core/editor.h"
-
 #include "asset/crosshair.h"
 #include "asset/text.h"
 #include "asset/texture_manager.h"
 #include "asset/model_manager.h"
 #include "asset/particle_manager.h"
 
+#include "core/window.h"
+#include "core/renderer.h"
+#include "core/physics.h"
+#include "core/audio.h"
+
+#include "editor/editor.h"
+
+#include "scene/entity.h"
+#include "scene/scene.h"
+
 #include "player/player.h"
+
 #include "util/colors.h"
 #include "util/profiler.h"
 

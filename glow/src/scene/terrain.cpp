@@ -1,4 +1,4 @@
-#include "core/terrain.h"
+#include "scene/terrain.h"
 
 #include "core/opengl.h"
 
