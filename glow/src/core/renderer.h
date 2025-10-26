@@ -61,12 +61,13 @@ public:
     void setup_buffers();
     void setup_ssao();
 
-    void begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull_proj);
+    void begin_frame(Scene& scene, const mat4& player_view, const mat4& player_inv_view, const mat4& player_proj, const mat4& active_view, const mat4& active_inv_proj, float aspect_ratio, float zoom);
 
     // setting up stuff for rendering
+    void cull_draw_commands(Scene& scene, const mat4& cull_view, const mat4& cull_proj);
     void build_cluster_pass(const mat4& inv_proj);
     void cull_cluster_pass(const mat4& view);
-    void shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom);
+    void shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, float aspect_ratio, float zoom);
 
     // rendering
     void depth_prepass(const mat4& viewproj);
@@ -124,7 +125,6 @@ public:
 
     bool use_depth_prepass = false;
     bool do_draw_light_quads = false;
-    bool draw_skeletons = true;
     bool cascade_vis = false;
     uint32_t terrain_draw_type = 0;
 

@@ -3,7 +3,7 @@
 //#include "core/scene.h"
 class Scene;
 
-#include "asset/model_indirect.h" // todo could maybe combine still
+#include "asset/model.h" // todo could maybe combine still
 #include "asset/animated_model.h"
 #include "util/math.h"
 #include "util/aabb.h"
@@ -33,81 +33,80 @@ namespace Model_Manager {
     bool animated_model_loaded(const std::string& full_path, model_handle& model_index);
 
     model_handle load_model(const std::string& path);
-    model_handle load_model_cgltf(const std::string& path);
     model_handle load_animated_model(const std::string& path);
-    model_handle load_animated_model_cgltf(const std::string& path);
 
-    void compare_animation_data(uint32_t first, uint32_t second);
+    void add_vertices(const std::vector<float> new_vertices);
 
     void process_node(aiNode* node, const aiScene* scene, Model& model, const std::string& path, const mat4& parent_transform);
-    void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, mat4 parent_transform);
     void process_animated_node(aiNode* node, const aiScene* scene, Animated_Model& model, const std::string& path, const mat4& parent_transform, uint32_t base_bone);
-    void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, mat4 parent_transform, uint32_t base_bone);
 
     Mesh process_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path);
-    Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path);
-    bool has_attribute(const cgltf_primitive* prim, cgltf_attribute_type type);
     Mesh process_animated_mesh(const aiMesh* mesh, const aiScene* scene, const std::string& path, uint32_t base_bone);
-    Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index);
-
-    void load_bones_from_skin_cgltf(const cgltf_skin* skin, const cgltf_data* data, uint32_t base_bone, const std::unordered_map<const cgltf_node*, const cgltf_node*>& node_to_parent, std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index);
-    void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone);
-    void load_keyframes_from_channel_cgltf(cgltf_animation_channel* channel);
 
     Material load_material(const aiMesh* mesh, const aiScene* scene, const std::string& path);
-    Material load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path);
 
-    uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone);
-
-    void load_all_skins(const cgltf_data* data, uint32_t base_bone);
     void load_animations_from_scene(const aiScene* scene, uint32_t base_bone);
     void load_keyframes_from_channel(aiNodeAnim* channel, double ticks_per_second);
-    //vec3 interpolate_position(aiNodeAnim* channel, double time);
-    //quat interpolate_rotation(aiNodeAnim* channel, double time);
-    //vec3 interpolate_scale(aiNodeAnim* channel, double time);
+
     uint32_t find_bone_index(const std::string& bone_name, uint32_t base_bone);
-
-    void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone);
     uint32_t find_or_create_fake_bone(const std::string& node_name, const aiScene* scene, uint32_t base_bone);
-    void get_world_transform(aiNode* node, aiNode* root, aiMatrix4x4& out_transform);
-
-    Model get_model_ind(uint32_t idx);
-    Animated_Model& get_animated_model(uint32_t idx);
-    Util::AABB get_aabb_indirect(const model_handle& model_id);
-
-    void setup_buffers();
-    //void upload_data();
-
-    void setup_ssbos(); // todo rm everything below
+    uint32_t find_or_create_global_bone(const aiBone* bone, const aiScene* scene, uint32_t base_bone);
+    void create_fake_bones_for_animation_targets(const aiScene* scene, uint32_t base_bone);
+    
     bool is_bone_name(const std::string& name, uint32_t base_bone);
     aiNode* find_node_by_name(aiNode* node, const std::string& name);
-    uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene * scene, uint32_t base_bone);
+    uint32_t find_parent_bone_index(const std::string& bone_name, const aiScene* scene, uint32_t base_bone);
     void update_bone_parents(const aiScene* scene, uint32_t base_bone, uint32_t end_bone);
     void add_leaf_bones(uint32_t base_bone, uint32_t end_bone);
+
+    void get_world_transform(aiNode* node, aiNode* root, aiMatrix4x4& out_transform);
     
     void print_animated_model_info(const Animated_Model& model);
     void print_bone_tree(uint32_t base_bone, uint32_t num_bones);
     void tree(const std::unordered_map<int, std::vector<int>>& childrenMap, int boneIndex, const std::string& indent = "", bool isLast = true);
     void print_node_hierarchy(const aiNode* node, int depth);
+
     void dfs(int bone, const std::unordered_map<int, std::vector<int>>& childrenMap, std::vector<int>& linear_bones);
 
     void begin_animation_frame();
     uint32_t get_num_animation_commands();
-    //void submit_animation_command(Animation_Command cmd);
     void submit_animation_command(uint32_t model_id);
     void upload_animation_commands();
     void update_bones_from_animation_compute(float time);
     void update_animated_vertices(Scene& scene);
     void update_bones(float time);
 
+    void setup_buffers();
+    void setup_ssbos();
+
+    Model& get_model(uint32_t idx);
+    Animated_Model& get_animated_model(uint32_t idx);
+    std::string get_model_name(model_handle model_id, bool animated);
+    Util::AABB get_aabb_indirect(const model_handle& model_id);
+
+    uint32_t get_big_vao();
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();
     uint32_t get_absolute_bones();
-    uint32_t get_num_animated_models();
     uint32_t get_animation_command_ssbo();
+    uint32_t get_num_animated_models();
+    uint32_t get_num_vertices();
 
-    uint32_t get_big_vao();
-    uint32_t get_rigged_vao();
-
-    std::string get_model_name(model_handle model_id, bool animated);
+    void compare_animation_data(uint32_t first, uint32_t second);
 }
+
+//model_handle load_model_cgltf(const std::string& path);
+//model_handle load_animated_model_cgltf(const std::string& path);
+//void process_node_cgltf(cgltf_node* node, const cgltf_data* data, Model& model, const std::string& path, mat4 parent_transform);
+//void process_node_animated_cgltf(cgltf_node* node, const cgltf_data* data, Animated_Model& model, const std::string& path, mat4 parent_transform, uint32_t base_bone);
+//bool has_attribute(const cgltf_primitive* prim, cgltf_attribute_type type);
+//Mesh process_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, cgltf_size i, const std::string& path);
+//Mesh process_animated_mesh_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path, uint32_t base_bone, const cgltf_skin* skin, const std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index);
+
+//void load_all_skins(const cgltf_data* data, uint32_t base_bone);
+
+//void load_bones_from_skin_cgltf(const cgltf_skin* skin, const cgltf_data* data, uint32_t base_bone, const std::unordered_map<const cgltf_node*, const cgltf_node*>& node_to_parent, std::unordered_map<const cgltf_node*, uint32_t>& node_to_bone_index);
+//void load_animations_from_scene_cgltf(const cgltf_data* data, uint32_t base_bone);
+//void load_keyframes_from_channel_cgltf(cgltf_animation_channel* channel);
+
+//Material load_material_cgltf(const cgltf_primitive* prim, const cgltf_data* data, const std::string& path);

@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <vector>
+#include <chrono>
 
 namespace ImGuiUtils
 {
@@ -120,7 +121,8 @@ namespace ImGuiUtils
     void RenderGraph(ImDrawList *drawList, glm::vec2 graphPos, glm::vec2 graphSize, size_t frameIndexOffset, float maxFrameTime)
     {
       Rect(drawList, graphPos, graphPos + graphSize, 0xffffffff, false);
-      float heightThreshold = 1.0f;
+      float heightThreshold = 0.0f;
+      //float heightThreshold = 1.0f;
 
       for (size_t frameNumber = 0; frameNumber < frames.size(); frameNumber++)
       {

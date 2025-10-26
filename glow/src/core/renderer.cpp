@@ -12,7 +12,7 @@
 
 #include "util/frustum.h"
 #include "util/colors.h"
-// #include "util/profiler.h" todo me
+#include "util/profiler.h"
 
 #include <imgui.h>
 
@@ -326,7 +326,15 @@ void Renderer::setup_ssao() {
     Texture_Manager::bind(ssao_noise_texture, 2);
 }
 
-void Renderer::begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull_proj) {
+void Renderer::begin_frame(Scene& scene, const mat4& player_view, const mat4& player_inv_view, const mat4& player_proj, const mat4& active_view, const mat4& active_inv_proj, float aspect_ratio, float zoom) {
+    cull_draw_commands(scene, player_view, player_proj); // build draw commands via main camera
+    build_cluster_pass(active_inv_proj); // build clusters with current cam (editor, debug, etc)
+    cull_cluster_pass(active_view);
+    shadow_setup(scene, player_view, player_inv_view, aspect_ratio, zoom); // setup shadows with main player cam
+}
+
+void Renderer::cull_draw_commands(Scene& scene, const mat4& cull_view, const mat4& cull_proj) {
+    PROFILE_SCOPE_COLOR("gpu cull", legit::Colors::pomegranate);
     // dispatch main update + culling shader
     // fills all render commands for meshes in scene
     Compute_Shader* c_shader = Shader_Manager::get_compute("cull_mesh");
@@ -366,9 +374,10 @@ void Renderer::begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull
     //c_shader->set_float("znear", 0.1f);
     //c_shader->set_float("zfar", 10000.0f);
     //uniform bool infinite_far;
-    c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+    //c_shader->dispatch_and_wait((num_meshes + 63) / 64, 1, 1, GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+    c_shader->dispatch((num_meshes + 63) / 64, 1, 1);
 
-    // todo move somewhere else idk
+    // clear dirty flags from entities
     c_shader = Shader_Manager::get_compute("clear_dirty");
     c_shader->use();
 
@@ -376,10 +385,13 @@ void Renderer::begin_frame(Scene& scene, const mat4& cull_view, const mat4& cull
     c_shader->set_uint("num_entities", num_entities);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, scene.gpu_entity_ssbo);
 
-    c_shader->dispatch_and_wait((num_entities + 63) / 64, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+    c_shader->dispatch((num_entities + 63) / 64, 1, 1);
+    // GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT
 }
 
 void Renderer::build_cluster_pass(const mat4& inv_proj) {
+    PROFILE_SCOPE_COLOR("build clusters", legit::Colors::pumpkin);
+
     Compute_Shader* cluster_build = Shader_Manager::get_compute("cluster");
     cluster_build->use();
     cluster_ssbo.bind(1); // todo fix once
@@ -390,14 +402,21 @@ void Renderer::build_cluster_pass(const mat4& inv_proj) {
     cluster_build->set_uvec3("gridSize", uvec3(16, 9, 24)); // thnk about how to do x y
     cluster_build->set_uvec2("screenDimensions", uvec2(scr_width, scr_height)); // once + on change
 
+    // todo maybe change these based on res?
     uint32_t groups_x = (16 + 7) / 8;
     uint32_t groups_y = (9 + 7) / 8;
     uint32_t groups_z = (24 + 7) / 8;
 
-    cluster_build->dispatch_and_wait(1, 1, 24, GL_SHADER_STORAGE_BARRIER_BIT);
+    //cluster_build->dispatch_and_wait(1, 1, 24, GL_SHADER_STORAGE_BARRIER_BIT);
+    cluster_build->dispatch(1, 1, 24);
 }
 
 void Renderer::cull_cluster_pass(const mat4& view) {
+    PROFILE_SCOPE_COLOR("cull lights", legit::Colors::carrot);
+
+    // clusters need to exist for us to cull lights against them
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
     Compute_Shader* cluster_cull = Shader_Manager::get_compute("cluster_cull");
     cluster_cull->use();
 
@@ -408,12 +427,15 @@ void Renderer::cull_cluster_pass(const mat4& view) {
     cluster_cull->set_int("num_lights", num_lights); // maybe frequently changing?
 
     //cluster_cull->dispatch_and_wait(27, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
-    uint32_t num_clusters = 16 * 9 * 24;
+    uint32_t num_clusters = 16 * 9 * 24; // todo maybe change
     uint32_t groups = (num_clusters + 127) / 128;
     cluster_cull->dispatch_and_wait(groups, 1, 1, GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
-void Renderer::shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, const float& aspect_ratio, const float& zoom) {
+void Renderer::shadow_setup(const Scene& scene, const mat4& view, const mat4& inv_view, float aspect_ratio, float zoom) {
+    PROFILE_SCOPE_COLOR("shadow setup", legit::Colors::alizarin);
+
+    // todo use different up if sun pointing straight up or down
     mat4 sun_mat = lookAt(vec3(0.0f, 0.0f, 0.0f), -normalize(scene.sun_direction), vec3(0.0f, 1.0f, 0.0f));
 
     float tanHalfVFOV = tanf(radians(zoom / 2.0f));
@@ -539,6 +561,10 @@ void Renderer::depth_prepass(const mat4& viewproj) {
 }
 
 void Renderer::shadow_pass(Scene& scene) {
+    PROFILE_SCOPE_COLOR("CSM shadow pass", legit::Colors::pomegranate);
+
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+
     //p.SetCamera(Vector3f(0.0f, 0.0f, 0.0f), m_dirLight.Direction, Vector3f(0.0f, 1.0f, 0.0f));
     //GLuint csm_count;
     //glGetBufferSubData(GL_PARAMETER_BUFFER, 4, sizeof(GLuint), &csm_count);
@@ -635,6 +661,8 @@ void Renderer::shadow_pass(Scene& scene) {
 }
 
 void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const mat4& viewproj, const mat4& player_view, const mat4& cull_proj, bool wireframe) {
+    PROFILE_SCOPE_COLOR("draw", legit::Colors::belizeHole);
+
     glBindFramebuffer(GL_FRAMEBUFFER, render_target);
     glViewport(0, 0, scr_width, scr_height);
     glEnable(GL_DEPTH_TEST); // should be on already todo remove maybe
@@ -663,7 +691,9 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 
     Texture_Manager::bind(ssao_texture, 7); // todo once
     Texture_Manager::bind_array(csm_texture, 8); // todo once
-    scene.skybox.bind(9);
+    glActiveTexture(GL_TEXTURE0 + 9);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, scene.skybox.texture_id);
+
     shader->set_uint("num_skybox_mips", scene.skybox.num_mips);
 
     shader->set_mat4("vp", viewproj);
@@ -707,6 +737,9 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
     
     glBindBuffer(GL_PARAMETER_BUFFER, num_commands);
 
+    // we need updated buffers
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+
 #if BINDLESS
 
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, opaque_draw_commands);
@@ -724,13 +757,19 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
         sizeof(Draw_Elements_Indirect_Command)  // stride
     );
 
+
+    render_skybox(scene.skybox, view, cull_proj);
+
     // blended
+    shader = Shader_Manager::get_shader("indirect");
+    shader->use(); // already has correct uniforms for frame
     shader->set_bool("blend", true);
 
     glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glDepthMask(GL_FALSE);
+    glDisable(GL_CULL_FACE);
     //glEnable(GL_DEPTH_TEST); on already
 
     glBlendEquation(GL_FUNC_ADD);
@@ -789,6 +828,10 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
 
         glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, cmd.count, GL_UNSIGNED_INT, (void*)(cmd.first_index * sizeof(uint32_t)), cmd.instance_count, cmd.base_vertex, cmd.base_instance);
     }
+
+    //render_skybox(scene.skybox, view, cull_proj);
+    
+    // render blendeds 
 
 #endif
 
@@ -849,22 +892,22 @@ void Renderer::particle_pass(float delta_time, const mat4& proj, const mat4& vie
 }
 
 void Renderer::render_skybox(const Skybox& skybox, const mat4& view, const mat4& projection) {
+    // draw sky so blending works with it
     glDepthFunc(GL_GEQUAL);
     glDepthMask(GL_FALSE);
-    glDisable(GL_BLEND);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    //glDisable(GL_BLEND);
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     Shader* shader = Shader_Manager::get_shader("skybox");
     shader->use();
 
     mat4 viewNoTranslation = mat4(mat3(view));
-
-    // todo combine
     shader->set_mat4("view", viewNoTranslation);
     shader->set_mat4("projection", projection);
 
-    skybox.bind(0);
-    skybox.draw();
+    glActiveTexture(GL_TEXTURE30);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.texture_id);
+    glDrawArrays(GL_TRIANGLES, skybox.base_vertex, 36);
 }
 
 void Renderer::render_crosshair(const Crosshair& crosshair) {
@@ -888,6 +931,8 @@ void Renderer::render_hud_text(const Text& text) {
 }
 
 void Renderer::bloom_pass() {
+    PROFILE_SCOPE_COLOR("bloom", legit::Colors::turqoise);
+
     uint32_t texture_id = Texture_Manager::get_ogl_id(bright_texture);
 
     Compute_Shader* bloom_down = Shader_Manager::get_compute("bloomdown");
@@ -932,6 +977,8 @@ void Renderer::bloom_pass() {
 }
 
 void Renderer::ssao_pass(const mat4& proj, const mat4& inv_proj) {
+    PROFILE_SCOPE_COLOR("SSAO", legit::Colors::emerald);
+
     Compute_Shader* ssao = Shader_Manager::get_compute("ssao");
     ssao->use();
 
@@ -957,6 +1004,8 @@ void Renderer::ssao_pass(const mat4& proj, const mat4& inv_proj) {
 }
 
 void Renderer::composite() {
+    PROFILE_SCOPE_COLOR("composite", legit::Colors::greenSea);
+
     glBindFramebuffer(GL_FRAMEBUFFER, output_framebuffer);
     glViewport(0, 0, scr_width, scr_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

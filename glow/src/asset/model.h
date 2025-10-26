@@ -11,6 +11,7 @@
 class Model {
 public:
 	Model() = default;
+
 	Model(std::string name, std::vector<Mesh> meshes) : 
 		m_name(name), m_meshes(meshes)
 	{

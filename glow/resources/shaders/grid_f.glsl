@@ -104,4 +104,5 @@ void main() {
     Color.a *= OpacityFalloff;
     
     FragColor = Color;
+    BrightColor = vec4(0.0f);
 }

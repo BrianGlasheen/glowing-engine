@@ -1,4 +1,7 @@
 #include "physics.h"
+
+#include "asset/particle_manager.h"
+
 #include <iostream>
 #include <cstdarg>
 #include <thread>
@@ -482,6 +485,20 @@ namespace Physics {
             // Calculate hit point from ray fraction
             Vec3 hitPoint = joltOrigin + joltDir * maxDistance * result.mFraction;
             printf("Hit point: (%.2f, %.2f, %.2f)\n", hitPoint.GetX(), hitPoint.GetY(), hitPoint.GetZ());
+            //Particle_Paramaters a = {
+            //    vec3(hitPoint.GetX(), hitPoint.GetY(), hitPoint.GetZ()),
+            //    vec3(0.0f, 1.0f, 0.0f),  // Up
+            //    2.0f,
+            //    vec2(1.0f, 3.0f),
+            //    vec4(0.0f, 0.8f, 0.2f, 1.0f),     // Bright orange
+            //    vec4(0.8f, 0.1f, 0.0f, 0.0f),       // Dark red, fade out
+            //    vec3(0.0f, 2.0f, 0.0f),
+            //    vec3(1.5f, 0.5f, 1.5f),       // Spread outward
+            //    3.0f,
+            //    150.0f,
+            //    5000
+            //};
+            //Particle_Manager::add_effect("q", a, 1.0f);
 
             // Check if body is dynamic
             BodyInterface& bodyInterface = g_state.physicsSystem->GetBodyInterface();

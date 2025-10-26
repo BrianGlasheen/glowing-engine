@@ -2,20 +2,25 @@
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 BrightColor;
+layout(location = 2) out uint PickingId; // todo put behind #def prob
+layout(location = 3) out vec4 moment0; // b0, b1, b2, b3
+layout(location = 4) out vec4 moment1; // b4, b5, b6, transmittance
 
 in vec3 TexCoords;
 
-layout(binding = 0) uniform samplerCube skybox;
+layout(binding = 30) uniform samplerCube skybox;
 
-void main() {    
-    
-    //vec4 sky = texture(skybox, TexCoords);
-    //vec3 color = vec3(sky.x, sky.y, sky.z);
+// uniform vec3 view_dir;
+// uniform vec3 sun_dir;
+// uniform vec3 cam_pos;
 
-    //color = color / (color + vec3(1.0));
-    //color = pow(color, vec3(1.0/2.2));
-    
-    FragColor = texture(skybox, TexCoords);
-    //FragColor = vec4(vec3(color), sky.w);
-    BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+void main() {
+    bool mode = true;
+    if (mode) {
+        FragColor = texture(skybox, TexCoords);
+        BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    else {
+        // yes
+    }
 }

@@ -57,13 +57,14 @@ namespace Texture_Manager {
 
     void init() {
         //stbi_set_flip_vertically_on_load(true);
-         defaults.albedo = load("../resources/textures/missing.png");
-         defaults.normal = create_1x1_texture("normal", 128, 128, 255, 255);
-         defaults.emissive = create_1x1_texture("emissive", 0, 0, 0, 255);
-         defaults.met_rough = create_1x1_texture("met_rough", 0, 255, 0, 255);
-         defaults.ao = create_1x1_texture("ao", 255, 255, 255, 255);
+        // todo set base path
+        defaults.albedo = load("../resources/textures/missing.png");
+        defaults.normal = create_1x1_texture("normal", 128, 128, 255, 255);
+        defaults.emissive = create_1x1_texture("emissive", 0, 0, 0, 255);
+        defaults.met_rough = create_1x1_texture("met_rough", 0, 255, 0, 255);
+        defaults.ao = create_1x1_texture("ao", 255, 255, 255, 255);
 
-         assert(!textures.empty());
+        assert(!textures.empty());
         // todo set basepath
     }
 
