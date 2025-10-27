@@ -16,6 +16,7 @@ uniform mat4 view;
 uniform mat4 projection;
 
 out vec3 color;
+out vec2 out_pos;
 
 void main() {
     vec3 right = vec3(view[0][0], view[1][0], view[2][0]); // todo maybe size based on radius / strength
@@ -25,6 +26,7 @@ void main() {
     vec3 world_pos = pos + (aPos.x * right) + (aPos.y * up);
 
     color = lights[gl_InstanceID].color_strength.rgb;
-
+    
     gl_Position = projection * view * vec4(world_pos, 1.0);
+    out_pos = aPos.xy;
 }
