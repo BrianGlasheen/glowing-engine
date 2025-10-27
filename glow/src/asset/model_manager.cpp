@@ -148,7 +148,7 @@ namespace Model_Manager {
     static std::vector<Rigged_Vertex> g_rigged_vertices(0);
 
     static std::vector<Model> m_models(0);
-    static std::vector<std::string> m_indirect_model_names(0);
+    static std::vector<std::string> m_model_names(0);
     static std::vector<Animated_Model> m_animated_models(0);
     static std::vector<std::string> m_animated_model_names(0); // todo think about how to store names
 
@@ -185,8 +185,8 @@ namespace Model_Manager {
     }
 
     bool indirect_model_loaded(const std::string& full_path, model_handle& model_index) {
-        for (size_t i = 0; i < m_indirect_model_names.size(); i++) {
-            if (full_path == m_indirect_model_names[i]) {
+        for (size_t i = 0; i < m_model_names.size(); i++) {
+            if (full_path == m_model_names[i]) {
                 model_index = i;
                 return true;
             }
@@ -211,7 +211,7 @@ namespace Model_Manager {
         const std::string full_path = base_path + path;
 
         model_handle model_index;
-        if (indirect_model_loaded(full_path, model_index))
+        if (indirect_model_loaded(path, model_index))
             return model_index;
 
         Assimp::Importer import;
@@ -233,7 +233,7 @@ namespace Model_Manager {
         model_index = m_models.size();
 
         m_models.push_back(model_ind);
-        m_indirect_model_names.push_back(path);
+        m_model_names.push_back(path);
 
         printf("num verts after model %llu\n", g_vertices.size());
         printf("num idx after model %llu\n", g_indices.size());
@@ -251,7 +251,7 @@ namespace Model_Manager {
         const std::string full_path = base_path + path;
 
         model_handle model_index;
-        if (animated_model_loaded(full_path, model_index)) {
+        if (animated_model_loaded(path, model_index)) {
             printf("OYYOYOYOYOYOYOOY\n\n\n\n\nYOOO");
             Animated_Model loaded = m_animated_models[model_index];
             //num_skinned_bones += model.bone_count;
@@ -1060,18 +1060,6 @@ namespace Model_Manager {
         }
     }
 
-    Model& get_model(uint32_t idx) {
-        return m_models[idx];
-    }
-    
-    Animated_Model& get_animated_model(uint32_t idx) {
-        return m_animated_models[idx];
-    }
-
-    Util::AABB get_aabb_indirect(const model_handle& model_id) {
-        return m_models[model_id].get_aabb();
-    }
-
     void setup_buffers() {
         // todo move me!
         absolute_transforms.resize(num_skinned_bones);
@@ -1692,10 +1680,6 @@ namespace Model_Manager {
         return absolute_bone_transform_ssbo; 
     }
 
-    uint32_t get_num_animated_models() {
-        return m_animated_models.size();
-    }
-
     uint32_t get_animation_command_ssbo() {
         return animation_commands;
     }
@@ -1708,11 +1692,31 @@ namespace Model_Manager {
         return (uint32_t)g_vertices.size();
     }
 
+    Model& get_model(uint32_t idx) {
+        return m_models[idx];
+    }
+
+    Animated_Model& get_animated_model(uint32_t idx) {
+        return m_animated_models[idx];
+    }
+
+    Util::AABB get_aabb_indirect(const model_handle& model_id) {
+        return m_models[model_id].get_aabb();
+    }
+
+    uint32_t get_num_models() {
+        return (uint32_t)m_models.size();
+    }
+
+    uint32_t get_num_animated_models() {
+        return (uint32_t)m_animated_models.size();
+    }
+
     std::string get_model_name(model_handle model_id, bool animated) {
         if (animated)
             return m_animated_model_names[model_id];
         else
-            return m_indirect_model_names[model_id];
+            return m_model_names[model_id];
     }
 }
 

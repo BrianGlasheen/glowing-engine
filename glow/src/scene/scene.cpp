@@ -1,5 +1,7 @@
 #include "scene/scene.h"
 
+#include "glow_config.h"
+
 #include "asset/material_manager.h"
 
 #include "util/math.h"
@@ -50,7 +52,6 @@ void Scene::create_buffers() {
 }
 
 void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
-
     // todo 
     // here want to put entities into certain buckets
     // static geometry has its own buffer, maybe static geom isnt an entity, but should exist as its own object, but here in the scene (maybe anotehr function to add)
@@ -65,82 +66,83 @@ void Scene::include(Entity& ntitty) { // and maybe dont copy everything in Lol
         assert(false);
         timed_entities.push_back(ntitty); // maybe dont copy everything in, fine for now
     }
-    else { // todo move per object data here
+    else {
         entities.push_back(ntitty);
+        add_entity_to_gpu_buffers(ntitty);
+    }
+}
 
-        uint32_t index = gpu_entities.size();
-        GPU_Entity g;
-        g.transform = ntitty.get_model_matrix();
-        //g.animation_command_index = ntitty.is_animated ? Model_Manager::get_num_animation_commands() : 0xFFFFFFFF;
-        // todo set needs flag default
-        gpu_entities.push_back(g);
+void Scene::add_entity_to_gpu_buffers(Entity& ntitty) {
+    uint32_t index = gpu_entities.size();
+    GPU_Entity g = { 0 };
+    g.transform = ntitty.get_model_matrix();
+    //g.animation_command_index = ntitty.is_animated ? Model_Manager::get_num_animation_commands() : 0xFFFFFFFF;
+    // todo set needs flag default
+    gpu_entities.push_back(g);
+
+#if GPU_ANIMATION
+    if (ntitty.is_animated)
+        Model_Manager::submit_animation_command(ntitty.model_id);
+#endif
+    // if animated set flags
+    // add animation command to animation system with entity index
+    //void submit_animation_command(uint32_t model_id)
+    //n_cmds
+
+    // todo EW!
+    const std::vector<Mesh>& meshes = ntitty.is_animated
+        ? Model_Manager::get_animated_model(ntitty.model_id).m_meshes
+        : Model_Manager::get_model(ntitty.model_id).m_meshes;
+
+    uint32_t skinned_to_static_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).animation_offset : 0xFFFFFFFF;
+    uint32_t bone_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).bone_offset : 0xFFFFFFFF;
+
+    for (const Mesh& m : meshes) {
+        const Material& mater = m.material;
+
+        GPU_Mesh gpu_m = {
+            .transform = m.transform,
+            .base_vertex = (int32_t)m.base_vertex,
+            .vertex_count = m.vertex_count,
+            .base_index = m.base_index,
+            .index_count = m.index_count,
+            .bounding_sphere = m.bounding_sphere,
+            .entity_index = index,
+            .skinned_to_static_offset = skinned_to_static_offset,
+            .bone_offset = bone_offset,
+            .transparent = mater.blend_mode != Blend_Mode::disabled ? 1u : 0u
+        };
+        gpu_m.bounding_sphere.w *= std::max(ntitty.m_scale.x, std::max(ntitty.m_scale.y, ntitty.m_scale.z));
 
         if (ntitty.is_animated)
-            Model_Manager::submit_animation_command(ntitty.model_id);
+            animated_mesh_to_all_mesh_mapping.push_back(gpu_meshes.size());
 
-        // if animated set flags
-        // add animation command to animation system with entity index
-        //void submit_animation_command(uint32_t model_id)
-        //n_cmds
+        gpu_meshes.push_back(gpu_m);
 
-        // todo EW!
-        const std::vector<Mesh>& meshes = ntitty.is_animated
-            ? Model_Manager::get_animated_model(ntitty.model_id).m_meshes
-            : Model_Manager::get_model(ntitty.model_id).m_meshes;
+        //printf("[%u] sphere %f %f %f %f\n", index, gpu_m.bounding_sphere.x, gpu_m.bounding_sphere.y, gpu_m.bounding_sphere.z, gpu_m.bounding_sphere.w);
 
-        uint32_t skinned_to_static_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).animation_offset : 0xFFFFFFFF;
-        uint32_t bone_offset = ntitty.is_animated ? Model_Manager::get_animated_model(ntitty.model_id).bone_offset : 0xFFFFFFFF;
-
-        for (const Mesh& m : meshes) {
-            const Material& mater = m.material;
-            
-            GPU_Mesh gpu_m = {
-                .transform = m.transform,
-                .base_vertex = (int32_t)m.base_vertex,
-                .vertex_count = m.vertex_count,
-                .base_index = m.base_index,
-                .index_count = m.index_count,
-                .bounding_sphere = m.bounding_sphere,
-                .entity_index = index,
-                .skinned_to_static_offset = skinned_to_static_offset,
-                .bone_offset = bone_offset,
-                .transparent = mater.blend_mode != Blend_Mode::disabled ? 1u : 0u
-            };
-            gpu_m.bounding_sphere.w *= std::max(ntitty.m_scale.x, std::max(ntitty.m_scale.y, ntitty.m_scale.z));
-
-            if (ntitty.is_animated)
-                animated_mesh_to_all_mesh_mapping.push_back(gpu_meshes.size());
-            
-            gpu_meshes.push_back(gpu_m);
-
-            //printf("[%u] sphere %f %f %f %f\n", index, gpu_m.bounding_sphere.x, gpu_m.bounding_sphere.y, gpu_m.bounding_sphere.z, gpu_m.bounding_sphere.w);
-
-            Per_Object_Data obj_data = { 0 };
-            // obj_data.model_matrix = g.transform * m.transform; // todo write in gpu
-            obj_data.normal_matrix = transpose(inverse(obj_data.model_matrix));
-            obj_data.albedo = mater.albedo;
-            obj_data.normal = mater.normal;
-            obj_data.met_rough = mater.met_rough;
-            obj_data.emissive = mater.emissive;
-            obj_data.amb_occ = mater.amb_occ;
-            obj_data.emissive_factor = mater.emissive_factor;
-            obj_data.metallic_factor = mater.metallic_factor; // 4
-            obj_data.roughness_factor = mater.roughness_factor; // 4
-            obj_data.base_color = mater.base_color;
-            obj_data.alpha_cutoff = mater.alpha_cutoff;
-            obj_data.id = (uint32_t)(entities.size() - 1);
-            per_mesh_data.push_back(obj_data);
-        }
+        Per_Object_Data obj_data = { 0 };
+        obj_data.model_matrix = g.transform * m.transform; // gets written in gpu when entity changes pos
+        obj_data.normal_matrix = transpose(inverse(obj_data.model_matrix));
+        obj_data.albedo = mater.albedo;
+        obj_data.normal = mater.normal;
+        obj_data.met_rough = mater.met_rough;
+        obj_data.emissive = mater.emissive;
+        obj_data.amb_occ = mater.amb_occ;
+        obj_data.emissive_factor = mater.emissive_factor;
+        obj_data.metallic_factor = mater.metallic_factor; // 4
+        obj_data.roughness_factor = mater.roughness_factor; // 4
+        obj_data.base_color = mater.base_color;
+        obj_data.alpha_cutoff = mater.alpha_cutoff;
+        obj_data.id = index;
+        per_mesh_data.push_back(obj_data);
     }
 }
 
 void Scene::upload_buffers() {
     glNamedBufferSubData(gpu_mesh_ssbo, 0, sizeof(GPU_Mesh) * gpu_meshes.size(), gpu_meshes.data());
-
     glNamedBufferSubData(gpu_entity_ssbo, 0, sizeof(GPU_Entity) * gpu_entities.size(), gpu_entities.data());
-
     glNamedBufferSubData(per_mesh_ssbo, 0, sizeof(Per_Object_Data) * per_mesh_data.size(), per_mesh_data.data());
-
     glNamedBufferSubData(animated_mesh_to_all_mesh_mapping_ssbo, 0, sizeof(uint32_t) * animated_mesh_to_all_mesh_mapping.size(), animated_mesh_to_all_mesh_mapping.data());
 }
 
@@ -163,6 +165,18 @@ void Scene::update_dirty() {
             entity.is_dirty = false;
         }
     }
+}
+
+void Scene::refresh() {
+    gpu_entities.clear();
+    gpu_meshes.clear();
+    per_mesh_data.clear();
+    animated_mesh_to_all_mesh_mapping.clear();
+
+    for (Entity& e : entities)
+        add_entity_to_gpu_buffers(e);
+
+    upload_buffers();
 }
 
 namespace YAML {

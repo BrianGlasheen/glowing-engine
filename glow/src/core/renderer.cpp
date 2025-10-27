@@ -809,7 +809,7 @@ void Renderer::draw(Scene& scene, const vec3& view_pos, const mat4& view, const 
         Per_Object_Data pod = scene.per_mesh_data[cmd.base_instance];
 
         Defaults def = Texture_Manager::get_defaults();
-        Texture_Manager::bind(pod.albedo != 0 ? pod.albedo : def.albedo, 1, 0); // pink black
+        Texture_Manager::bind(pod.albedo != 0 ? pod.albedo : def.albedo, 0); // pink black
         //Texture_Manager::bind(pod.normal != 0 ? pod.normal : def.normal, 1);
         //Texture_Manager::bind(pod.met_rough != 0 ? pod.met_rough : def.met_rough, 2);
         //Texture_Manager::bind(pod.emissive != 0 ? pod.emissive : def.emissive, 3);
@@ -1036,10 +1036,8 @@ void Renderer::composite() {
 void Renderer::blit_to_screen() {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, output_framebuffer);
 
-    // Bind the destination (default framebuffer — the screen)
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // 0 is default framebuffer
 
-    // Blit the color buffer from composite FBO to screen
     glBlitFramebuffer(
         0, 0, scr_width, scr_height,        // src rect
         0, 0, scr_width, scr_height,        // dst rect

@@ -1,4 +1,8 @@
 SHOULD
+    entity flags
+    drop down with mesh/model/stuff in scene viewer
+    right side inspector
+    fix file browser
     drag n drop stuff into editor
     delete things from editor
     selection of lights

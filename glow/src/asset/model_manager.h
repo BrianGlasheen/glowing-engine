@@ -83,14 +83,14 @@ namespace Model_Manager {
     Animated_Model& get_animated_model(uint32_t idx);
     std::string get_model_name(model_handle model_id, bool animated);
     Util::AABB get_aabb_indirect(const model_handle& model_id);
-
     uint32_t get_big_vao();
     uint32_t get_bone_ssbo();
     uint32_t get_skinned_bone_ssbo();
     uint32_t get_absolute_bones();
     uint32_t get_animation_command_ssbo();
-    uint32_t get_num_animated_models();
     uint32_t get_num_vertices();
+    uint32_t get_num_models();
+    uint32_t get_num_animated_models();
 
     void compare_animation_data(uint32_t first, uint32_t second);
 }

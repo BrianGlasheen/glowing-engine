@@ -11,6 +11,8 @@
 #include <glm/ext/quaternion_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#define PI 3.14159265358979323846f
+
 using glm::mat2;
 using glm::mat3;
 using glm::mat4;

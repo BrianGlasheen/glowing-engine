@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 
@@ -16,6 +16,7 @@
 #include "util/colors.h"
 #include "core/camera.h"
 #include "util/decompose.h"
+#include "util/math.h"
 
 #include "editor/themes.h"
 
@@ -309,8 +310,9 @@ public:
 
         main_view();
         asset_browser();
-        renderer_imgui();
         scene_imgui(scene);
+        renderer_imgui();
+        inspector(scene);
     }
 
     void main_view() {
@@ -631,12 +633,127 @@ public:
         ImGui::End();
     }
 
-    //void render() {
-    //    //renderer.render_scene_editor(player, scene, delta_time);
+    void inspector(Scene& scene) {
+        if (ImGui::Begin("Inspector")) {
+            if (selected < 0 || selected >= scene.entities.size()) {
+                ImGui::Text("Click something");
+            }
+            else {
+                Entity& entity = scene.entities[selected];
+                ImGui::Text("Entity Index: %d", selected);
+                ImGui::Separator();
 
-    //    render_selected_outlined(player, scene);
+                if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Text("Position");
+                    ImGui::PushItemWidth(80);
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "X"); ImGui::SameLine();
+                    ImGui::DragFloat("##PosX", &entity.position.x, 0.1f); ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Y"); ImGui::SameLine();
+                    ImGui::DragFloat("##PosY", &entity.position.y, 0.1f); ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 0, 1, 1), "Z"); ImGui::SameLine();
+                    ImGui::DragFloat("##PosZ", &entity.position.z, 0.1f);
+                    ImGui::PopItemWidth();
 
-    //}
+                    vec3 euler = glm::eulerAngles(entity.rotation) * (180.0f / PI);
+                    ImGui::Text("Rotation");
+                    ImGui::PushItemWidth(80);
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "X"); ImGui::SameLine();
+                    float euler_x = euler.x;
+                    if (ImGui::DragFloat("##RotX", &euler_x, 1.0f)) {
+                        euler.x = euler_x;
+                        entity.rotation = quat(euler * (PI / 180.0f));
+                    }
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Y"); ImGui::SameLine();
+                    float euler_y = euler.y;
+                    if (ImGui::DragFloat("##RotY", &euler_y, 1.0f)) {
+                        euler.y = euler_y;
+                        entity.rotation = quat(euler * (PI / 180.0f));
+                    }
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 0, 1, 1), "Z"); ImGui::SameLine();
+                    float euler_z = euler.z;
+                    if (ImGui::DragFloat("##RotZ", &euler_z, 1.0f)) {
+                        euler.z = euler_z;
+                        entity.rotation = quat(euler * (PI / 180.0f));
+                    }
+                    ImGui::PopItemWidth();
+
+                    ImGui::Text("Scale");
+                    ImGui::SameLine();
+                    static bool scale_locked = true;
+                    if (ImGui::Button(scale_locked ? "Locked" : "Unlocked")) {
+                        scale_locked = !scale_locked;
+                    }
+                    ImGui::PushItemWidth(80);
+                    ImGui::TextColored(ImVec4(1, 0, 0, 1), "X"); ImGui::SameLine();
+                    float prev_scale_x = entity.m_scale.x;
+                    if (ImGui::DragFloat("##ScaleX", &entity.m_scale.x, 0.01f)) {
+                        if (scale_locked) {
+                            float ratio = entity.m_scale.x / prev_scale_x;
+                            entity.m_scale.y *= ratio;
+                            entity.m_scale.z *= ratio;
+                        }
+                    }
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Y"); ImGui::SameLine();
+                    float prev_scale_y = entity.m_scale.y;
+                    if (ImGui::DragFloat("##ScaleY", &entity.m_scale.y, 0.01f)) {
+                        if (scale_locked) {
+                            float ratio = entity.m_scale.y / prev_scale_y;
+                            entity.m_scale.x *= ratio;
+                            entity.m_scale.z *= ratio;
+                        }
+                    }
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0, 0, 1, 1), "Z"); ImGui::SameLine();
+                    float prev_scale_z = entity.m_scale.z;
+                    if (ImGui::DragFloat("##ScaleZ", &entity.m_scale.z, 0.01f)) {
+                        if (scale_locked) {
+                            float ratio = entity.m_scale.z / prev_scale_z;
+                            entity.m_scale.x *= ratio;
+                            entity.m_scale.y *= ratio;
+                        }
+                    }
+                    ImGui::PopItemWidth();
+                }
+
+                if (ImGui::BeginCombo("Model", Model_Manager::get_model_name(entity.model_id, entity.is_animated).c_str())) {
+                    uint32_t num_models = Model_Manager::get_num_models();
+                    
+                    for (uint32_t model = 0; model < num_models; model++) {
+                        bool is_selected = (model == entity.model_id && !entity.is_animated);
+                        if (ImGui::Selectable(Model_Manager::get_model_name(model, false).c_str(), is_selected)) {
+                            entity.model_id = model;
+                            entity.is_animated = false;
+                            entity.animated_model = nullptr;
+                            scene.refresh();
+                        }
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+
+                    //if () {
+                    //    ImGui::Separator();
+                    //}
+
+                    // animated models
+
+                    ImGui::EndCombo();
+                }
+
+                if (ImGui::CollapsingHeader("Physics", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Checkbox("Physics Enabled", &entity.physics_enabled);
+                    if (entity.physics_enabled) {
+                        // change physics properties
+                        //ImGui::Text("Body ID: %u", entity.physics_id.GetIndexAndSequenceNumber());
+                    }
+                }
+            }
+        }
+        ImGui::End();
+    }
 
     void render_selected_outlined(const Scene& scene, const mat4& vp) {
         if (selected < 0 || selected > (scene.entities.size() - 1)) return;

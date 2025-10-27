@@ -42,10 +42,14 @@ public:
 
     void init(const std::string& path);
     void create_buffers();
+    
     void include(Entity& ntitty);
+    void add_entity_to_gpu_buffers(Entity& ntitty);
+    void refresh();
+
     void upload_buffers();
     void update_dirty();
-    void imgui();
+
     void serialize(std::string path = "../resources/scenes/scene.yaml");
     void load_from_file(std::string path = "../resources/scenes/scene.yaml");
     // returns the number of hits
